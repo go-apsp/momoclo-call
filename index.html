@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>ももクロ コール共有</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f5fa; --ink: #1d1b2e; --sub: #6b6880; --card: #ffffff; --line: #e4e2ee;
+    --red: #e8383d; --yellow: #f6c21c; --pink: #f26ca7; --purple: #8a4fc8;
+    --accent: var(--purple);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #15131f; --ink: #f1eff8; --sub: #a09cb8; --card: #201d2f; --line: #34304a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif; line-height: 1.6; }
+  .stripe { height: 6px; background: linear-gradient(90deg, var(--red) 25%, var(--yellow) 25% 50%, var(--pink) 50% 75%, var(--purple) 75%); }
+  main { max-width: 760px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; font-weight: 900; margin: 8px 0 12px; }
+  h2 { font-size: 16px; font-weight: 700; margin: 0 0 8px; }
+  .video { position: relative; padding-bottom: 56.25%; height: 0; border-radius: 10px; overflow: hidden; background: #000; }
+  .video iframe { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #now { margin: 12px 0; min-height: 96px; padding: 14px; border-radius: 10px; background: var(--card); border-left: 8px solid var(--accent); display: flex; align-items: center; justify-content: center; text-align: center; font-size: clamp(24px, 7vw, 40px); font-weight: 900; }
+  #now.idle { font-size: 14px; font-weight: 400; color: var(--sub); }
+  #now small { display: block; font-size: 12px; font-weight: 400; color: var(--sub); }
+  .panel { background: var(--card); border-radius: 10px; padding: 14px; margin: 12px 0; }
+  input[type=text] { width: 100%; padding: 10px; margin: 4px 0; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  button { padding: 9px 14px; margin: 4px 6px 4px 0; font: inherit; font-weight: 700; border: none; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; }
+  button.sub { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .t { font-variant-numeric: tabular-nums; color: var(--sub); }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  li .txt { flex: 1; font-weight: 700; }
+  li .who { font-size: 12px; color: var(--sub); }
+  .note { font-size: 12px; color: var(--sub); }
+  #err { display: none; color: var(--red); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<main>
+  <h1>ももクロ コール共有</h1>
+  <p><label class="note">曲を選ぶ <select id="song" style="font:inherit;padding:6px;max-width:100%"></select></label></p>
+
+  <div class="video"><div id="player"></div></div>
+  <p id="embed-err" class="note" style="display:none">この動画は埋め込み再生できませんでした。<a id="yt-link" target="_blank" rel="noopener">YouTubeで開く</a></p>
+  <p class="note">動画が表示されないときは <a id="yt-link2" href="https://www.youtube.com/watch?v=u7z9M0vFPbI" target="_blank" rel="noopener">YouTubeで開く</a></p>
+
+  <div id="now" class="idle">再生すると、ここにコールが出ます</div>
+
+  <section class="panel">
+    <h2>コール案を投稿する</h2>
+    <div class="row"><span>現在位置 <span id="cur" class="t">0:00.0</span></span>
+      <span><button class="sub" id="back">−0.5秒</button><button class="sub" id="fwd">+0.5秒</button></span></div>
+    <input type="range" id="seek" min="0" max="300" step="0.1" value="0" aria-label="再生位置">
+    <input type="text" id="in-name" maxlength="20" placeholder="ニックネーム">
+    <input type="text" id="in-text" maxlength="40" placeholder="コール(例: タイガー! ファイヤー!)">
+    <button id="add">今の位置で投稿</button>
+    <button class="sub" id="pause">再生 / 一時停止</button>
+    <p id="err"></p>
+    <p class="note">動画を止めて位置を合わせてから投稿すると正確です。歌詞の全文は書かず、コールの部分だけを入れてください。</p>
+  </section>
+
+  <section class="panel">
+    <h2>みんなのコール案</h2>
+    <ul id="list"><li class="note">まだ投稿がありません。最初の1件を入れてみましょう。</li></ul>
+  </section>
+</main>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getFirestore, collection, addDoc, query, where, onSnapshot, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBWmghjT5uh-awZEyvi53rYPe8Y8Gf2ICA",
+  authDomain: "momoclo-call.firebaseapp.com",
+  projectId: "momoclo-call",
+  storageBucket: "momoclo-call.firebasestorage.app",
+  messagingSenderId: "972978318918",
+  appId: "1:972978318918:web:921e911bc2a29571f62447"
+};
+const db = getFirestore(initializeApp(firebaseConfig));
+
+const SONGS = [
+  { id: "u7z9M0vFPbI", title: "行くぜっ!怪盗少女" },
+  { id: "tCD81ACqUYk", title: "走れ!-PLAY ACTIVE!2022 ver.-" },
+  { id: "_qxHz8vH5KM", title: "レナセールセレナーデ" },
+  { id: "XN4RSUj15TE", title: "Event Horizon" },
+  { id: "40zYdYskPf4", title: "PLAY!(LIVE MV)" }
+];
+let VIDEO_ID = SONGS[0].id;       // 公式チャンネルのMV
+const SHOW_SEC = 3;               // 投稿位置からこの秒数のあいだ表示
+const $ = id => document.getElementById(id);
+let calls = [], player = null, dragging = false;
+
+const fmt = t => Math.floor(t / 60) + ":" + (t % 60).toFixed(1).padStart(4, "0");
+const showErr = m => { $("err").textContent = m; $("err").style.display = m ? "block" : "none"; };
+
+// 共有データの読み込み(リアルタイム)
+let unsub = null;
+function subscribe() {
+  if (unsub) unsub();
+  calls = []; renderList();
+  unsub = onSnapshot(query(collection(db, "calls"), where("videoId", "==", VIDEO_ID)),
+    snap => { calls = snap.docs.map(d => d.data()); renderList(); },
+    e => showErr("コールを読み込めませんでした。しばらくして再読み込みしてください。"));
+}
+const sel = $("song");
+SONGS.forEach(s => { const o = document.createElement("option"); o.value = s.id; o.textContent = s.title; sel.appendChild(o); });
+sel.onchange = () => {
+  VIDEO_ID = sel.value;
+  $("embed-err").style.display = "none";
+  $("yt-link2").href = "https://www.youtube.com/watch?v=" + VIDEO_ID;
+  if (player) player.loadVideoById(VIDEO_ID);
+  subscribe();
+};
+subscribe();
+
+function renderList() {
+  const ul = $("list"); ul.innerHTML = "";
+  if (!calls.length) { ul.innerHTML = '<li class="note">まだ投稿がありません。最初の1件を入れてみましょう。</li>'; return; }
+  [...calls].sort((a, b) => a.time - b.time).forEach(c => {
+    const li = document.createElement("li");
+    const t = document.createElement("span"); t.className = "t"; t.textContent = fmt(c.time);
+    const box = document.createElement("div"); box.className = "txt"; box.textContent = c.text;
+    const who = document.createElement("div"); who.className = "who"; who.textContent = c.name + " さんのコール案";
+    box.appendChild(who);
+    const go = document.createElement("button"); go.className = "sub"; go.textContent = "ここへ移動";
+    go.onclick = () => player && player.seekTo(Math.max(0, c.time - 1), true);
+    li.append(t, box, go); ul.appendChild(li);
+  });
+}
+
+// YouTube プレイヤー
+function createPlayer() {
+  if (player) return;
+  player = new YT.Player("player", {
+    videoId: VIDEO_ID,
+    playerVars: { rel: 0, playsinline: 1, origin: location.origin, widget_referrer: location.href },
+    events: {
+      onReady: () => { const d = player.getDuration(); if (d) $("seek").max = d; setInterval(tick, 250); },
+      onError: () => { $("embed-err").style.display = "block"; $("yt-link").href = "https://www.youtube.com/watch?v=" + VIDEO_ID; }
+    }
+  });
+}
+// APIが先に読み込み済みでも、後から読み込まれても動くようにする
+window.onYouTubeIframeAPIReady = createPlayer;
+if (window.YT && window.YT.Player) createPlayer();
+
+function tick() {
+  if (!player || !player.getCurrentTime) return;
+  const t = player.getCurrentTime();
+  const dur = player.getDuration();
+  if (dur && +$("seek").max !== dur) $("seek").max = dur;
+  $("cur").textContent = fmt(t);
+  if (!dragging) $("seek").value = t;
+  const now = $("now");
+  const active = calls.filter(c => t >= c.time && t < c.time + SHOW_SEC);
+  if (!active.length) { now.className = "idle"; now.textContent = "コールの位置になると、ここに出ます"; return; }
+  now.className = ""; now.innerHTML = "";
+  const wrap = document.createElement("div");
+  active.forEach(c => {
+    const d = document.createElement("div"); d.textContent = c.text;
+    const s = document.createElement("small"); s.textContent = c.name + " さんのコール案";
+    d.appendChild(s); wrap.appendChild(d);
+  });
+  now.appendChild(wrap);
+}
+
+const seek = $("seek");
+seek.addEventListener("input", () => { dragging = true; $("cur").textContent = fmt(+seek.value); });
+seek.addEventListener("change", () => { dragging = false; player.seekTo(+seek.value, true); });
+$("back").onclick = () => player.seekTo(Math.max(0, player.getCurrentTime() - 0.5), true);
+$("fwd").onclick = () => player.seekTo(player.getCurrentTime() + 0.5, true);
+$("pause").onclick = () => player.getPlayerState() === YT.PlayerState.PLAYING ? player.pauseVideo() : player.playVideo();
+
+$("add").onclick = async () => {
+  const text = $("in-text").value.trim();
+  const name = $("in-name").value.trim() || "名無し";
+  if (!text) { showErr("コールを入力してください。"); return; }
+  if (!player) { showErr("動画の準備ができるまで少し待ってください。"); return; }
+  showErr("");
+  try {
+    await addDoc(collection(db, "calls"), {
+      videoId: VIDEO_ID, time: +player.getCurrentTime().toFixed(1),
+      text: text.slice(0, 40), name: name.slice(0, 20), createdAt: serverTimestamp()
+    });
+    $("in-text").value = "";
+  } catch (e) { showErr("投稿できませんでした。通信を確認して、もう一度お試しください。"); }
+};
+</script>
+</body>
+</html>
