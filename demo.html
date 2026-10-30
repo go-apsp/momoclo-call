@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>コール共有アプリ デモ</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; background: #fff7fb; color: #333; }
+  header { padding: 12px 16px; background: #ff5fa2; color: #fff; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+  header button { border: 0; border-radius: 16px; padding: 6px 12px; font-weight: bold; background: #fff; color: #ff5fa2; }
+  main { max-width: 960px; margin: 0 auto; padding: 12px; display: grid; gap: 12px; grid-template-columns: 1fr; }
+  @media (min-width: 800px) { main { grid-template-columns: 1.4fr 1fr; } }
+  .panel { background: #fff; border-radius: 14px; padding: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+  h2 { font-size: 15px; margin: 0 0 8px; }
+
+  .stage { position: relative; aspect-ratio: 16/9; background: linear-gradient(135deg,#2b2d5b,#6b3a8a); border-radius: 12px; overflow: hidden; color: #fff; }
+  .stage .mvlabel { position: absolute; top: 8px; left: 12px; font-size: 12px; opacity: .8; }
+  .stage .time { position: absolute; bottom: 8px; right: 12px; font-size: 13px; }
+
+  .card { position: absolute; left: 50%; top: 50%; width: 80%; text-align: center; opacity: 0; pointer-events: none;
+          transform: translate(-50%,-50%) scale(.8); transition: opacity .3s, transform .3s; }
+  .card.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+
+  .call-card .text { font-size: clamp(22px,6vw,40px); font-weight: 900; letter-spacing: .08em; text-shadow: 0 2px 0 #ff5fa2, 0 0 14px #ffd166; }
+  .crowd { margin-top: 6px; font-size: clamp(18px,5vw,30px); animation: bounce .6s infinite alternate; }
+  @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-8px); } }
+
+  .sing-card .box { display: inline-block; padding: 10px 18px; border-radius: 16px; background: rgba(255,255,255,.93); color: #3a2a6b; border: 3px solid #7ad7f0; }
+  .sing-card .tag { font-size: 12px; font-weight: bold; color: #1fa3c9; }
+  .sing-card .lyric { font-size: clamp(18px,5vw,30px); font-weight: bold; }
+
+  .like-card { width: 70%; }
+  .like-card .area { position: relative; display: inline-block; padding: 14px 24px; border-radius: 20px;
+                     background: radial-gradient(circle, rgba(255,255,255,.96), rgba(255,215,232,.85)); }
+  .like-card svg { width: clamp(170px,48vw,280px); height: auto; display: block; }
+  .spark { position: absolute; font-size: 18px; animation: float 1.6s infinite ease-in-out; }
+  .spark:nth-child(1) { left: -6px; top: 4px; }
+  .spark:nth-child(2) { right: -4px; top: -2px; animation-delay: .4s; }
+  .spark:nth-child(3) { left: 14px; bottom: -6px; animation-delay: .8s; }
+  .spark:nth-child(4) { right: 10px; bottom: -4px; animation-delay: 1.2s; }
+  @keyframes float { 0%,100% { transform: translateY(0) scale(1); opacity: .9; } 50% { transform: translateY(-8px) scale(1.2); opacity: 1; } }
+
+  .controls { margin-top: 8px; display: flex; gap: 8px; align-items: center; }
+  .controls button { border: 0; border-radius: 10px; padding: 8px 14px; font-weight: bold; background: #ff5fa2; color: #fff; }
+  .controls input[type=range] { flex: 1; }
+
+  .plan { border: 2px solid #f3d3e3; border-radius: 12px; padding: 8px 10px; margin-bottom: 8px; cursor: pointer; }
+  .plan.active { border-color: #ff5fa2; background: #fff0f7; }
+  .plan .top { display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+  .heart { border: 0; background: none; font-size: 15px; color: #e53950; font-weight: bold; }
+  .note { margin-top: 4px; font-size: 12px; color: #666; }
+  .comment { font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; gap: 6px; color: #444; }
+  .comment button { font-size: 11px; border: 1px solid #ccc; background: #fff; border-radius: 8px; }
+  .hidden { display: none; }
+  .login-hint { font-size: 12px; background: #fff3cd; border-radius: 8px; padding: 6px 8px; margin-top: 8px; }
+  .share { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .share button { border: 0; border-radius: 10px; padding: 6px 10px; font-size: 12px; font-weight: bold; color: #fff; }
+  .x { background: #111; } .line { background: #06c755; } .copy { background: #888; }
+</style>
+</head>
+<body>
+
+<header>
+  <span>🎤 コール共有アプリ(デモ)</span>
+  <button id="loginBtn">Googleでログイン</button>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>行くぜっ!怪盗少女(MVの代わりのデモ画面)</h2>
+    <div class="stage" id="stage">
+      <div class="mvlabel">▶ ここにYouTubeのMVが入ります</div>
+
+      <div class="card call-card" id="callCard">
+        <div class="text" id="callText">タイガー!ファイヤー!</div>
+        <div class="crowd">🙌🙌🙌🙌🙌🙌</div>
+      </div>
+
+      <div class="card sing-card" id="singCard">
+        <div class="box">
+          <div class="tag">🎶 みんなで歌おう</div>
+          <div class="lyric" id="singText">ララララ〜♪</div>
+        </div>
+      </div>
+
+      <div class="card like-card" id="likeCard">
+        <div class="area">
+          <svg viewBox="0 0 300 90" xmlns="http://www.w3.org/2000/svg">
+            <text x="150" y="62" text-anchor="middle" font-size="54" font-weight="900"
+                  font-family="'Hiragino Maru Gothic ProN','Noto Sans JP',sans-serif"
+                  fill="#ff5fa2" stroke="#fff" stroke-width="8" paint-order="stroke">ココ好き!</text>
+          </svg>
+          <span class="spark">💗</span><span class="spark">✨</span><span class="spark">✨</span><span class="spark">💗</span>
+        </div>
+      </div>
+
+      <div class="time" id="timeLabel">0:00</div>
+    </div>
+
+    <div class="controls">
+      <button id="playBtn">▶ 再生</button>
+      <input type="range" id="seek" min="0" max="60" value="0">
+    </div>
+    <div class="login-hint" id="loginHint">ログインしなくても見られます。登録やハートは、ログインしてからできます。</div>
+    <div class="share">
+      <button class="x" onclick="alert('デモ:Xに共有されます')">Xで共有</button>
+      <button class="line" onclick="alert('デモ:LINEで共有されます')">LINEで共有</button>
+      <button class="copy" onclick="alert('デモ:この案のアドレスをコピーします')">アドレスをコピー</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>みんなの案(タップで切り替え)</h2>
+    <div id="plans"></div>
+  </section>
+</main>
+
+<script>
+  // 案のデータ(デモ用)。時間は秒。
+  const plans = [
+    { name: "Aさん", hearts: 12, note: "初見の人向けの基本コールです。",
+      comments: [{t:"めっちゃ分かりやすい!", show:true}, {t:"微妙", show:false}],
+      events: [
+        {at:8,  end:14, type:"call", text:"タイガー!ファイヤー!"},
+        {at:20, end:26, type:"sing", text:"ララララ〜♪"},
+        {at:32, end:38, type:"like"}
+      ]},
+    { name: "Bさん", hearts: 5, note: "ライブ向けの盛り上げ多めの案。",
+      comments: [{t:"ライブで使いたい!", show:true}],
+      events: [
+        {at:5,  end:11, type:"call", text:"ハイ!ハイ!ハイ!"},
+        {at:28, end:34, type:"like"},
+        {at:44, end:50, type:"sing", text:"せーの!"}
+      ]},
+    { name: "Cさん", hearts: 8, note: "ココ好きだけを集めた案です。",
+      comments: [],
+      events: [
+        {at:12, end:18, type:"like"},
+        {at:36, end:42, type:"like"}
+      ]}
+  ];
+
+  let current = 0, playing = false, t = 0, timer = null, loggedIn = false;
+  const liked = new Set();
+
+  const seek = document.getElementById('seek');
+  const timeLabel = document.getElementById('timeLabel');
+  const cards = {
+    call: document.getElementById('callCard'),
+    sing: document.getElementById('singCard'),
+    like: document.getElementById('likeCard')
+  };
+
+  function renderPlans() {
+    const box = document.getElementById('plans');
+    box.innerHTML = '';
+    plans.forEach((p, i) => {
+      const div = document.createElement('div');
+      div.className = 'plan' + (i === current ? ' active' : '');
+      let commentsHtml = '';
+      p.comments.forEach((c, ci) => {
+        commentsHtml += '<div class="comment' + (c.show ? '' : ' hidden') + '" id="c' + i + '_' + ci + '"><span>💬 ' + c.t + '</span>'
+          + '<button onclick="event.stopPropagation(); toggleComment(' + i + ',' + ci + ')">非表示にする</button></div>';
+      });
+      div.innerHTML =
+        '<div class="top"><span>' + p.name + 'の案</span>'
+        + '<button class="heart" onclick="event.stopPropagation(); like(' + i + ')">'
+        + (liked.has(i) ? '❤️' : '♡') + ' ' + p.hearts + '</button></div>'
+        + '<div class="note">📝 備考:' + p.note + '</div>' + commentsHtml;
+      div.onclick = () => { current = i; renderPlans(); update(); };
+      box.appendChild(div);
+    });
+  }
+
+  function like(i) {
+    if (!loggedIn) { alert('ハートを押すにはログインしてね(デモ)'); return; }
+    if (liked.has(i)) { alert('ハートは1人1回までです'); return; }
+    liked.add(i); plans[i].hearts++; renderPlans();
+  }
+
+  function toggleComment(i, ci) {
+    plans[i].comments[ci].show = !plans[i].comments[ci].show;
+    alert('デモ:感想の表示を切り替えます(持ち主だけの操作)');
+    renderPlans();
+  }
+
+  function fmt(s) { return Math.floor(s/60) + ':' + String(Math.floor(s%60)).padStart(2,'0'); }
+
+  function update() {
+    seek.value = t;
+    timeLabel.textContent = fmt(t);
+    Object.values(cards).forEach(c => c.classList.remove('show'));
+    const ev = plans[current].events.find(e => t >= e.at && t < e.end);
+    if (!ev) return;
+    if (ev.type === 'call') { document.getElementById('callText').textContent = ev.text; cards.call.classList.add('show'); }
+    if (ev.type === 'sing') { document.getElementById('singText').textContent = ev.text; cards.sing.classList.add('show'); }
+    if (ev.type === 'like') { cards.like.classList.add('show'); }
+  }
+
+  document.getElementById('playBtn').onclick = function () {
+    playing = !playing;
+    this.textContent = playing ? '⏸ 一時停止' : '▶ 再生';
+    clearInterval(timer);
+    if (playing) timer = setInterval(() => { t = (t + 0.5) % 60; update(); }, 500);
+  };
+  seek.oninput = () => { t = Number(seek.value); update(); };
+
+  document.getElementById('loginBtn').onclick = function () {
+    loggedIn = !loggedIn;
+    this.textContent = loggedIn ? 'ログイン中:ゆうじ' : 'Googleでログイン';
+    document.getElementById('loginHint').textContent = loggedIn
+      ? 'ログイン中です。ハートを押したり、自分の案を登録できます(デモ)。'
+      : 'ログインしなくても見られます。登録やハートは、ログインしてからできます。';
+  };
+
+  renderPlans();
+  update();
+</script>
+</body>
+  </html>
