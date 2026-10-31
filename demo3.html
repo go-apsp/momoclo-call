@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ももクロ コール共有 demo3</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#14152b;--panel:#262a4a;--ink:#f4f4fb;--pink:#ff7ab8;--mut:#a9acd0}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif}
+#app{max-width:480px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:14px;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+header{display:flex;justify-content:space-between;align-items:center;height:44px;position:relative}
+h1{font-size:18px;font-weight:900;margin:0}h1 b{color:var(--pink)}
+.row{display:flex;align-items:center;gap:4px}
+.pill{min-width:44px;height:44px;border-radius:22px;border:2px solid var(--pink);padding:0 12px;font-weight:700;font-size:12px}
+.ico{width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+#me{width:44px;height:44px;border-radius:50%;border:4px solid #fff;background:var(--bg);font-weight:900}
+#menu{position:absolute;right:0;top:50px;width:240px;padding:8px;border-radius:16px;background:var(--panel);border:1.5px solid var(--pink);display:none;z-index:5}
+#menu button{width:100%;height:52px;border-radius:12px;background:rgba(255,122,184,.18);font-weight:900;text-align:left;padding:0 14px}
+#mv{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:linear-gradient(160deg,#3a1d5c,#1a2a5e 55%,#5c1d3f)}
+#yt,#yt iframe{position:absolute;inset:0;width:100%;height:100%}
+.crowd{position:absolute;left:0;right:0;bottom:46px;text-align:center;font-size:20px;opacity:.55;pointer-events:none}
+#card{position:absolute;left:50%;bottom:10px;transform:translateX(-50%) scale(.9);width:68%;padding:8px 12px;border-radius:16px;background:rgba(20,21,43,.28);border:1.5px solid rgba(255,255,255,.55);box-shadow:0 0 22px rgba(255,122,184,.65);text-align:center;opacity:0;transition:.2s;pointer-events:none}
+#card.on{opacity:1;transform:translateX(-50%) scale(1)}
+#card small{display:block;font-size:11px;font-weight:700;color:#ffd2e6}
+#card strong{font-size:21px;font-weight:900;text-shadow:0 0 10px var(--pink)}
+#next{position:absolute;right:8px;top:8px;padding:6px 10px;border-radius:10px;background:rgba(255,255,255,.18);border:1px dashed rgba(255,255,255,.6);font-size:10px;font-weight:700;opacity:0;transform-origin:top right;pointer-events:none}
+#pen{position:absolute;left:12px;bottom:0;width:10px;height:70px;border-radius:5px;transform-origin:50% 100%;opacity:0;background:currentColor;box-shadow:0 0 18px currentColor;pointer-events:none}
+#pen.on{opacity:1;animation:sway 1s ease-in-out infinite alternate}
+@keyframes sway{from{transform:rotate(-25deg)}to{transform:rotate(25deg)}}
+.pads{display:flex;justify-content:center;align-items:flex-end;gap:14px}
+.sq{width:84px;height:84px;border-radius:20px;font-weight:900;font-size:15px;line-height:1.2}
+#penbtn{border:2px solid var(--pink);background:radial-gradient(circle at 50% 35%,var(--pink),#5a1f46 70%);box-shadow:0 0 20px rgba(255,122,184,.7);font-size:12px}
+#wakubtn{border:2px solid #ffd23f;background:#2a2410;color:#ffd23f}
+#wakubtn.hot{background:#ffd23f;color:#2a2410;box-shadow:0 0 24px #ffd23f}
+#q{position:relative;width:20px;height:20px;border-radius:50%;border:1px solid #8e91b8;color:var(--mut);font-size:12px;font-weight:700;margin:0 0 4px -8px}
+#q::after{content:"";position:absolute;inset:-12px}
+.dots{display:flex;justify-content:center;align-items:center}
+.dots button{width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+.dots i{width:24px;height:24px;border-radius:50%;display:block}
+.dots .sel i{outline:3px solid #fff;outline-offset:2px}
+input[type=range]{width:100%;accent-color:var(--pink);height:28px;margin:0}
+.times{display:flex;justify-content:space-between;font-size:11px;color:var(--mut)}
+#play{height:56px;border-radius:28px;background:var(--pink);color:#2a0c1c;font-weight:900;font-size:16px}
+#ov{position:fixed;inset:0;background:rgba(14,15,34,.92);display:none;z-index:10;overflow:auto}
+#ov .in{max-width:480px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.oh{display:flex;justify-content:space-between;align-items:center;font-weight:900;font-size:19px}
+.oh b{color:var(--pink);font-size:22px}
+.u{border-radius:18px;padding:12px 14px}
+.hd{width:100%;display:flex;align-items:center;gap:10px;min-height:44px;text-align:left;font-weight:900;font-size:15px}
+.hd b{font-size:17px}.sp{flex:1}
+.av{width:40px;height:40px;border-radius:50%;border:4px solid;background:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:900;flex:none}
+.dt{display:none;flex-direction:column;gap:10px;margin-top:10px}
+.u.open .dt{display:flex}
+.seg{display:flex;height:34px;border-radius:8px;overflow:hidden;font-size:10px;font-weight:700;color:#14152b}
+.seg div{display:flex;align-items:center;justify-content:center}
+.act{display:flex;gap:8px}
+.act button{flex:1;height:44px;border-radius:22px;border:2px solid var(--ink);font-weight:700;font-size:13px}
+.act .w{background:var(--ink);color:var(--bg);font-weight:900}
+.act .hr{flex:none;min-width:76px;padding:0 12px;border-color:transparent;color:#fff;font-weight:900}
+.ver button{height:44px;padding:0 14px;border-radius:22px;border:2px solid #8e91b8;font-weight:700;font-size:12px;margin-right:8px}
+.ver .sel{background:var(--ink);color:var(--bg)}
+.used{font-size:12px;color:#ffd23f;font-weight:700}
+#sheet{position:fixed;inset:0;background:rgba(10,10,24,.7);display:none;align-items:flex-end;z-index:20}
+#sheet>div{width:100%;max-width:480px;margin:0 auto;background:var(--panel);border-radius:20px 20px 0 0;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#sheet h2{grid-column:1/3;margin:0;font-size:16px}
+#sheet button{height:52px;border-radius:14px;border:4px solid;font-weight:900;background:var(--bg)}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:20px;font-weight:700;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:30}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>ももクロ <b>コール</b>共有</h1>
+    <div class="row">
+      <button class="pill" id="login" onclick="openSheet()">ログイン</button>
+      <button class="ico" aria-label="メニュー" onclick="toggleMenu()"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M4 7h18M4 13h18M4 19h18" fill="none" stroke="#f4f4fb" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+    </div>
+    <div id="menu"><button onclick="openOv()">みんなの<span style="color:var(--pink)">推し</span>コール</button></div>
+  </header>
+
+  <div id="mv">
+    <div id="yt"></div>
+    <div id="next">NEXT</div>
+    <div class="crowd">🙌🙌🙌🙌🙌🙌🙌🙌</div>
+    <div id="pen" style="color:#ff7ab8"></div>
+    <div id="card"><small id="cl"></small><strong id="tx"></strong></div>
+  </div>
+
+  <div class="pads">
+    <button class="sq" id="penbtn" onclick="togglePen()">ペンライト</button>
+    <button class="sq" id="wakubtn" onclick="waku()">自分も<br>湧く!</button>
+    <button id="q" aria-label="説明" onclick="toast('このタイミングで一緒にコールやシンガロンができます')">?</button>
+  </div>
+
+  <div class="dots" id="dots"></div>
+
+  <div>
+    <input type="range" id="bar" min="0" max="227" step="0.1" value="0" aria-label="シークバー">
+    <div class="times"><span id="tm">0:00</span><span id="dur">3:47</span></div>
+  </div>
+  <button id="play" onclick="togglePlay()">再生</button>
+</div>
+
+<div id="ov"><div class="in">
+  <div class="oh"><span>みんなの<b>推し</b>コール</span><button class="ico" aria-label="閉じる" onclick="closeOv()"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M6 6l14 14M20 6L6 20" fill="none" stroke="#f4f4fb" stroke-width="2.4" stroke-linecap="round"/></svg></button></div>
+  <div id="list"></div>
+</div></div>
+
+<div id="sheet"><div>
+  <h2>あなたの推しを選んでください</h2>
+</div></div>
+<div id="toast"></div>
+
+<script>
+// ★ MVのYouTube動画IDをここに入れる(空のままなら、疑似タイマーで動きます)
+const VIDEO_ID = "";
+const DUR = 227;
+const EV = [
+  {t:12, d:6, k:"call", x:"ハイ!ハイ!ハイ!"},
+  {t:44, d:8, k:"sing", x:"みんなで歌おう"},
+  {t:78, d:5, k:"koko", x:"ココ好き!"},
+  {t:110, d:6, k:"call", x:"ハイ!ハイ!"},
+  {t:150, d:8, k:"sing", x:"せーの!"}
+];
+const LAB = {call:"コール", sing:"シンガロン", koko:"ココ好き!"};
+const OSHI = [["赤推し","#ff3b4f"],["黄色推し","#ffd23f"],["ピンク推し","#ff7ab8"],["紫推し","#a66bff"],["箱推し","#000000"],["決まってない","#ffffff"]];
+const PEN = [["赤","#ff3b4f"],["黄","#ffd23f"],["ピンク","#ff7ab8"],["紫","#a66bff"],["白","#ffffff"]];
+const U = [
+  {n:"A", c:"#ff3b4f", h:128, v:["ライブ版","フル版"], note:"サビ前は少し早めに入るのがコツです。", used:342, liked:false},
+  {n:"B", c:"#ffd23f", h:87, v:[], note:"", used:120, liked:false},
+  {n:"C", c:"#a66bff", h:54, v:[], note:"", used:66, liked:false},
+  {n:"D", c:"#ff7ab8", h:31, v:[], note:"", used:20, liked:false}
+];
+
+const $ = id => document.getElementById(id);
+let yt = null, ytReady = false, sim = 0, simPlay = false, last = 0, drag = false;
+let cur = null, cnt = 0, open = 0;
+
+/* ---- MV(YouTube があれば使い、なければ疑似タイマー) ---- */
+if (VIDEO_ID) {
+  const s = document.createElement("script");
+  s.src = "https://www.youtube.com/iframe_api";
+  document.head.appendChild(s);
+  window.onYouTubeIframeAPIReady = () => {
+    yt = new YT.Player("yt", {
+      videoId: VIDEO_ID,
+      playerVars: {playsinline: 1, controls: 0, rel: 0},
+      events: {onReady: () => { ytReady = true; }}
+    });
+  };
+}
+const now = () => ytReady ? yt.getCurrentTime() : sim;
+const dur = () => ytReady ? (yt.getDuration() || DUR) : DUR;
+const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+
+function togglePlay() {
+  if (ytReady) { yt.getPlayerState() === 1 ? yt.pauseVideo() : yt.playVideo(); }
+  else { simPlay = !simPlay; }
+}
+const bar = $("bar");
+bar.addEventListener("input", () => { drag = true; });
+bar.addEventListener("change", () => {
+  drag = false;
+  ytReady ? yt.seekTo(+bar.value, true) : (sim = +bar.value);
+});
+
+function loop(ts) {
+  const dt = (ts - last) / 1000; last = ts;
+  if (!ytReady && simPlay) {
+    sim = Math.min(DUR, sim + dt);
+    if (sim >= DUR) simPlay = false;
+  }
+  const t = now();
+  const pl = ytReady ? yt.getPlayerState() === 1 : simPlay;
+  $("play").textContent = pl ? "一時停止" : "再生";
+  if (!drag) { bar.max = dur(); bar.value = t; }
+  $("tm").textContent = fmt(t);
+  $("dur").textContent = fmt(dur());
+
+  const e = EV.find(x => t >= x.t && t < x.t + x.d);
+  const n = EV.find(x => t < x.t && x.t - t <= 6);
+  $("card").classList.toggle("on", !!e);
+  if (e) { $("cl").textContent = LAB[e.k]; $("tx").textContent = e.x; }
+  const nx = $("next");
+  nx.style.opacity = n && !e ? 1 : 0;
+  if (n) {
+    nx.textContent = "NEXT " + LAB[n.k];
+    nx.style.transform = "scale(" + (0.7 + 0.5 * (1 - (n.t - t) / 6)) + ")";
+  }
+  $("wakubtn").classList.toggle("hot", !!e && e.k !== "koko");
+  cur = e;
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(ts => { last = ts; loop(ts); });
+
+/* ---- ペンライト・自分も湧く! ---- */
+function togglePen() { $("pen").classList.toggle("on"); }
+function setPen(c, i) {
+  $("pen").style.color = c;
+  document.querySelectorAll("#dots button").forEach((b, j) => b.classList.toggle("sel", i === j));
+}
+$("dots").innerHTML = PEN.map((p, i) =>
+  `<button aria-label="${p[0]}" onclick="setPen('${p[1]}',${i})" class="${i === 2 ? "sel" : ""}"><i style="background:${p[1]}"></i></button>`
+).join("");
+function waku() {
+  if (cur && cur.k !== "koko") { cnt++; toast("一緒に湧いた! 今回 " + cnt + " 回"); }
+  else toast("コール・シンガロンの場面で押してね");
+}
+
+/* ---- メニュー・全画面レイヤー ---- */
+function toggleMenu() { const m = $("menu"); m.style.display = m.style.display === "block" ? "none" : "block"; }
+function openOv() { $("menu").style.display = "none"; $("ov").style.display = "block"; render(); }
+function closeOv() { $("ov").style.display = "none"; }
+
+const SEG = `<div class="seg"><div style="flex:2;background:#8e91b8">イントロ</div><div style="flex:3;background:#ff7ab8">サビ前</div><div style="flex:2;background:#ffd23f">間奏</div><div style="flex:3;background:#c9a8ff">サビ</div></div>`;
+function render() {
+  $("list").innerHTML = U.map((u, i) => `
+  <div class="u${i === open ? " open" : ""}" style="margin-bottom:10px;box-shadow:0 0 0 1.5px ${u.c}99;background:linear-gradient(160deg,${u.c}40,#262a4a 65%)">
+    <button class="hd" onclick="tog(${i})">
+      <span class="av" style="border-color:${u.c}">${u.n}</span>
+      <span class="sp">${u.n}さんの<b style="color:${u.c}">推し</b>コール</span>
+      <span style="color:${u.c}">♥${u.h}</span>
+    </button>
+    <div class="dt">
+      ${u.v.length ? `<div class="ver">${u.v.map((v, j) => `<button class="${j ? "" : "sel"}">${v}</button>`).join("")}</div>` : ""}
+      ${SEG}
+      ${u.note ? `<div style="font-size:12px;line-height:1.6">備考:${u.note}</div>` : ""}
+      <div class="used">みんなが ${u.used}回 一緒に湧きました</div>
+      <div class="act">
+        <button class="hr" style="background:${u.liked ? "#ff3b4f" : "#3a3f6b"}" onclick="heart(${i})">♥ ${u.h}</button>
+        <button onclick="toast('図解を表示します(デモ)')">図解を見る</button>
+        <button class="w" onclick="closeOv();toast('制作画面に切り替えます(デモ)')">参考にする</button>
+      </div>
+    </div>
+  </div>`).join("");
+}
+function tog(i) { open = open === i ? -1 : i; render(); }
+function heart(i) {
+  const u = U[i]; u.liked = !u.liked; u.h += u.liked ? 1 : -1;
+  render();
+}
+
+/* ---- 最初の登録(推し選択) ---- */
+$("sheet").firstElementChild.insertAdjacentHTML("beforeend",
+  OSHI.map((o, i) => `<button style="border-color:${o[1]}" onclick="pick(${i})">${o[0]}</button>`).join(""));
+function openSheet() { $("sheet").style.display = "flex"; }
+function pick(i) {
+  const o = OSHI[i], b = $("login");
+  b.outerHTML = `<button id="me" style="border-color:${o[1]}" aria-label="${o[0]}" onclick="openSheet()">me</button>`;
+  $("sheet").style.display = "none";
+  toast(o[0] + "で登録しました");
+}
+
+function toast(s) {
+  const t = $("toast"); t.textContent = s; t.classList.add("on");
+  clearTimeout(toast.id); toast.id = setTimeout(() => t.classList.remove("on"), 1800);
+}
+</script>
+</body>
+</html>
