@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>推しコール共有 デモ</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; background: #fff7fb; color: #333; }
+  header { padding: 10px 14px; background: #ff5fa2; color: #fff; font-weight: bold; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  button { cursor: pointer; font-family: inherit; }
+  .hbtn { border: 0; border-radius: 14px; padding: 6px 12px; font-weight: bold; background: #fff; color: #ff5fa2; }
+  main { max-width: 1000px; margin: 0 auto; padding: 10px; display: grid; gap: 10px; grid-template-columns: 1fr; }
+  @media (min-width: 800px) { main { grid-template-columns: 1.5fr 1fr; } }
+  .panel { background: #fff; border-radius: 14px; padding: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+  h2 { font-size: 15px; margin: 0 0 8px; }
+
+  /* ステージ(本番ではここにYouTubeが入る) */
+  #stageWrap.full { position: fixed; inset: 0; z-index: 50; background: #000; display: flex; align-items: center; justify-content: center; }
+  #stageWrap.full .stage { width: 100vw; max-height: 100vh; border-radius: 0; }
+  .stage { position: relative; width: 100%; aspect-ratio: 16/9; background: linear-gradient(135deg,#2b2d5b,#6b3a8a); border-radius: 12px; overflow: hidden; color: #fff; }
+  .mvlabel { position: absolute; top: 8px; left: 12px; font-size: 12px; opacity: .8; }
+  .timeLabel { position: absolute; top: 8px; right: 12px; font-size: 13px; }
+  .fsBtn { position: absolute; bottom: 8px; right: 10px; z-index: 5; border: 0; border-radius: 10px; padding: 4px 10px; font-size: 12px; background: rgba(255,255,255,.85); }
+
+  /* カード(位置はクラスで切り替え。背景はかなり透明) */
+  .cards { position: absolute; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none; }
+  .pos-center .cards { top: 50%; transform: translateY(-50%); }
+  .pos-bottom .cards { bottom: 14%; }
+  .pos-top .cards { top: 10%; }
+  .card { position: absolute; width: 80%; text-align: center; opacity: 0; transform: scale(.85); transition: opacity .3s, transform .3s; }
+  .pos-center .card { top: 50%; margin-top: -40px; }
+  .card.show { opacity: 1; transform: scale(1); }
+  .cardbg { display: inline-block; padding: 8px 16px; border-radius: 16px; background: rgba(255,255,255,.18); border: 3px solid var(--pc, #ff5fa2); backdrop-filter: blur(2px); }
+  .call .text { font-size: clamp(20px,5.5vw,38px); font-weight: 900; letter-spacing: .08em; text-shadow: 0 2px 0 #ff5fa2, 0 0 10px #000, 0 0 14px #ffd166; }
+  .crowd { margin-top: 4px; font-size: clamp(16px,4.5vw,28px); animation: bounce .6s infinite alternate; }
+  @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-8px); } }
+  .sing .tag { font-size: 12px; font-weight: bold; color: #7ad7f0; text-shadow: 0 0 6px #000; }
+  .sing .lyric { font-size: clamp(18px,5vw,30px); font-weight: bold; text-shadow: 0 0 8px #000, 0 0 12px #7ad7f0; }
+  .like .cardbg { background: radial-gradient(circle, rgba(255,255,255,.28), rgba(255,200,225,.18)); position: relative; padding: 10px 24px; }
+  .like svg { width: clamp(150px,44vw,260px); height: auto; display: block; }
+  .spark { position: absolute; font-size: 16px; animation: float 1.6s infinite ease-in-out; }
+  .spark:nth-child(2) { left: -6px; top: 2px; }
+  .spark:nth-child(3) { right: -4px; top: -4px; animation-delay: .4s; }
+  .spark:nth-child(4) { left: 12px; bottom: -6px; animation-delay: .8s; }
+  .spark:nth-child(5) { right: 8px; bottom: -4px; animation-delay: 1.2s; }
+  @keyframes float { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-8px) scale(1.2); } }
+
+  /* 参加ボタン */
+  .join { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .join button { border: 0; border-radius: 12px; padding: 8px 12px; font-weight: bold; color: #fff; }
+  #penBtn { background: #7a5cff; }
+  #joinBtn { background: #ff5fa2; }
+  .joinNote { font-size: 12px; color: #666; }
+  .floaty { position: absolute; bottom: 20%; font-size: 28px; pointer-events: none; animation: rise 1.4s ease-out forwards; z-index: 4; }
+  @keyframes rise { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-120px); opacity: 0; } }
+
+  /* 操作 */
+  .controls { margin-top: 8px; display: flex; gap: 8px; align-items: center; }
+  .controls .play { border: 0; border-radius: 10px; padding: 8px 14px; font-weight: bold; background: #ff5fa2; color: #fff; }
+  .controls input[type=range] { flex: 1; }
+  .settings { margin-top: 8px; font-size: 13px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .settings select { padding: 4px; border-radius: 8px; }
+  .editBar { margin-top: 8px; padding: 8px; border: 2px dashed #bbb; border-radius: 10px; font-size: 12px; display: none; }
+  .editBar.on { display: block; }
+  .editBar button { border: 1px solid #ccc; background: #fff; border-radius: 8px; padding: 4px 8px; margin: 2px; }
+  .hint { font-size: 12px; background: #fff3cd; border-radius: 8px; padding: 6px 8px; margin-top: 8px; }
+  .share { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .share button { border: 0; border-radius: 10px; padding: 6px 10px; font-size: 12px; font-weight: bold; color: #fff; }
+
+  /* リスト */
+  .plan { border: 3px solid var(--pc); border-radius: 12px; padding: 8px 10px; margin-bottom: 8px; cursor: pointer; background: #fff; }
+  .plan.active { background: color-mix(in srgb, var(--pc) 14%, white); }
+  .plan .top { display: flex; justify-content: space-between; align-items: center; font-weight: bold; gap: 6px; }
+  .avatar { font-size: 22px; margin-right: 6px; }
+  .heart { border: 0; background: none; font-size: 15px; color: #e53950; font-weight: bold; }
+  .meta { font-size: 12px; color: #666; margin-top: 4px; }
+  .comment { font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; gap: 6px; color: #444; }
+  .comment button { font-size: 11px; border: 1px solid #ccc; background: #fff; border-radius: 8px; }
+  .hidden { display: none; }
+  .zuBtn { margin-top: 6px; font-size: 12px; border: 1px solid #ccc; background: #fff; border-radius: 8px; padding: 4px 8px; }
+  #zuBox { display: none; margin-top: 8px; border: 2px solid #f3d3e3; border-radius: 10px; padding: 8px; font-size: 13px; }
+  #zuBox table { width: 100%; border-collapse: collapse; }
+  #zuBox td { border-bottom: 1px solid #eee; padding: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <span>🎤 推しコール共有(デモ)</span>
+  <span>
+    <button class="hbtn" id="editToggle">制作モード: OFF</button>
+    <button class="hbtn" id="loginBtn">Googleでログイン</button>
+  </span>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>行くぜっ!怪盗少女(MVの代わりのデモ画面)</h2>
+
+    <div id="stageWrap">
+      <div class="stage pos-center" id="stage">
+        <div class="mvlabel">▶ 本番ではここにYouTubeのMVが入ります</div>
+        <div class="timeLabel" id="timeLabel">0:00</div>
+        <button class="fsBtn" id="fsBtn">⛶ 全画面</button>
+
+        <div class="cards">
+          <div class="card call" id="callCard">
+            <div class="cardbg">
+              <div class="text" id="callText">タイガー!ファイヤー!</div>
+              <div class="crowd">🙌🙌🙌🙌🙌🙌</div>
+            </div>
+          </div>
+          <div class="card sing" id="singCard">
+            <div class="cardbg">
+              <div class="tag">🎶 みんなで歌おう</div>
+              <div class="lyric" id="singText">(サビ)</div>
+            </div>
+          </div>
+          <div class="card like" id="likeCard">
+            <div class="cardbg">
+              <svg viewBox="0 0 300 90" xmlns="http://www.w3.org/2000/svg">
+                <text x="150" y="64" text-anchor="middle" font-size="56" font-weight="900"
+                      font-family="'Hiragino Maru Gothic ProN','Noto Sans JP',sans-serif"
+                      fill="#ff5fa2" stroke="#fff" stroke-width="9" paint-order="stroke">ココ好き!</text>
+              </svg>
+              <span class="spark">💗</span><span class="spark">✨</span><span class="spark">✨</span><span class="spark">💗</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="play" id="playBtn">▶ 再生</button>
+      <input type="range" id="seek" min="0" max="60" value="0">
+    </div>
+
+    <div class="join">
+      <button id="penBtn">🔦 ペンライトを振る</button>
+      <button id="joinBtn">📣 自分も言う!</button>
+      <span class="joinNote" id="joinNote">コールの場面でタップすると、あなたの分が増えます</span>
+    </div>
+
+    <div class="settings">
+      カードの位置:
+      <select id="posSel">
+        <option value="pos-center">中央</option>
+        <option value="pos-bottom">下寄り</option>
+        <option value="pos-top">上寄り</option>
+      </select>
+    </div>
+
+    <!-- 制作モードのときだけ表示 -->
+    <div class="editBar" id="editBar">
+      ✏️ 制作モード:時間の微調整<br>
+      <button data-d="-30">−30秒</button><button data-d="-10">−10秒</button><button data-d="-1">−1秒</button>
+      <button data-d="1">+1秒</button><button data-d="10">+10秒</button><button data-d="30">+30秒</button>
+    </div>
+
+    <div class="hint" id="loginHint">ログインしなくても見られます。登録やハートは、ログインしてからできます。</div>
+    <div class="share">
+      <button style="background:#111" onclick="alert('デモ:Xの共有画面が開きます')">Xで共有</button>
+      <button style="background:#06c755" onclick="alert('デモ:LINEの共有画面が開きます')">LINEで共有</button>
+      <button style="background:#888" onclick="alert('デモ:この推しコールのアドレスをコピーします')">アドレスをコピー</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>みんなの推しコール(タップで切り替え)</h2>
+    <div id="plans"></div>
+    <div id="zuBox"></div>
+  </section>
+</main>
+
+<script>
+  // デモ用データ(秒)。歌詞は載せず「サビ前」などの目印だけ。
+  const plans = [
+    { name:"Aさん", icon:"🐯", color:"#ff5fa2", hearts:12, used:34, note:"初見の人向けの基本コールです。",
+      comments:[{t:"めっちゃ分かりやすい!",show:true},{t:"微妙",show:false}],
+      events:[
+        {at:8, end:14, type:"call", text:"タイガー!ファイヤー!", mark:"イントロ"},
+        {at:20,end:26, type:"sing", text:"(サビ前)", mark:"サビ前"},
+        {at:32,end:38, type:"like", mark:"間奏"}
+      ]},
+    { name:"Bさん", icon:"🐱", color:"#3aa8e0", hearts:5, used:9, note:"ライブ向けの盛り上げ多めの推しコール。",
+      comments:[{t:"ライブで使いたい!",show:true}],
+      events:[
+        {at:5, end:11, type:"call", text:"ハイ!ハイ!ハイ!", mark:"イントロ"},
+        {at:28,end:34, type:"like", mark:"Aメロ後"},
+        {at:44,end:50, type:"sing", text:"(サビ)", mark:"サビ"}
+      ]},
+    { name:"Cさん", icon:"🌟", color:"#f2b300", hearts:8, used:15, note:"ココ好きだけを集めた推しコール。",
+      comments:[],
+      events:[
+        {at:12,end:18, type:"like", mark:"Aメロ"},
+        {at:36,end:42, type:"like", mark:"間奏"}
+      ]}
+  ];
+
+  let current = 0, playing = false, t = 0, timer = null, loggedIn = false, editMode = false;
+  const liked = new Set();
+  const $ = id => document.getElementById(id);
+  const cards = { call:$('callCard'), sing:$('singCard'), like:$('likeCard') };
+  const fmt = s => Math.floor(s/60) + ':' + String(Math.floor(s%60)).padStart(2,'0');
+
+  function renderPlans() {
+    const box = $('plans'); box.innerHTML = '';
+    plans.forEach((p,i) => {
+      const div = document.createElement('div');
+      div.className = 'plan' + (i===current ? ' active' : '');
+      div.style.setProperty('--pc', p.color);
+      let cm = '';
+      p.comments.forEach((c,ci) => {
+        cm += '<div class="comment' + (c.show ? '' : ' hidden') + '"><span>💬 ' + c.t + '</span>'
+            + '<button onclick="event.stopPropagation(); toggleComment(' + i + ',' + ci + ')">非表示にする</button></div>';
+      });
+      div.innerHTML =
+        '<div class="top"><span><span class="avatar">' + p.icon + '</span>' + p.name + 'の推しコール</span>'
+        + '<button class="heart" onclick="event.stopPropagation(); like(' + i + ')">' + (liked.has(i) ? '❤️' : '♡') + ' ' + p.hearts + '</button></div>'
+        + '<div class="meta">📝 ' + p.note + '</div>'
+        + '<div class="meta">📣 使われた回数:' + p.used + '回</div>' + cm
+        + '<button class="zuBtn" onclick="event.stopPropagation(); showZu(' + i + ')">🖼 図解を見る</button>';
+      div.onclick = () => { current = i; renderPlans(); update(); };
+      box.appendChild(div);
+    });
+  }
+
+  function like(i) {
+    if (!loggedIn) { alert('ハートを押すにはログインしてね(デモ)'); return; }
+    if (liked.has(i)) { alert('ハートは1人1回までです'); return; }
+    liked.add(i); plans[i].hearts++; renderPlans();
+  }
+  function toggleComment(i,ci) {
+    plans[i].comments[ci].show = !plans[i].comments[ci].show;
+    alert('デモ:感想の表示を切り替えます(持ち主だけの操作)'); renderPlans();
+  }
+  function typeName(t) { return t==='call' ? 'コール' : t==='sing' ? 'シンガロン' : 'ココ好き!'; }
+  function showZu(i) {
+    const p = plans[i], box = $('zuBox');
+    let rows = '';
+    p.events.forEach(e => { rows += '<tr><td>' + fmt(e.at) + '</td><td>' + e.mark + '</td><td>' + typeName(e.type) + (e.text && e.type==='call' ? ':' + e.text : '') + '</td></tr>'; });
+    box.style.display = 'block';
+    box.style.borderColor = p.color;
+    box.innerHTML = '<b>' + p.icon + ' ' + p.name + 'の推しコール 図解</b><table>' + rows + '</table>'
+      + '<button class="zuBtn" onclick="alert(\'デモ:この図解を画像として保存します\')">⬇ 画像で保存</button>'
+      + '<div class="meta">歌詞は載せず、曲の場所の目印だけで作ります</div>';
+  }
+
+  function update() {
+    $('seek').value = t; $('timeLabel').textContent = fmt(t);
+    Object.values(cards).forEach(c => c.classList.remove('show'));
+    const p = plans[current];
+    $('stage').style.setProperty('--pc', p.color);
+    document.querySelectorAll('.cardbg').forEach(el => el.style.setProperty('--pc', p.color));
+    const ev = p.events.find(e => t >= e.at && t < e.end);
+    if (!ev) return;
+    if (ev.type==='call') { $('callText').textContent = ev.text; cards.call.classList.add('show'); }
+    if (ev.type==='sing') { $('singText').textContent = ev.text; cards.sing.classList.add('show'); }
+    if (ev.type==='like') { cards.like.classList.add('show'); }
+  }
+
+  // 再生
+  $('playBtn').onclick = function () {
+    playing = !playing; this.textContent = playing ? '⏸ 一時停止' : '▶ 再生';
+    clearInterval(timer);
+    if (playing) timer = setInterval(() => { t = (t + 0.5) % 60; update(); }, 500);
+  };
+  $('seek').oninput = () => { t = Number($('seek').value); update(); };
+
+  // 参加(ペンライト・自分も言う)
+  function floaty(emoji) {
+    const el = document.createElement('div');
+    el.className = 'floaty'; el.textContent = emoji;
+    el.style.left = (10 + Math.random()*80) + '%';
+    $('stage').appendChild(el);
+    setTimeout(() => el.remove(), 1400);
+  }
+  $('penBtn').onclick = () => { floaty('🔦'); floaty('✨'); };
+  $('joinBtn').onclick = () => {
+    const ev = plans[current].events.find(e => t >= e.at && t < e.end && e.type !== 'like');
+    if (!ev) { $('joinNote').textContent = 'いまはコール/シンガロンの場面ではありません'; return; }
+    for (let k=0;k<3;k++) floaty('🙌');
+    plans[current].used++;
+    $('joinNote').textContent = '参加しました!(使われた回数 +1)';
+    renderPlans();
+  };
+
+  // カード位置
+  $('posSel').onchange = () => {
+    $('stage').classList.remove('pos-center','pos-bottom','pos-top');
+    $('stage').classList.add($('posSel').value);
+  };
+
+  // 制作モード(送り戻しボタンは制作中だけ表示)
+  $('editToggle').onclick = function () {
+    editMode = !editMode;
+    this.textContent = '制作モード: ' + (editMode ? 'ON' : 'OFF');
+    $('editBar').classList.toggle('on', editMode);
+  };
+  document.querySelectorAll('#editBar button').forEach(b => {
+    b.onclick = () => { t = Math.max(0, Math.min(60, t + Number(b.dataset.d))); update(); };
+  });
+
+  // 全画面(対応していれば本物、だめなら画面いっぱいに広げる)
+  $('fsBtn').onclick = () => {
+    const wrap = $('stageWrap');
+    const isFull = wrap.classList.contains('full') || document.fullscreenElement;
+    if (isFull) {
+      wrap.classList.remove('full');
+      if (document.fullscreenElement) document.exitFullscreen();
+      $('fsBtn').textContent = '⛶ 全画面';
+      return;
+    }
+    if (wrap.requestFullscreen) {
+      wrap.requestFullscreen().catch(() => wrap.classList.add('full'));
+    } else {
+      wrap.classList.add('full');
+    }
+    $('fsBtn').textContent = '✕ 閉じる';
+  };
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) { $('stageWrap').classList.remove('full'); $('fsBtn').textContent = '⛶ 全画面'; }
+  });
+
+  // ログイン(デモ)
+  $('loginBtn').onclick = function () {
+    loggedIn = !loggedIn;
+    this.textContent = loggedIn ? 'ログイン中:ゆうじ' : 'Googleでログイン';
+    $('loginHint').textContent = loggedIn
+      ? 'ログイン中です。ハートを押したり、自分の推しコールを登録できます(デモ)。'
+      : 'ログインしなくても見られます。登録やハートは、ログインしてからできます。';
+  };
+
+  renderPlans(); update();
+</script>
+</body>
+</html>
