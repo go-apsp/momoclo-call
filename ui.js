@@ -91,9 +91,10 @@
     list: function (calls, x) {
       return calls.map(function (c) {
         var own = x.me && c.ownerUid === x.me.uid, col = colorOf(c.oshi), tc = col === "#000000" ? "#fff" : col;
+        var nw = (c.createdAt && c.createdAt.seconds && (Date.now() / 1000 - c.createdAt.seconds) < 604800) ? '<span class="newStamp">NEW</span>' : "";
         return '<div class="u' + (c.id === x.openId ? " open" : "") + '" style="box-shadow:0 0 0 1.5px ' + col + "99;background:linear-gradient(160deg," + col + '40,#262a4a 65%)">'
           + '<button class="hd" data-a="toggle" data-i="' + c.id + '">' + icon(c.ownerIcon, col) + '<span class="sp">' + esc(c.ownerName) + 'さんの<b style="color:' + tc + '">推し</b>コール'
-          + (c.versionName ? '<span class="tag">' + esc(c.versionName) + "</span>" : "") + (c.public ? "" : '<span class="tag">下書き</span>') + '</span><span style="color:' + tc + '">♥' + (c.hearts || 0) + "</span></button>"
+          + (c.versionName ? '<span class="tag">' + esc(c.versionName) + "</span>" : "") + (c.public ? "" : '<span class="tag">下書き</span>') + nw + '</span><span style="color:' + tc + '">♥' + (c.hearts || 0) + "</span></button>"
           + '<div class="dt">' + (c.note ? "<div>備考:" + esc(c.note) + "</div>" : "") + '<div class="used">みんなが ' + (c.used || 0) + '回 一緒に湧きました</div><div class="act">'
           + '<button class="hr" style="background:' + (x.liked.has(c.id) ? "#ff3b4f" : "#3a3f6b") + '" data-a="heart" data-i="' + c.id + '">♥ ' + (c.hearts || 0) + "</button>"
           + '<button class="w" data-a="use" data-i="' + c.id + '">これで再生</button>'
@@ -162,7 +163,7 @@
       var prof = '<div class="myProf"><span class="myIco">' + UI.mic(p.icon) + '</span><div><b>' + esc(p.nick) + '</b><div class="mySub">推し: ' + esc(OSHI[p.oshi][0]) + " / 感想のメール通知: " + (p.mailNotify === false ? "オフ" : "オン") + '</div></div></div>'
         + '<button class="w" data-a="editProf">推し・アイコンの変更</button>';
       var calls = x.calls.length ? x.calls.map(function (c) {
-        return '<div class="myCall"><div class="myCallT">♪ ' + esc(c.songTitle) + (c.versionName ? " 「" + esc(c.versionName) + "」" : "") + '</div><div class="mySub">' + (c.public ? "公開中" : "下書き") + " / ♥ " + (c.hearts || 0) + " / 湧き " + (c.used || 0) + '</div><button data-a="mypOpen" data-i="' + c.videoId + "|" + c.id + '">このコールを開く</button></div>';
+        return '<div class="myCall"><div class="myCallT">♪ ' + esc(c.songTitle) + (c.versionName ? " 「" + esc(c.versionName) + "」" : "") + ((c.createdAt && c.createdAt.seconds && (Date.now() / 1000 - c.createdAt.seconds) < 604800) ? '<span class="newStamp">NEW</span>' : "") + '</div><div class="mySub">' + (c.public ? "公開中" : "下書き") + " / ♥ " + (c.hearts || 0) + " / 湧き " + (c.used || 0) + '</div><button data-a="mypOpen" data-i="' + c.videoId + "|" + c.id + '">このコールを開く</button></div>';
       }).join("") : '<div class="cmtNone">まだ推しコールがありません</div>';
       var pend = x.pend.length ? x.pend.map(function (m) {
         return '<div class="cmt"><b>' + esc(m.name) + "</b><span>" + esc(m.text) + '</span><span class="cmtBtns"><button data-a="mypCmtOk" data-i="' + m.callId + "|" + m.id + '">公開する</button><button data-a="mypCmtNg" data-i="' + m.callId + "|" + m.id + '">公開しない</button></span></div>';
