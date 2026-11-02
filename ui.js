@@ -156,6 +156,18 @@
       if (!x.open) return '<div class="evBox">' + head + "</div>";
       var heart = '<button class="hr" style="background:' + (x.liked.has(c.id) ? "#ff3b4f" : "#3a3f6b") + '" data-a="heart" data-i="' + c.id + '">♥ ' + (c.hearts || 0) + "</button>";
       return '<div class="evBox">' + head + '<div class="evBody"><div class="evRow">' + heart + "<span>湧き " + (c.used || 0) + "</span></div>" + UI.cmtHtml(c, x, "p") + "</div></div>";
+    },
+    myPage: function (x) {
+      var p = x.prof;
+      var prof = '<div class="myProf"><span class="myIco">' + UI.mic(p.icon) + '</span><div><b>' + esc(p.nick) + '</b><div class="mySub">推し: ' + esc(OSHI[p.oshi][0]) + " / 感想のメール通知: " + (p.mailNotify === false ? "オフ" : "オン") + '</div></div></div>'
+        + '<button class="w" data-a="editProf">推し・アイコンの変更</button>';
+      var calls = x.calls.length ? x.calls.map(function (c) {
+        return '<div class="myCall"><div class="myCallT">♪ ' + esc(c.songTitle) + (c.versionName ? " 「" + esc(c.versionName) + "」" : "") + '</div><div class="mySub">' + (c.public ? "公開中" : "下書き") + " / ♥ " + (c.hearts || 0) + " / 湧き " + (c.used || 0) + '</div><button data-a="mypOpen" data-i="' + c.videoId + "|" + c.id + '">このコールを開く</button></div>';
+      }).join("") : '<div class="cmtNone">まだ推しコールがありません</div>';
+      var pend = x.pend.length ? x.pend.map(function (m) {
+        return '<div class="cmt"><b>' + esc(m.name) + "</b><span>" + esc(m.text) + '</span><span class="cmtBtns"><button data-a="mypCmtOk" data-i="' + m.callId + "|" + m.id + '">公開する</button><button data-a="mypCmtNg" data-i="' + m.callId + "|" + m.id + '">公開しない</button></span></div>';
+      }).join("") : '<div class="cmtNone">承認待ちの感想はありません</div>';
+      return prof + '<h3 class="myH">自分の推しコール</h3>' + calls + '<h3 class="myH">感想の承認待ち</h3>' + pend;
     }
   };
 })();

@@ -176,3 +176,11 @@ body.nofs{overflow:hidden}
 .evHead{width:100%;display:flex;justify-content:space-between;align-items:center;background:none;border:none;color:#f4f4fb;padding:10px 14px;font-size:14px;font-weight:700;cursor:pointer}
 .evBody{padding:2px 12px 10px}
 .evRow{display:flex;gap:12px;align-items:center;margin:4px 0 8px;font-size:13px;color:#c9cbe8}
+
+.myProf{display:flex;gap:12px;align-items:center;margin:10px 0}
+.myIco{font-size:30px}
+.mySub{font-size:12px;color:var(--mut)}
+.myH{margin:18px 0 8px;font-size:15px}
+.myCall{border:1px solid #2c2f57;border-radius:12px;padding:10px 12px;margin:8px 0;background:#14152b}
+.myCallT{font-weight:700;margin-bottom:2px}
+.myCall button{margin-top:6px}

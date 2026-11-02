@@ -178,6 +178,20 @@ async function checkPending(openPopup) {
   pendKnown = ids;
   if (openPopup && hasNew && all.length) { renderReview(); $("cmov").style.display = "block"; }
 }
+let myPend = [];
+async function loadMyPage() {
+  const el = $("myBody"); if (!el || !me || !prof) return;
+  el.innerHTML = '<div class="cmtNone">読み込み中…</div>';
+  let mine = [];
+  try { mine = (await getDocs(query(collection(db, "calls"), where("ownerUid", "==", me.uid)))).docs.map(d => ({id: d.id, ...d.data()})); } catch (e) {}
+  mine.sort((a, b) => ((b.createdAt && b.createdAt.seconds) || 0) - ((a.createdAt && a.createdAt.seconds) || 0));
+  myPend = [];
+  for (const c of mine) {
+    try { const cs = await getDocs(query(collection(db, "calls", c.id, "comments"), where("ownerUid", "==", me.uid))); cs.forEach(d => { const m = {id: d.id, callId: c.id, ...d.data()}; if (m.status === "pending") myPend.push(m); }); } catch (e) {}
+  }
+  const sTitle = vid => { const s2 = SONGS.find(x => x.vid === vid); return s2 ? s2.title : "不明な曲"; };
+  el.innerHTML = UI.myPage({prof: prof, calls: mine.map(c => ({...c, songTitle: sTitle(c.videoId)})), pend: myPend});
+}
 function paintReviewBtn() { const b = $("reviewBtn"); if (!b) return; const show = !!(me && prof && pendAll.length); b.style.display = show ? "block" : "none"; b.textContent = "感想の承認待ち(" + pendAll.length + "件)"; }
 function renderReview() {
   const el = $("cmList"); if (!el) return;
@@ -235,7 +249,19 @@ async function writeCmt(id, np, tp) {
 const A = {
   login: async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { toast("ログインできませんでした"); } },
   logout: async () => { await signOut(auth); A.menu(); toast("ログアウトしました"); },
-  whoami: () => toast(prof.nick + "さんでログイン中"),
+  whoami: () => { if (!me || !prof) return; $("mypage").style.display = "block"; loadMyPage(); },
+  closeMy: () => { $("mypage").style.display = "none"; },
+  mypOpen: async key => {
+    const p = key.split("|"), idx = SONGS.findIndex(s => s.vid === p[0]);
+    $("mypage").style.display = "none";
+    if (idx >= 0 && idx !== si) { si = idx; VID = SONGS[si].vid; try { localStorage.setItem("momo_song", si); } catch (e) {} UI.songSel(si); if (ytReady) yt.cueVideoById(VID); }
+    openId = p[1];
+    await loadCalls();
+    if (calls.some(c => c.id === p[1])) { act = p[1]; applyAct(); render(); }
+    A.openOv();
+  },
+  mypCmtOk: async key => { const p = key.split("|"); try { await updateDoc(doc(db, "calls", p[0], "comments", p[1]), {status: "approved"}); toast("感想を公開しました"); } catch (e) { toast("公開できませんでした"); } await checkPending(false); loadMyPage(); },
+  mypCmtNg: async key => { const p = key.split("|"); try { await deleteDoc(doc(db, "calls", p[0], "comments", p[1])); toast("感想を公開しませんでした"); } catch (e) { toast("処理できませんでした"); } await checkPending(false); loadMyPage(); },
   song: i => {
     si = +i; VID = SONGS[si].vid; act = null; EV = [];
     try { localStorage.setItem("momo_song", String(si)); } catch (e) {}
@@ -351,7 +377,7 @@ const A = {
     prof = next; $("sheet").style.display = "none"; paintLogin();
     toast(before ? "変更しました" : nick + "さん、登録しました"); loadCalls();
   },
-  editProf: () => { A.menu(); openSheet(true); },
+  editProf: () => { A.menu(); $("mypage").style.display = "none"; openSheet(true); },
   closeSheet: () => { $("sheet").style.display = "none"; },
   startMk: () => { if (!guard()) return; mk.editId = null; A.menu(); $("mk").style.display = "flex"; renderMk(); $("mk").scrollIntoView({behavior: "smooth"}); },
   endMk: () => { $("mk").style.display = "none"; },
