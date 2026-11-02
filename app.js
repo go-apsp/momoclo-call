@@ -25,10 +25,10 @@ async function loadSongs() {
   try {
     const snap = await getDocs(query(collection(db, "songs"), orderBy("order")));
     if (!snap.empty) {
-      SONGS = snap.docs.map(d => { const x = d.data(); return {s: x.title, title: x.title, vid: x.yid}; });
+      const arr = snap.docs.map(d => { const x = d.data(); return {s: x.title, title: x.title, vid: x.yid}; });
+      SONGS.length = 0; arr.forEach(x => SONGS.push(x));
       si = Math.min(si, SONGS.length - 1); VID = SONGS[si].vid;
       UI.songSel(si);
-loadSongs();
       if (ytReady) yt.cueVideoById(VID);
     }
   } catch (e) {}
@@ -90,6 +90,7 @@ function loop(ts) {
 requestAnimationFrame(loop);
 
 UI.songSel(si);
+loadSongs();
 $("dots").innerHTML = PEN.map((p, i) => `<button aria-label="${p[0]}" data-a="penColor" data-i="${i}" class="${i === 4 ? "sel" : ""}"><i style="background:${p[1]}"></i></button>`).join("");
 
 /* ---------- 認証・登録 ---------- */
