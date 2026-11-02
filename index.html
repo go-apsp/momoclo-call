@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ももクロコール共有(テスト中)</title>
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=14">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 </head>
 <body>
@@ -43,6 +43,7 @@
   <div id="mvwrap">
   <div id="mv">
     <div id="yt"></div>
+    <div id="kokos"></div>
     <div class="crowd">🙌🙌🙌🙌🙌🙌🙌🙌</div>
     <div id="pen" style="color:#fff"></div>
     <div id="cards"></div>
@@ -50,6 +51,7 @@
     <div id="fspads" class="fsonly"><button class="sq penb" data-a="pen">ペンライト</button><button class="sq wk" data-a="waku">湧く!</button></div>
     <button id="fsinfo" class="fsonly" data-a="panel" aria-label="推しコールの情報">i</button>
     <div id="panel"><button class="pc" data-a="panel" aria-label="縮める"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M5 8l6 6 6-6" fill="none" stroke="#f4f4fb" stroke-width="2.2" stroke-linecap="round"/></svg></button><div id="panelbody"></div></div>
+    <button id="fsExit" data-a="fs">全画面を終了</button>
     <button id="fsbtn" data-a="fs" aria-label="全画面"><svg class="ex" viewBox="0 0 22 22" aria-hidden="true"><path d="M3 8V3h5M14 3h5v5M19 14v5h-5M8 19H3v-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg><svg class="sh" viewBox="0 0 22 22" aria-hidden="true"><path d="M8 3v5H3M19 8h-5V3M14 19v-5h5M3 14h5v5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></button>
   </div>
   <div id="nexts"></div>
@@ -69,7 +71,7 @@
   <button id="play" data-a="play">再生</button>
   <button id="ovbtn" data-a="openOv">みんなの<span>推し</span>コール</button>
   <div id="info"></div>
-  <div style="text-align:center;font-size:10px;color:#8e91b8">build 13</div>
+  <div style="text-align:center;font-size:10px;color:#8e91b8">build 14</div>
 
   <section id="mk">
     <h2>推しコールを作る</h2>
@@ -80,6 +82,7 @@
     <div id="mkTypes" class="types">
       <button data-a="type" data-i="call" class="sel">コール</button><button data-a="type" data-i="sing">シンガロン</button><button data-a="type" data-i="koko">ココ好き!</button>
     </div>
+    <div class="durrow"><span>表示時間</span><input type="range" id="mkDur" min="1" max="20" step="0.5" value="6" aria-label="表示時間"><b id="mkDurVal">6秒</b></div>
     <input type="text" id="mkText" placeholder="内容(例: ハイ!ハイ!)" maxlength="30">
     <button class="add" data-a="addScene">この位置に追加</button>
     <div id="mkList"></div>
@@ -89,9 +92,11 @@
     <div class="act">
       <button data-a="save" data-i="0">下書き保存</button>
       <button class="w" data-a="save" data-i="1">公開</button>
+      <button data-a="pvAll">プレビュー</button>
       <button data-a="endMk">やめる</button>
     </div>
   </section>
+  <button id="mkvBtn" data-a="mkv">ももクリDelivery特集</button>
 </div>
 
 <div id="ov"><div class="in">
@@ -106,9 +111,34 @@
   <input type="text" id="nick" placeholder="ニックネーム" maxlength="20">
   <div id="icons"></div>
 </div></div>
+<div id="tlov" class="ovl">
+  <div class="obar"><button data-a="closeTl">戻る</button><b>タイムライン図解</b></div>
+  <div id="tlBody"></div>
+</div>
+
+<div id="refov" class="ovl">
+  <div class="obar"><button data-a="closeRef">戻る</button><b>参考コール</b></div>
+  <div id="refList"></div>
+</div>
+
+<div id="mkvWarn">
+  <div class="mkvCard">
+    <p style="margin:0">この先はツアーのネタバレを含みます</p>
+    <div class="act">
+      <button data-a="mkvCancel">キャンセル</button>
+      <button class="w" data-a="mkvOk">OK</button>
+    </div>
+  </div>
+</div>
+
+<div id="mkvPage" class="ovl">
+  <div class="obar"><button data-a="closeMkv">戻る</button><b>ももクリ Delivery特集</b></div>
+  <div class="mkvBody">特集ページの内容は準備中です。</div>
+</div>
+
 <div id="toast"></div>
 
-<script src="ui.js?v=13" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="app.js?v=13" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
+<script src="ui.js?v=14" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
+<script src="app.js?v=14" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
 </body>
 </html>

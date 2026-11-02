@@ -34,6 +34,7 @@ let me = null, prof = null, calls = [], liked = new Set(), act = null, openId = 
 let EV = [], cur = null, sess = null, pickI = 0, native = false;
 const LIMIT = 600000;   // 湧きを数えるのは、再生を始めてから10分
 let mk = {scenes: [], type: "call", from: null, base: ""};
+let tlId = null, tlZoom = false, tlD = 1, mkPv = null, refCalls = [], refPlay = false;
 
 /* ---------- MV(YouTube) ---------- */
 let yt = null, ytReady = false, last = 0, drag = false;
@@ -58,14 +59,18 @@ function loop(ts) {
   const t = now(), st = ytReady ? yt.getPlayerState() : -1, pl = st === 1;
   $("play").textContent = $("fsplay").textContent = pl ? "一時停止" : "再生";
   if (st === 0 && sess) { sess = null; paintApply(); }   // 曲が終わったら、次回の再生でリセット
-  if (pl && act && !isMine()) { const q = sessFor(); if (!q.t0) { q.t0 = Date.now(); q.ready = loadPrev(q); } }   // 再生を始めてから10分を数える
+  if (mkPv && t >= mkPv.until) { mkPv = null; if (ytReady) yt.pauseVideo(); toast("プレビューが終わりました"); }   // プレビューは表示終了+3秒で止める
+  if (pl && act && !isMine() && !mkPv) { const q = sessFor(); if (!q.t0) { q.t0 = Date.now(); q.ready = loadPrev(q); } }   // 再生を始めてから10分を数える
   if (!drag) { bar.max = dur(); bar.value = t; }
   $("tm").textContent = fmt(t); $("dur").textContent = fmt(dur());
-  const on = EV.filter(x => t >= x.t && t < x.t + x.d);           // いま出ている場面(重なってもそれぞれ本来のタイミング)
-  UI.cards(on); UI.nexts(EV.filter(x => t < x.t && x.t - t <= 6 && x.k !== "koko"), t);
+  const SRC = mkPv ? mkPv.scenes : EV;
+  const on = SRC.filter(x => t >= x.t && t < x.t + x.d);           // いま出ている場面(重なってもそれぞれ本来のタイミング)
+  UI.cards(on); UI.nexts(SRC.filter(x => t < x.t && x.t - t <= 6 && x.k !== "koko"), t);
+  const tp = $("tlPos");
+  if (tp) { const on2 = tlId && tlId === act && dur() > 0; tp.style.display = on2 ? "block" : "none"; if (on2) tp.style.left = "calc(64px + (100% - 72px) * " + Math.min(1, t / dur()) + ")"; }
   const e = on.slice().reverse().find(x => x.k !== "koko") || null;   // 「自分も湧く!」の対象
   document.querySelectorAll(".wk").forEach(x => x.classList.toggle("hot", !!e));
-  cur = e;
+  cur = mkPv ? null : e;
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
@@ -165,6 +170,7 @@ const A = {
     si = +i; VID = SONGS[si].vid; act = null; EV = [];
     try { localStorage.setItem("momo_song", String(si)); } catch (e) {}
     if (ytReady) yt.cueVideoById(VID);
+    mkPv = null; refPlay = false;
     mk = {scenes: [], type: "call", from: null, base: ""}; renderMk(); UI.songSel(si); sess = null; paintApply(); applyAct(); loadCalls();
   },
   menu: () => { const m = $("menu"); m.style.display = m.style.display === "block" ? "none" : "block"; },
@@ -176,6 +182,7 @@ const A = {
   help: () => toast("このタイミングで一緒にコールやシンガロンができます"),
   waku: async () => {
     if (!cur) return toast("コール・シンガロンの場面で押してね");
+    if (refPlay) return toast("一緒に湧いた!");
     if (isMine()) return toast("一緒に湧いた! ※自分の推しコールなのでスコアは反映されません");
     const q = sessFor(); if (!q.t0) { q.t0 = Date.now(); q.ready = loadPrev(q); }
     if (Date.now() - q.t0 > LIMIT) return toast("タイム制限がかかりました。これ以上は反映されません。次回再生時にリセットされます", 4500);
@@ -185,7 +192,32 @@ const A = {
   },
   apply: () => { if (sess) saveWaku(sess); },
   pickIcon: i => { pickI = +i; UI.sheetIcons(pickI); },
-  refcall: () => toast("現在よく叫ばれている？(違ってたらすみません、、)コールを参考として表示される予定です", 5000),
+  tl: id => { const c = calls.find(x => x.id === id); if (!c) return; tlId = id; tlZoom = false; tlD = Math.max(dur() || 0, c.scenes.reduce((m, s) => Math.max(m, s.t + s.d), 0), 1); $("tlBody").innerHTML = UI.timeline(c, tlD, false); $("tlov").style.display = "block"; },
+  tlZoom: () => { const c = calls.find(x => x.id === tlId); if (!c) return; tlZoom = !tlZoom; $("tlBody").innerHTML = UI.timeline(c, tlD, tlZoom); },
+  closeTl: () => { $("tlov").style.display = "none"; tlId = null; tlZoom = false; },
+  tlMark: i => { const c = calls.find(x => x.id === tlId); if (!c) return; const s2 = c.scenes[+i]; if (s2) $("tlInfo").textContent = fmt(s2.t) + " " + LAB[s2.k] + " 「" + s2.x + "」"; },
+  refcall: async () => {
+    A.closeOv();
+    try { const snap = await getDocs(query(collection(db, "refs"), where("videoId", "==", VID))); refCalls = snap.docs.map(d => ({id: d.id, ...d.data()})); }
+    catch (e) { refCalls = []; }
+    $("refList").innerHTML = UI.refs(refCalls);
+    $("refov").style.display = "block";
+  },
+  closeRef: () => { $("refov").style.display = "none"; },
+  useRef: id => {
+    const c = refCalls.find(x => x.id === id); if (!c) return;
+    refPlay = true; act = null; sess = null; paintApply();
+    EV = c.scenes.map(x => ({...x})).sort((a, b) => a.t - b.t);
+    $("who").innerHTML = '<div class="st">♪ ' + esc(SONGS[si].title) + '</div><div class="wn">参考コール' + (c.versionName ? "<i>" + esc(c.versionName) + "</i>" : "") + "</div>";
+    $("info").textContent = "";
+    A.closeRef();
+    if (ytReady) yt.seekTo(0, true);
+    toast("参考コールで再生します");
+  },
+  mkv: () => { $("mkvWarn").style.display = "flex"; },
+  mkvCancel: () => { $("mkvWarn").style.display = "none"; },
+  mkvOk: () => { $("mkvWarn").style.display = "none"; $("mkvPage").style.display = "block"; },
+  closeMkv: () => { $("mkvPage").style.display = "none"; },
   panel: () => { const p = $("panel"); p.style.display = p.style.display === "block" ? "none" : "block"; },
   fs: () => {   // アプリ専用の全画面。端末の全画面機能が使えれば使い、使えなければ画面いっぱいに広げる
     const m = $("mv"), on = !m.classList.contains("fs"), el = document.documentElement;
@@ -199,7 +231,7 @@ const A = {
     }
   },
   toggle: id => { openId = openId === id ? null : id; render(); },
-  use: id => { act = id; sess = null; paintApply(); applyAct(); A.closeOv(); },
+  use: id => { act = id; refPlay = false; sess = null; paintApply(); applyAct(); A.closeOv(); },
   heart: async id => {
     if (!guard()) return;
     const own = calls.find(x => x.id === id);
@@ -230,10 +262,27 @@ const A = {
   startMk: () => { if (!guard()) return; A.menu(); $("mk").style.display = "flex"; renderMk(); $("mk").scrollIntoView({behavior: "smooth"}); },
   endMk: () => { $("mk").style.display = "none"; },
   seek: (d) => { if (ytReady) yt.seekTo(Math.max(0, Math.min(dur(), now() + +d)), true); },
-  type: (k) => { mk.type = k; document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === k)); },
+  type: (k) => { mk.type = k; document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === k)); const dv = k === "koko" ? 5 : 6; $("mkDur").value = dv; $("mkDurVal").textContent = dv + "秒"; },
   addScene: () => {
-    mk.scenes.push({t: Math.round(now()), d: mk.type === "koko" ? 5 : 6, k: mk.type, x: $("mkText").value.trim() || LAB[mk.type]});
+    mk.scenes.push({t: Math.round(now()), d: parseFloat($("mkDur").value) || 6, k: mk.type, x: $("mkText").value.trim() || LAB[mk.type]});
     mk.scenes.sort((a, b) => a.t - b.t); $("mkText").value = ""; renderMk();
+  },
+  pvScene: i => {
+    const sc = mk.scenes[+i]; if (!sc) return;
+    if (!ytReady) return toast("動画の準備ができていません");
+    mkPv = {scenes: mk.scenes.map(x => ({...x})), until: sc.t + sc.d + 3};
+    yt.seekTo(sc.t, true); yt.playVideo();
+    $("mv").scrollIntoView({behavior: "smooth"});
+    toast("場面のプレビュー中(" + fmt(sc.t) + "〜" + fmt(sc.t + sc.d + 3) + ")");
+  },
+  pvAll: () => {
+    if (!mk.scenes.length) return toast("場面を追加してください");
+    if (!ytReady) return toast("動画の準備ができていません");
+    const sorted = mk.scenes.map(x => ({...x})).sort((a, b) => a.t - b.t), first = sorted[0], lastS = sorted[sorted.length - 1];
+    mkPv = {scenes: sorted, until: lastS.t + lastS.d + 3};
+    yt.seekTo(first.t, true); yt.playVideo();
+    $("mv").scrollIntoView({behavior: "smooth"});
+    toast("作成中の推しコールをプレビュー中");
   },
   delScene: i => { mk.scenes.splice(+i, 1); renderMk(); },
   save: async pub => {
@@ -264,5 +313,10 @@ document.addEventListener("click", e => {
 });
 document.addEventListener("change", e => { const b = e.target.closest("[data-c]"); if (b && A[b.dataset.c]) A[b.dataset.c](b.value, b); });
 $("cpos").addEventListener("input", e => { $("cards").style.bottom = 10 + +e.target.value + "px"; });
+$("mkDur").addEventListener("input", e => { $("mkDurVal").textContent = e.target.value + "秒"; });
+document.addEventListener("input", e => {
+  const sl = e.target.closest("[data-dur]");
+  if (sl) { const sc = mk.scenes[+sl.dataset.dur]; if (sc) { sc.d = parseFloat(sl.value); const v = sl.closest(".mkrow").querySelector(".durval"); if (v) v.textContent = sl.value + "秒"; } }
+});
 document.addEventListener("fullscreenchange", () => { if (native && !document.fullscreenElement && $("mv").classList.contains("fs")) A.fs(); });
 })().catch(e => window.__show("起動エラー: " + (e && e.message)));

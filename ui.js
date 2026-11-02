@@ -33,16 +33,24 @@
       $("songbox").innerHTML = '<select id="songsel" data-c="song" aria-label="曲を選ぶ">' + this.songs.map(function (x, i) { return '<option value="' + i + '"' + (i === sel ? " selected" : "") + ">♪ " + esc(x.s) + "</option>"; }).join("") + "</select>";
     },
     total: function (n) { $("tot").textContent = n ? "この曲の湧き合計: " + n + "回" : ""; },
-    /* 3カード: いま出ている場面(出た順)。重なったら、先に出たカードを小さくして左へ寄せる */
+    /* 3カード: いま出ている場面(出た順)。重なったら横に潰さず、古いものを小さく上に積む(下が最新で元の位置)。
+       ココ好き!は枠の上半分に別表示する */
     cards: function (on) {
-      var list = on.slice(-3), key = list.map(function (e) { return e.t + e.k + e.x; }).join("|");
+      var main = on.filter(function (e) { return e.k !== "koko"; }).slice(-3);
+      var koko = on.filter(function (e) { return e.k === "koko"; }).slice(-2);
+      var key = on.map(function (e) { return e.t + e.k + e.x; }).join("|");
       if (key === cardKey) return;
       cardKey = key;
-      var n = list.length;
-      $("cards").innerHTML = list.map(function (e, i) {
+      var n = main.length;
+      $("cards").innerHTML = main.map(function (e, i) {
         var r = n - 1 - i;
-        return '<div class="cd" style="flex:0 0 ' + W[r] + '%;--s:' + S[r] + '"><small>' + LAB[e.k] + "</small><strong>" + esc(e.x) + "</strong>"
-          + (e.mine && e.k !== "koko" ? "<em>このスコアは反映されません</em>" : "") + "</div>";
+        return '<div class="cd" style="--s:' + S[r] + (r ? ";opacity:" + (r === 1 ? ".88" : ".72") : "") + '"><small>' + LAB[e.k] + "</small><strong>" + esc(e.x) + "</strong>"
+          + (e.mine ? "<em>このスコアは反映されません</em>" : "") + "</div>";
+      }).join("");
+      var kn = koko.length;
+      $("kokos").innerHTML = koko.map(function (e, i) {
+        var r = kn - 1 - i;
+        return '<div class="cd" style="--s:' + (r ? 0.72 : 1) + (r ? ";opacity:.75" : "") + '"><small>' + LAB[e.k] + "</small><strong>" + esc(e.x) + "</strong></div>";
       }).join("");
     },
     /* NEXTカード: 垂れタグ型。カウントダウンは数字のみ大きめ、近づくほど色が濃くなる。
@@ -77,7 +85,7 @@
       $("icons").innerHTML = MIC.map(function (m, i) { return '<button data-a="pickIcon" data-i="' + i + '" class="' + (i === sel ? "sel" : "") + '" aria-label="アイコン' + (i + 1) + '">' + m + "</button>"; }).join("");
     },
     mkList: function (scenes) {
-      return scenes.map(function (e, i) { return '<div class="mkrow"><span>' + fmt(e.t) + "</span><span>" + LAB[e.k] + '</span><span class="sp">' + esc(e.x) + '</span><button aria-label="削除" data-a="delScene" data-i="' + i + '">×</button></div>'; }).join("")
+      return scenes.map(function (e, i) { return '<div class="mkrow"><span>' + fmt(e.t) + "</span><span>" + LAB[e.k] + '</span><span class="sp">' + esc(e.x) + '</span><input type="range" class="dursl" min="1" max="20" step="0.5" value="' + e.d + '" data-dur="' + i + '" aria-label="表示時間"><span class="durval">' + e.d + '秒</span><button class="pvb" data-a="pvScene" data-i="' + i + '">プレビュー</button><button aria-label="削除" data-a="delScene" data-i="' + i + '">×</button></div>'; }).join("")
         || '<div style="font-size:12px;color:var(--mut)">動画を止めて、追加したい位置で「この位置に追加」を押します。</div>';
     },
     list: function (calls, x) {
@@ -89,10 +97,45 @@
           + '<div class="dt">' + (c.note ? "<div>備考:" + esc(c.note) + "</div>" : "") + '<div class="used">みんなが ' + (c.used || 0) + '回 一緒に湧きました</div><div class="act">'
           + '<button class="hr" style="background:' + (x.liked.has(c.id) ? "#ff3b4f" : "#3a3f6b") + '" data-a="heart" data-i="' + c.id + '">♥ ' + (c.hearts || 0) + "</button>"
           + '<button class="w" data-a="use" data-i="' + c.id + '">これで再生</button>'
+          + '<button data-a="tl" data-i="' + c.id + '">タイムライン</button>'
           + (!own && c.allowRef ? '<button data-a="ref" data-i="' + c.id + '">参考にする</button>' : "")
           + (own ? '<button data-a="pub" data-i="' + c.id + '">' + (c.public ? "非公開にする" : "公開する") + '</button><button data-a="del" data-i="' + c.id + '">削除</button>' : "")
           + "</div></div></div>";
       }).join("") || '<div style="color:var(--mut);font-size:13px">まだ推しコールがありません。</div>';
+    },
+    /* タイムライン図解(場面が曲のどこに入るか)。zoom=true で拡大表示(各位置に時間と中身) */
+    timeline: function (c, D, zoom) {
+      D = Math.max(1, D || 1);
+      var lanes = ["call", "sing", "koko"];
+      var rows = lanes.map(function (k) {
+        var ms = c.scenes.map(function (s, idx) { return {s: s, idx: idx}; }).filter(function (o) { return o.s.k === k; }).map(function (o) {
+          var l = Math.max(0, o.s.t / D * 100), w = Math.max(1.5, o.s.d / D * 100);
+          return '<button class="tlm tl-' + k + '" style="left:' + l + '%;width:' + w + '%" data-a="tlMark" data-i="' + o.idx + '" aria-label="' + fmt(o.s.t) + " " + LAB[k] + '"></button>';
+        }).join("");
+        return '<div class="tlrow"><span class="tllab">' + LAB[k] + '</span><div class="tltrack">' + ms + "</div></div>";
+      }).join("");
+      var extra = "";
+      if (zoom) {
+        var COL = {call: "#ff6b9d", sing: "#4dc9ff", koko: "#ffd23f"};
+        var Hpx = Math.max(900, Math.round(D * 12));
+        var items = c.scenes.map(function (s, idx) {
+          var top = Math.round(16 + (s.t / D) * (Hpx - 70));
+          return '<div class="tlVItem" style="top:' + top + 'px"><span class="tlVTime">' + fmt(s.t) + '</span><button class="tlVCard" style="border-color:' + COL[s.k] + ";background:" + COL[s.k] + '2e" data-a="tlMark" data-i="' + idx + '">' + LAB[s.k] + " 「" + esc(s.x) + "」</button></div>";
+        }).join("");
+        extra = '<div class="tlVert" style="height:' + Hpx + 'px"><div class="tlVLine"></div>' + items + "</div>";
+      }
+      return '<div class="tltitle">' + esc(c.ownerName) + "さんの推しコール" + (c.versionName ? "「" + esc(c.versionName) + "」" : "") + "</div>"
+        + '<div class="tlbar" data-a="tlZoom">' + rows + '<div id="tlPos"></div></div>'
+        + '<div class="tlscale"><span>0:00</span><span>' + fmt(D) + "</span></div>"
+        + '<div class="tlHint">' + (zoom ? "図解をタップすると通常表示に戻ります" : "図解をタップすると拡大表示できます") + "</div>"
+        + extra
+        + '<div class="tlInfo" id="tlInfo">色のついた部分を押すと、その場面の中身が出ます</div>';
+    },
+    refs: function (refs) {
+      return refs.map(function (c) {
+        var lines = c.scenes.map(function (x) { return fmt(x.t) + " " + LAB[x.k] + " 「" + esc(x.x) + "」"; }).join("<br>");
+        return '<div class="refitem"><b>' + esc(c.versionName || "参考コール") + '</b><div class="rs">' + lines + '</div><div class="act" style="margin-top:8px"><button class="w" data-a="useRef" data-i="' + c.id + '">これで再生</button></div></div>';
+      }).join("") || '<div style="color:var(--mut);font-size:13px">この曲の参考コールはまだありません。</div>';
     }
   };
 })();

@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ももクロコール共有 管理画面</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#0e0f22;color:#eef;font-family:"Hiragino Maru Gothic ProN","Hiragino Sans","Noto Sans JP",sans-serif}
+  .wrap{max-width:860px;margin:0 auto;padding:16px 14px 40px}
+  header{display:flex;align-items:center;gap:10px;margin:6px 0 4px}
+  header h1{font-size:20px;margin:0}
+  header h1 b{color:#ff5d8f}
+  .note{font-size:12px;color:#9aa0c8;margin:0 0 14px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+  .stat{background:#1c1e38;border:1px solid #2c2f57;border-radius:14px;padding:12px 14px}
+  .stat .k{font-size:11px;color:#9aa0c8;font-weight:700}
+  .stat .v{font-size:26px;font-weight:900;margin-top:2px}
+  .stat .v small{font-size:12px;color:#9aa0c8;font-weight:700}
+  .tabs{display:flex;gap:8px;margin-bottom:12px}
+  .tabs button{flex:1;padding:10px 6px;border-radius:12px;border:1px solid #2c2f57;background:#1c1e38;color:#cfd2f2;font-weight:900;font-size:14px;cursor:pointer}
+  .tabs button.sel{background:#ff5d8f;border-color:#ff5d8f;color:#fff}
+  .card{background:#1c1e38;border:1px solid #2c2f57;border-radius:14px;padding:12px;margin-bottom:10px}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .grow{flex:1;min-width:160px}
+  .title{font-weight:900}
+  .sub{font-size:12px;color:#9aa0c8;margin-top:2px}
+  .badge{font-size:11px;font-weight:900;border-radius:9px;padding:3px 8px}
+  .pub{background:#1ed760;color:#0d2818}
+  .draft{background:#3a3f6b;color:#cfd2f2}
+  .num{font-weight:900;white-space:nowrap}
+  button.act{border:1px solid #2c2f57;background:#262a4a;color:#eef;border-radius:10px;padding:7px 12px;font-weight:700;cursor:pointer;font-size:13px}
+  button.danger{border-color:#ff3b4f;color:#ff8fa0}
+  input.search{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #2c2f57;background:#14152b;color:#eef;font-size:14px;margin-bottom:12px}
+  .flab{display:block;font-size:12px;font-weight:700;color:#9aa0c8;margin:10px 0 4px}
+  .fin{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #2c2f57;background:#14152b;color:#eef;font-size:14px;font-family:inherit}
+  textarea.fin{line-height:1.6;resize:vertical}
+  .dot{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:-1px;margin-right:6px}
+  .hidden{display:none}
+  #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:#262a4a;border:1px solid #2c2f57;color:#fff;padding:10px 16px;border-radius:12px;font-weight:700;opacity:0;pointer-events:none;transition:.25s;max-width:92vw;text-align:center;z-index:50}
+  #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  #loginBox{margin:18px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>ももクロ<b>コール</b>共有 管理画面</h1>
+  </header>
+  <p class="note">運営用の管理画面です。Googleアカウントでログインすると、実際のデータが表示されます。参考コールの作成・変更・削除は運営アカウントでだけできます。他の人の下書きはルールの仕様上ここには表示されません。</p>
+
+  <div id="loginBox">
+    <button class="act" id="loginBtn" style="background:#ff5d8f;border-color:#ff5d8f;color:#fff;font-weight:900;padding:12px 20px">Googleでログイン</button>
+    <span id="loginState" class="note"></span>
+  </div>
+
+  <div id="main" class="hidden">
+    <div class="stats" id="stats"></div>
+
+    <div class="tabs">
+      <button id="tabCalls" class="sel">コール管理</button>
+      <button id="tabUsers">ユーザー管理</button>
+      <button id="tabSongs">曲一覧</button>
+      <button id="tabRefs">参考コール</button>
+    </div>
+
+    <div id="paneCalls">
+      <input class="search" id="q" type="search" placeholder="作成者・バージョン名・曲名で探す">
+      <div id="callList"></div>
+    </div>
+
+    <div id="paneUsers" class="hidden"><div id="userList"></div></div>
+    <div id="paneSongs" class="hidden"><div id="songList"></div></div>
+
+    <div id="paneRefs" class="hidden">
+      <p class="note">ここで作った参考コールが、アプリの「参考コール」ボタンで表示されます。</p>
+      <div class="card">
+        <div class="title" style="margin-bottom:10px">参考コールを新規作成</div>
+        <label class="flab">曲</label>
+        <select id="refSong" class="fin"></select>
+        <label class="flab">バージョン名</label>
+        <input id="refVer" class="fin" type="text" placeholder="例: お手本コール">
+        <label class="flab">場面(1行に1つ: 時刻 種類 文字)</label>
+        <textarea id="refScenes" class="fin" rows="5" placeholder="0:00 コール ハイ!ハイ!ハイ!ハイ!&#10;1:06 シンガロン 走れ!走れ!走れ!走れ!&#10;1:42 コール ももクロ!ももクロ!"></textarea>
+        <button class="act" id="refAdd" style="background:#ff5d8f;border-color:#ff5d8f;color:#fff;font-weight:900">この内容で登録</button>
+      </div>
+      <div id="refList"></div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script type="module">
+const B = "https://www.gstatic.com/firebasejs/10.12.2/";
+const appM = await import(B + "firebase-app.js");
+const authM = await import(B + "firebase-auth.js");
+const fsM = await import(B + "firebase-firestore.js");
+const { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } = authM;
+const { getFirestore, collection, doc, getDocs, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp } = fsM;
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBWmghjT5uh-awZEyvi53rYPe8Y8Gf2ICA",
+  authDomain: "momoclo-call.firebaseapp.com",
+  projectId: "momoclo-call",
+  storageBucket: "momoclo-call.firebasestorage.app",
+  messagingSenderId: "972978318918",
+  appId: "1:972978318918:web:921e911bc2a29571f62447"
+};
+const auth = getAuth(appM.initializeApp(firebaseConfig));
+const db = getFirestore(auth.app);
+
+const OSHI = [["赤推し", "#ff3b4f"], ["黄色推し", "#ffd23f"], ["ピンク推し", "#ff7ab3"], ["紫推し", "#a66bff"], ["箱推し", "#39d0ff"], ["決まってない", "#8e91b8"]];
+const SONGS = [
+  {title: "走れ!", vid: "tCD81ACqUYk"},
+  {title: "Event Horizon", vid: "XN4RSUj15TE"},
+  {title: "行くぜっ!怪盗少女 -ZZ ver.-", vid: "f-X5-pYU9gM"}
+];
+const songName = vid => (SONGS.find(s => s.vid === vid) || {title: vid}).title;
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, m => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[m]));
+const $ = id => document.getElementById(id);
+let toastTimer = null;
+function toast(s) { const t = $("toast"); t.textContent = s; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 2800); }
+const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+
+let me = null, USERS = [], CALLS = [], REFS = [], pendingDel = null, pendingRefDel = null;
+
+async function loadAll() {
+  const um = new Map();
+  (await getDocs(collection(db, "users"))).forEach(d => um.set(d.id, {id: d.id, ...d.data()}));
+  USERS = [...um.values()];
+  const cm = new Map();
+  (await getDocs(query(collection(db, "calls"), where("public", "==", true)))).forEach(d => cm.set(d.id, {id: d.id, ...d.data()}));
+  if (me) (await getDocs(query(collection(db, "calls"), where("ownerUid", "==", me.uid)))).forEach(d => cm.set(d.id, {id: d.id, ...d.data()}));
+  CALLS = [...cm.values()];
+  REFS = (await getDocs(collection(db, "refs"))).docs.map(d => ({id: d.id, ...d.data()}));
+  renderCalls(); renderUsers(); renderSongs(); renderRefs();
+}
+
+function stats() {
+  const pub = CALLS.filter(c => c.public).length;
+  const hearts = CALLS.reduce((n, c) => n + (c.hearts || 0), 0);
+  const used = CALLS.reduce((n, c) => n + (c.used || 0), 0);
+  $("stats").innerHTML =
+    '<div class="stat"><div class="k">登録ユーザー</div><div class="v">' + USERS.length + '<small> 人</small></div></div>'
+    + '<div class="stat"><div class="k">推しコール(表示分)</div><div class="v">' + CALLS.length + '<small> 件(公開 ' + pub + ' / 下書き ' + (CALLS.length - pub) + ')</small></div></div>'
+    + '<div class="stat"><div class="k">ハート合計</div><div class="v">♥ ' + hearts + '</div></div>'
+    + '<div class="stat"><div class="k">湧き合計</div><div class="v">' + used + '<small> 回</small></div></div>';
+}
+
+function renderCalls() {
+  const q = ($("q").value || "").trim();
+  const list = CALLS.filter(c => !q || ((c.ownerName || "") + (c.versionName || "") + songName(c.videoId)).indexOf(q) >= 0);
+  $("callList").innerHTML = list.map(c => {
+    const o = OSHI[c.oshi] || OSHI[5];
+    return '<div class="card"><div class="row">'
+      + '<div class="grow"><div class="title">♪ ' + esc(songName(c.videoId)) + (c.versionName ? ' 「' + esc(c.versionName) + '」' : "") + '</div>'
+      + '<div class="sub"><span class="dot" style="background:' + o[1] + '"></span>' + esc(c.ownerName || "") + 'さん / 場面 ' + (c.scenes ? c.scenes.length : 0) + '件' + (c.note ? ' / 備考: ' + esc(c.note) : "") + '</div></div>'
+      + '<span class="badge ' + (c.public ? "pub" : "draft") + '">' + (c.public ? "公開中" : "下書き") + '</span>'
+      + '<span class="num">♥ ' + (c.hearts || 0) + '</span><span class="num">湧き ' + (c.used || 0) + '回</span>'
+      + (pendingDel === c.id
+        ? '<span class="num" style="color:#ff8fa0">削除しますか?</span><button class="act danger" data-del-yes>はい、削除</button><button class="act" data-del-no>やめる</button>'
+        : '<button class="act" data-pub="' + c.id + '">' + (c.public ? "非公開にする" : "公開する") + '</button>'
+        + '<button class="act danger" data-del="' + c.id + '">削除</button>')
+      + '</div></div>';
+  }).join("") || '<div class="card">見つかりませんでした。</div>';
+  $("callList").querySelectorAll("[data-pub]").forEach(b => b.addEventListener("click", () => togglePub(b.dataset.pub)));
+  $("callList").querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => { pendingDel = b.dataset.del; renderCalls(); }));
+  $("callList").querySelectorAll("[data-del-yes]").forEach(b => b.addEventListener("click", delYes));
+  $("callList").querySelectorAll("[data-del-no]").forEach(b => b.addEventListener("click", () => { pendingDel = null; renderCalls(); }));
+  stats();
+}
+
+async function togglePub(id) {
+  const c = CALLS.find(x => x.id === id); if (!c) return;
+  try { await updateDoc(doc(db, "calls", id), {public: !c.public}); c.public = !c.public; renderCalls(); toast("「" + (c.versionName || songName(c.videoId)) + "」を" + (c.public ? "公開" : "非公開") + "にしました"); }
+  catch (e) { toast("変更できませんでした(変更できるのは自分のコールだけです)"); }
+}
+async function delYes() {
+  const id = pendingDel; pendingDel = null;
+  try { await deleteDoc(doc(db, "calls", id)); CALLS = CALLS.filter(x => x.id !== id); renderCalls(); toast("削除しました"); }
+  catch (e) { renderCalls(); toast("削除できませんでした(削除できるのは自分のコールだけです)"); }
+}
+
+function renderUsers() {
+  $("userList").innerHTML = USERS.map(u => {
+    const o = OSHI[u.oshi] || OSHI[5];
+    const n = CALLS.filter(c => c.ownerUid === u.id).length;
+    const joined = u.createdAt && u.createdAt.toDate ? u.createdAt.toDate().toLocaleDateString("ja-JP") : "";
+    return '<div class="card"><div class="row"><div class="grow"><div class="title">' + esc(u.nick || "") + '</div>'
+      + '<div class="sub"><span class="dot" style="background:' + o[1] + '"></span>推し: ' + o[0] + ' / 推しコール ' + n + '件(表示分)' + (joined ? ' / 登録: ' + joined : "") + '</div></div>'
+      + '</div></div>';
+  }).join("") || '<div class="card">ユーザーがいません。</div>';
+}
+
+function renderSongs() {
+  $("songList").innerHTML = SONGS.map(s => {
+    const n = CALLS.filter(c => c.videoId === s.vid).length;
+    return '<div class="card"><div class="row"><div class="grow"><div class="title">♪ ' + esc(s.title) + '</div>'
+      + '<div class="sub">YouTube: ' + s.vid + ' / 推しコール ' + n + '件(表示分)</div></div>'
+      + '</div></div>';
+  }).join("");
+}
+
+const KIND = {"コール": "call", "シンガロン": "sing", "ココ好き": "koko"};
+const KLAB = {call: "コール", sing: "シンガロン", koko: "ココ好き!"};
+function renderRefs() {
+  $("refList").innerHTML = REFS.map(r => {
+    const lines = (r.scenes || []).map(s => fmt(s.t) + " " + (KLAB[s.k] || s.k) + " 「" + esc(s.x) + "」").join("<br>");
+    return '<div class="card"><div class="row"><div class="grow"><div class="title">♪ ' + esc(songName(r.videoId)) + (r.versionName ? ' 「' + esc(r.versionName) + '」' : "") + '</div>'
+      + '<div class="sub" style="line-height:1.7;margin-top:4px">' + lines + '</div></div>'
+      + (pendingRefDel === r.id
+        ? '<span class="num" style="color:#ff8fa0">削除しますか?</span><button class="act danger" data-rdel-yes>はい、削除</button><button class="act" data-rdel-no>やめる</button>'
+        : '<button class="act danger" data-rdel="' + r.id + '">削除</button>')
+      + '</div></div>';
+  }).join("") || '<div class="card">参考コールはまだありません。</div>';
+  $("refList").querySelectorAll("[data-rdel]").forEach(b => b.addEventListener("click", () => { pendingRefDel = b.dataset.rdel; renderRefs(); }));
+  $("refList").querySelectorAll("[data-rdel-yes]").forEach(b => b.addEventListener("click", delRefYes));
+  $("refList").querySelectorAll("[data-rdel-no]").forEach(b => b.addEventListener("click", () => { pendingRefDel = null; renderRefs(); }));
+}
+
+async function addRef() {
+  const vid = $("refSong").value;
+  const ver = $("refVer").value.trim();
+  const raw = $("refScenes").value.split("\n");
+  const scenes = []; let bad = 0;
+  raw.forEach(line => {
+    line = line.trim(); if (!line) return;
+    const m = line.match(/^(\d+):(\d+)\s+(コール|シンガロン|ココ好き)\s*(.*)$/);
+    if (!m) { bad++; return; }
+    const k = KIND[m[3]];
+    scenes.push({t: (+m[1]) * 60 + (+m[2]), d: k === "koko" ? 5 : 6, k: k, x: m[4].trim() || KLAB[k]});
+  });
+  if (!scenes.length) { toast("場面が読み取れませんでした。「0:00 コール ハイ!ハイ!」の形で書いてください"); return; }
+  scenes.sort((a, b) => a.t - b.t);
+  try {
+    const d = await addDoc(collection(db, "refs"), {videoId: vid, versionName: ver, scenes: scenes, createdAt: serverTimestamp()});
+    REFS.push({id: d.id, videoId: vid, versionName: ver, scenes: scenes});
+    $("refVer").value = ""; $("refScenes").value = "";
+    renderRefs();
+    toast("参考コールを登録しました" + (bad ? " ※読み取れなかった行が " + bad + " 行あります" : ""));
+  } catch (e) { toast("登録できませんでした(運営アカウントでログインしているか、ルールの設定を確認してください)"); }
+}
+async function delRefYes() {
+  const id = pendingRefDel; pendingRefDel = null;
+  try { await deleteDoc(doc(db, "refs", id)); REFS = REFS.filter(r => r.id !== id); renderRefs(); toast("参考コールを削除しました"); }
+  catch (e) { renderRefs(); toast("削除できませんでした(運営アカウントでログインしているか確認してください)"); }
+}
+
+function showTab(t) {
+  ["Calls", "Users", "Songs", "Refs"].forEach(k => {
+    $("pane" + k).classList.toggle("hidden", k.toLowerCase() !== t);
+    $("tab" + k).classList.toggle("sel", k.toLowerCase() === t);
+  });
+}
+$("tabCalls").addEventListener("click", () => showTab("calls"));
+$("tabUsers").addEventListener("click", () => showTab("users"));
+$("tabSongs").addEventListener("click", () => showTab("songs"));
+$("tabRefs").addEventListener("click", () => showTab("refs"));
+$("q").addEventListener("input", renderCalls);
+$("refAdd").addEventListener("click", addRef);
+$("refSong").innerHTML = SONGS.map(s => '<option value="' + s.vid + '">' + esc(s.title) + "</option>").join("");
+$("loginBtn").addEventListener("click", async () => {
+  if (me) { await signOut(auth); return; }
+  try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { toast("ログインできませんでした"); }
+});
+
+onAuthStateChanged(auth, async u => {
+  me = u;
+  $("loginBtn").textContent = u ? "ログアウト" : "Googleでログイン";
+  $("loginState").textContent = u ? " " + (u.email || "") + " でログイン中" : "";
+  $("main").classList.toggle("hidden", !u);
+  if (u) { try { await loadAll(); } catch (e) { toast("読み込めませんでした。通信を確認してください"); } }
+});
+</script>
+</body>
+</html>
