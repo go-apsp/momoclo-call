@@ -170,3 +170,9 @@ body.nofs{overflow:hidden}
 .cmtNote{font-size:11px;color:#8e91b8;margin-top:4px}
 .cmtPend{margin-top:8px}
 .mailrow{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;margin:6px 0}
+
+#pEv{margin:8px 0}
+.evBox{border:1px solid #2c2f57;border-radius:14px;background:#14152b;overflow:hidden}
+.evHead{width:100%;display:flex;justify-content:space-between;align-items:center;background:none;border:none;color:#f4f4fb;padding:10px 14px;font-size:14px;font-weight:700;cursor:pointer}
+.evBody{padding:2px 12px 10px}
+.evRow{display:flex;gap:12px;align-items:center;margin:4px 0 8px;font-size:13px;color:#c9cbe8}

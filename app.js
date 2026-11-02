@@ -143,10 +143,14 @@ function applyAct() {
   UI.who(SONGS[si].title, c ? c.ownerName : "", c ? c.versionName : "");
   $("info").textContent = c ? "" : "まだ推しコールがありません。ログインして作ってみましょう";
   UI.total(calls.filter(x => x.public).reduce((n, x) => n + (x.used || 0), 0)); $("panelbody").innerHTML = UI.panel(c);
+  if (act && act !== evFor) { evFor = act; if (!cmts[act]) loadCmts(act).then(() => renderPEv()); }
+  renderPEv();
 }
 
 /* ---------- 一覧(一番上のレイヤー) ---------- */
-function render() { $("list").innerHTML = UI.list(calls, {me, liked, openId, cmts, myNick: prof ? prof.nick : ""}); }
+function render() { $("list").innerHTML = UI.list(calls, {me, liked, openId, cmts, myNick: prof ? prof.nick : ""}); renderPEv(); }
+let pEvOpen = false, evFor = null;
+function renderPEv() { const el = $("pEv"); if (!el) return; const c = calls.find(x => x.id === act); el.innerHTML = c ? UI.evHtml(c, {me, liked, cmts, myNick: prof ? prof.nick : "", open: pEvOpen}) : ""; }
 /* ---------- 感想(承認制) ---------- */
 async function loadCmts(id) {
   const c = calls.find(x => x.id === id); if (!c) return;
@@ -213,6 +217,21 @@ async function saveWaku(q) {
 
 /* ---------- 操作 ---------- */
 const guard = () => (me && prof) || (toast("ログインすると使えます"), false);
+async function writeCmt(id, np, tp) {
+  const c = calls.find(x => x.id === id); if (!c) return;
+  const nEl = $(np + id), tEl = $(tp + id); if (!nEl || !tEl) return;
+  const name = (nEl.value || "").trim(), text = (tEl.value || "").trim();
+  if (!name) return toast("ニックネームを入れてください");
+  if (!text) return toast("感想を書いてください");
+  try {
+    await addDoc(collection(db, "calls", id, "comments"), {name: name.slice(0, 20), text: text.slice(0, 200), status: "pending", uid: me ? me.uid : null, ownerUid: c.ownerUid, at: serverTimestamp()});
+    try { await addDoc(collection(db, "notifications"), {callId: id, ownerUid: c.ownerUid, kind: "comment", at: serverTimestamp()}); } catch (e) {}
+    tEl.value = "";
+    toast("感想を送りました。作者の承認後に公開されます");
+    if (me && c.ownerUid === me.uid) { await loadCmts(id); await checkPending(false); render(); }
+  } catch (e) { toast("感想を送れませんでした"); }
+}
+
 const A = {
   login: async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { toast("ログインできませんでした"); } },
   logout: async () => { await signOut(auth); A.menu(); toast("ログアウトしました"); },
@@ -282,18 +301,8 @@ const A = {
     }
   },
   toggle: async id => { openId = openId === id ? null : id; render(); if (openId === id) { await loadCmts(id); render(); } },
-  cmtWrite: async id => {
-    const c = calls.find(x => x.id === id); if (!c) return;
-    const name = ($("cn-" + id).value || "").trim(), text = ($("ct-" + id).value || "").trim();
-    if (!name) return toast("ニックネームを入れてください");
-    if (!text) return toast("感想を書いてください");
-    try {
-      await addDoc(collection(db, "calls", id, "comments"), {name: name.slice(0, 20), text: text.slice(0, 200), status: "pending", uid: me ? me.uid : null, ownerUid: c.ownerUid, at: serverTimestamp()});
-      try { await addDoc(collection(db, "notifications"), {callId: id, ownerUid: c.ownerUid, kind: "comment", at: serverTimestamp()}); } catch (e) {}
-      $("ct-" + id).value = "";
-      toast("感想を送りました。作者の承認後に公開されます");
-    } catch (e) { toast("感想を送れませんでした"); }
-  },
+  cmtWrite: async id => { await writeCmt(id, "cn-", "ct-"); },
+  cmtWriteP: async id => { await writeCmt(id, "pn-", "pt-"); },
   cmtOk: async key => {
     const p = key.split("|");
     try { await updateDoc(doc(db, "calls", p[0], "comments", p[1]), {status: "approved"}); await loadCmts(p[0]); await checkPending(false); render(); renderReview(); toast("感想を公開しました"); }
@@ -305,6 +314,16 @@ const A = {
     catch (e) { toast("処理できませんでした"); }
   },
   review: () => { $("menu").style.display = "none"; renderReview(); $("cmov").style.display = "block"; },
+  evToggle: () => { pEvOpen = !pEvOpen; renderPEv(); },
+  edit: id => {
+    if (!guard()) return;
+    const c = calls.find(x => x.id === id); if (!c) return;
+    if (!confirm("編集はできますが、今までのスコア(♥と湧き)はリセットされ、付いた感想も削除されます。よろしいですか?")) return;
+    mk = {scenes: c.scenes.map(x => ({...x})), type: "call", from: null, base: "", editId: id};
+    $("mkVer").value = c.versionName || ""; $("mkNote").value = c.note || ""; $("mkRef").checked = !!c.allowRef;
+    A.closeOv(); $("mk").style.display = "flex"; renderMk(); $("mk").scrollIntoView({behavior: "smooth"});
+    toast("編集モード: 保存するとスコアと感想はリセットされます");
+  },
   closeReview: () => { $("cmov").style.display = "none"; },
   use: id => { act = id; refPlay = false; sess = null; paintApply(); applyAct(); A.closeOv(); },
   heart: async id => {
@@ -334,7 +353,7 @@ const A = {
   },
   editProf: () => { A.menu(); openSheet(true); },
   closeSheet: () => { $("sheet").style.display = "none"; },
-  startMk: () => { if (!guard()) return; A.menu(); $("mk").style.display = "flex"; renderMk(); $("mk").scrollIntoView({behavior: "smooth"}); },
+  startMk: () => { if (!guard()) return; mk.editId = null; A.menu(); $("mk").style.display = "flex"; renderMk(); $("mk").scrollIntoView({behavior: "smooth"}); },
   endMk: () => { $("mk").style.display = "none"; },
   seek: (d) => { if (ytReady) yt.seekTo(Math.max(0, Math.min(dur(), now() + +d)), true); },
   type: (k) => { mk.type = k; document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === k)); const dv = k === "koko" ? 5 : 6; $("mkDur").value = dv; $("mkDurVal").textContent = dv + "秒"; },
@@ -367,7 +386,12 @@ const A = {
     if (calls.some(c => c.ownerUid === me.uid) && !ver) return toast("2つ目以降はバージョン名を入れてください");
     if (+pub && mk.from && JSON.stringify(mk.scenes) === mk.base) return toast("参考にした推しコールと全く同じなので公開できません。少し変えてください");
     try {
+      const editId = mk.editId || null;
       await addDoc(collection(db, "calls"), {ownerUid: me.uid, ownerName: prof.nick, oshi: prof.oshi, ownerIcon: prof.icon || 0, videoId: VID, versionName: ver, note: $("mkNote").value.trim(), allowRef: $("mkRef").checked, scenes: mk.scenes, public: !!+pub, hearts: 0, used: 0, createdAt: serverTimestamp()});
+      if (editId) {
+        try { const cs = await getDocs(query(collection(db, "calls", editId, "comments"), where("ownerUid", "==", me.uid))); await Promise.all(cs.docs.map(d => deleteDoc(d.ref))); } catch (e) {}
+        try { await deleteDoc(doc(db, "calls", editId)); } catch (e) {}
+      }
     } catch (e) { return toast("保存できませんでした"); }
     toast(+pub ? "公開しました" : "下書きを保存しました");
     mk = {scenes: [], type: "call", from: null, base: ""}; $("mkVer").value = $("mkNote").value = ""; renderMk(); loadCalls();

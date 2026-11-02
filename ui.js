@@ -99,7 +99,7 @@
           + '<button class="w" data-a="use" data-i="' + c.id + '">これで再生</button>'
           + '<button data-a="tl" data-i="' + c.id + '">タイムライン</button>'
           + (!own && c.allowRef ? '<button data-a="ref" data-i="' + c.id + '">参考にする</button>' : "")
-          + (own ? '<button data-a="pub" data-i="' + c.id + '">' + (c.public ? "非公開にする" : "公開する") + '</button><button data-a="del" data-i="' + c.id + '">削除</button>' : "")
+          + (own ? '<button data-a="pub" data-i="' + c.id + '">' + (c.public ? "非公開にする" : "公開する") + '</button><button data-a="edit" data-i="' + c.id + '">編集</button><button data-a="del" data-i="' + c.id + '">削除</button>' : "")
           + "</div>" + UI.cmtHtml(c, x) + "</div></div>";
       }).join("") || '<div style="color:var(--mut);font-size:13px">まだ推しコールがありません。</div>';
     },
@@ -137,7 +137,7 @@
         return '<div class="refitem"><b>' + esc(c.versionName || "参考コール") + '</b><div class="rs">' + lines + '</div><div class="act" style="margin-top:8px"><button class="w" data-a="useRef" data-i="' + c.id + '">これで再生</button></div></div>';
       }).join("") || '<div style="color:var(--mut);font-size:13px">この曲の参考コールはまだありません。</div>';
     },
-    cmtHtml: function (c, x) {
+    cmtHtml: function (c, x, pfx) {
       var d = (x.cmts || {})[c.id];
       var ap = d ? d.approved : [];
       var list = ap.map(function (m) { return '<div class="cmt"><b>' + esc(m.name) + '</b><span>' + esc(m.text) + '</span></div>'; }).join("");
@@ -148,8 +148,14 @@
         }).join("") + '</div>';
       }
       return '<div class="cmts"><div class="cmtT">感想</div>' + (list || '<div class="cmtNone">まだ感想はありません</div>') + pend
-        + '<div class="cmtForm"><input id="cn-' + c.id + '" placeholder="ニックネーム" maxlength="20" value="' + esc(x.myNick || "") + '"><input id="ct-' + c.id + '" placeholder="感想を書く" maxlength="200"><button data-a="cmtWrite" data-i="' + c.id + '">書く</button></div>'
+        + '<div class="cmtForm"><input id="' + (pfx || "c") + 'n-' + c.id + '" placeholder="ニックネーム" maxlength="20" value="' + esc(x.myNick || "") + '"><input id="' + (pfx || "c") + 't-' + c.id + '" placeholder="感想を書く" maxlength="200"><button data-a="' + (pfx === "p" ? "cmtWriteP" : "cmtWrite") + '" data-i="' + c.id + '">書く</button></div>' 
         + '<div class="cmtNote">感想は、作者の承認後に公開されます</div></div>';
+    },
+    evHtml: function (c, x) {
+      var head = '<button class="evHead" data-a="evToggle"><span>評価・感想</span><span>' + (x.open ? "▲" : "▼") + "</span></button>";
+      if (!x.open) return '<div class="evBox">' + head + "</div>";
+      var heart = '<button class="hr" style="background:' + (x.liked.has(c.id) ? "#ff3b4f" : "#3a3f6b") + '" data-a="heart" data-i="' + c.id + '">♥ ' + (c.hearts || 0) + "</button>";
+      return '<div class="evBox">' + head + '<div class="evBody"><div class="evRow">' + heart + "<span>湧き " + (c.used || 0) + "</span></div>" + UI.cmtHtml(c, x, "p") + "</div></div>";
     }
   };
 })();
