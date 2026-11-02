@@ -82,10 +82,6 @@
         <input id="songTitle" class="fin" type="text" placeholder="例: 走れ!">
         <label class="flab">YouTube動画ID</label>
         <input id="songYid" class="fin" type="text" placeholder="例: tCD81ACqUYk(URLの v= の後ろ)">
-        <label class="flab">SpotifyトラックID</label>
-        <input id="songSid" class="fin" type="text" placeholder="例: 45R1m5osIXo92tgY1eHTeW(track/ の後ろ)">
-        <label class="flab">Spotify版の長さ(ミリ秒)</label>
-        <input id="songDur" class="fin" type="number" placeholder="例: 273373">
         <button class="act" id="songAdd" style="background:#ff5d8f;border-color:#ff5d8f;color:#fff;font-weight:900">この曲を追加</button>
       </div>
       <div id="songList"></div>
@@ -236,9 +232,9 @@ function renderSongs() {
     return;
   }
   $("songList").innerHTML = ADM_SONGS.map(s => {
-    const n = CALLS.filter(c => c.videoId === s.yid || c.videoId === "spotify:track:" + s.sid).length;
+    const n = CALLS.filter(c => c.videoId === s.yid).length;
     return '<div class="card"><div class="row"><div class="grow"><div class="title">♪ ' + esc(s.title) + '</div>'
-      + '<div class="sub">YouTube: ' + esc(s.yid || "") + ' / Spotify: ' + esc(s.sid || "") + ' / 推しコール ' + n + '件(表示分)</div></div>'
+      + '<div class="sub">YouTube: ' + esc(s.yid || "") + ' / 推しコール ' + n + '件(表示分)</div></div>' 
       + (pendingSongDel === s.id
         ? '<span class="num" style="color:#ff8fa0">削除しますか?</span><button class="act danger" data-sdel-yes>はい、削除</button><button class="act" data-sdel-no>やめる</button>'
         : '<button class="act danger" data-sdel="' + s.id + '">削除</button>')
@@ -250,9 +246,9 @@ function renderSongs() {
 }
 async function seedSongs() {
   const defs = [
-    {title: "走れ!", yid: "tCD81ACqUYk", sid: "45R1m5osIXo92tgY1eHTeW", durMs: 273373, order: 0},
-    {title: "Event Horizon", yid: "XN4RSUj15TE", sid: "1hHkOBpuly0rAoFuKWy5CM", durMs: 234633, order: 1},
-    {title: "行くぜっ!怪盗少女 -ZZ ver.-", yid: "f-X5-pYU9gM", sid: "6gIf4tylgA6mr7mj62Pz55", durMs: 228026, order: 2}
+    {title: "走れ!", yid: "tCD81ACqUYk", order: 0},
+    {title: "Event Horizon", yid: "XN4RSUj15TE", order: 1},
+    {title: "行くぜっ!怪盗少女 -ZZ ver.-", yid: "f-X5-pYU9gM", order: 2}
   ];
   try {
     for (const d of defs) { const r = await addDoc(collection(db, "songs"), d); ADM_SONGS.push({id: r.id, ...d}); }
@@ -260,13 +256,13 @@ async function seedSongs() {
   } catch (e) { toast("登録できませんでした(運営アカウントでログインしているか、ルールの設定を確認してください)"); }
 }
 async function addSong() {
-  const title = $("songTitle").value.trim(), yid = $("songYid").value.trim(), sid = $("songSid").value.trim(), durMs = parseInt($("songDur").value, 10) || 0;
-  if (!title || !yid || !sid) { toast("曲名・YouTube動画ID・SpotifyトラックIDを入れてください"); return; }
-  const d = {title: title, yid: yid, sid: sid, durMs: durMs, order: ADM_SONGS.length};
+  const title = $("songTitle").value.trim(), yid = $("songYid").value.trim();
+  if (!title || !yid) { toast("曲名・YouTube動画IDを入れてください"); return; }
+  const d = {title: title, yid: yid, order: ADM_SONGS.length};
   try {
     const r = await addDoc(collection(db, "songs"), d);
     ADM_SONGS.push({id: r.id, ...d});
-    $("songTitle").value = $("songYid").value = $("songSid").value = $("songDur").value = "";
+    $("songTitle").value = $("songYid").value = "";
     renderSongs(); toast("曲を追加しました");
   } catch (e) { toast("追加できませんでした(運営アカウントでログインしているか、ルールの設定を確認してください)"); }
 }
