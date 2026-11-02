@@ -37,7 +37,7 @@ let si = 0;
 try { si = Math.min(+localStorage.getItem("momo_sp_song") || 0, SONGS.length - 1); } catch (e) {}
 const trackUri = s2 => "spotify:track:" + s2.tid;
 let VID = trackUri(SONGS[si]);
-const SPOTIFY_CLIENT_ID = "__SPOTIFY_CLIENT_ID__";
+const SPOTIFY_CLIENT_ID = "f610d4e2288a4622a79c7ac81c52b524";
 const SP_REDIRECT = location.origin + location.pathname;
 const {LAB, OSHI, PEN, esc, fmt, colorOf} = UI;
 
