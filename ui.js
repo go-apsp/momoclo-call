@@ -45,15 +45,24 @@
           + (e.mine && e.k !== "koko" ? "<em>このスコアは反映されません</em>" : "") + "</div>";
       }).join("");
     },
-    /* NEXTカード: 次のコール・シンガロンの内容を中に書く。近づくほど大きくなる */
+    /* NEXTカード: 垂れタグ型。カウントダウンは数字のみ大きめ、近づくほど色が濃くなる。
+       枠との重なりはカードの縦幅の1/4だけ(残り3/4は枠の上) */
     nexts: function (list, t) {
       var key = list.map(function (e) { return e.t + e.k + e.x; }).join("|");
       if (key !== nextKey) {
         nextKey = key;
-        $("nexts").innerHTML = list.map(function (e) { return '<div class="nx"><small>NEXT ' + LAB[e.k] + "</small><b>" + esc(e.x) + "</b></div>"; }).join("");
+        $("nexts").innerHTML = list.map(function (e, i) { return '<div class="nx nx-' + e.k + (i === 0 ? " main" : "") + '"><small>NEXT ' + LAB[e.k] + "</small><b>" + esc(e.x) + '</b><span class="nxnum"></span></div>'; }).join("");
       }
       var els = $("nexts").children;
-      for (var i = 0; i < els.length; i++) els[i].style.transform = "scale(" + (0.85 + 0.35 * (1 - (list[i].t - t) / 6)) + ")";
+      for (var i = 0; i < els.length; i++) {
+        var e = list[i]; if (!e || !els[i]) continue;
+        var remain = Math.max(0, e.t - t), p = Math.min(1, Math.max(0, 1 - remain / 6));
+        var sec = Math.max(1, Math.ceil(remain)), num = els[i].querySelector(".nxnum");
+        if (num && num.textContent !== String(sec)) num.textContent = sec;
+        var rgb = e.k === "sing" ? "30,136,229" : "255,45,110";
+        els[i].style.background = "rgba(" + rgb + "," + (0.30 + 0.22 * p).toFixed(2) + ")";
+        els[i].style.transform = "translateY(" + (-100 + 25 * p).toFixed(1) + "%) scale(" + (0.94 + 0.08 * p).toFixed(3) + ")";
+      }
     },
     /* YouTube画面の外: 曲名(左寄せ)の下に「◯◯さんの推しコール」 */
     who: function (title, name, ver) {
