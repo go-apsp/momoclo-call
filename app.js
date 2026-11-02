@@ -7,7 +7,7 @@ for (const n of ["app", "auth", "firestore"]) {
 }
 const { initializeApp } = M.app;
 const { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } = M.auth;
-const { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, query, where, increment, writeBatch, serverTimestamp } = M.firestore;
+const { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, increment, writeBatch, serverTimestamp } = M.firestore;
 
 window.__ok = true;
 { const eb = document.getElementById("err"); if (eb) eb.remove(); }
@@ -20,7 +20,20 @@ const firebaseConfig = {
   messagingSenderId: "972978318918",
   appId: "1:972978318918:web:921e911bc2a29571f62447"
 };
-const SONGS = UI.songs;
+let SONGS = UI.songs;
+async function loadSongs() {
+  try {
+    const snap = await getDocs(query(collection(db, "songs"), orderBy("order")));
+    if (!snap.empty) {
+      SONGS = snap.docs.map(d => { const x = d.data(); return {s: x.title, title: x.title, vid: x.yid}; });
+      si = Math.min(si, SONGS.length - 1); VID = SONGS[si].vid;
+      UI.songSel(si);
+loadSongs();
+      if (ytReady) yt.cueVideoById(VID);
+    }
+  } catch (e) {}
+  loadCalls();
+}
 let si = 0;
 try { si = Math.min(+localStorage.getItem("momo_song") || 0, SONGS.length - 1); } catch (e) {}
 let VID = SONGS[si].vid;
@@ -35,6 +48,7 @@ let EV = [], cur = null, sess = null, pickI = 0, native = false;
 const LIMIT = 600000;   // 湧きを数えるのは、再生を始めてから10分
 let mk = {scenes: [], type: "call", from: null, base: ""};
 let tlId = null, tlZoom = false, tlD = 1, mkPv = null, refCalls = [], refPlay = false;
+let cmts = {}, pendAll = [], pendKnown = new Set();
 
 /* ---------- MV(YouTube) ---------- */
 let yt = null, ytReady = false, last = 0, drag = false;
@@ -93,12 +107,14 @@ function paintLogin() {
   else b.outerHTML = `<button class="pill" id="login" data-a="login">ログイン</button>`;
   $("mkbtn").style.display = $("oshibtn").style.display = $("logout").style.display = me && prof ? "block" : "none";
   if (!(me && prof)) A.endMk();
+  paintReviewBtn();
 }
 function openSheet(edit) {
   const sh = $("sheet").firstElementChild;
   sh.querySelectorAll("button").forEach(b => b.remove());
   sh.querySelector("h2").textContent = edit ? "推し・アイコンの変更" : "はじめての登録";
   $("nick").value = edit && prof ? prof.nick : "";
+  $("mailNotify").checked = !(edit && prof && prof.mailNotify === false);
   pickI = edit && prof ? (prof.icon || 0) : 0; UI.sheetIcons(pickI);
   sh.insertAdjacentHTML("beforeend", OSHI.map((o, i) => `<button style="border-color:${o[1]}" data-a="register" data-i="${i}">${o[0]}</button>`).join("")
     + (edit ? '<button data-a="closeSheet" style="grid-column:1/3;border:2px solid #8e91b8">キャンセル</button>' : ""));
@@ -118,7 +134,7 @@ async function loadCalls() {
     calls = [...m.values()].sort((a, b) => (b.hearts || 0) - (a.hearts || 0));
   } catch (e) { toast("読み込めませんでした。通信を確認してください"); }
   if (!calls.some(c => c.id === act)) act = calls[0] ? calls[0].id : null;
-  applyAct(); render();
+  applyAct(); render(); checkPending(true);
 }
 function applyAct() {
   const c = calls.find(x => x.id === act);
@@ -129,7 +145,41 @@ function applyAct() {
 }
 
 /* ---------- 一覧(一番上のレイヤー) ---------- */
-function render() { $("list").innerHTML = UI.list(calls, {me, liked, openId}); }
+function render() { $("list").innerHTML = UI.list(calls, {me, liked, openId, cmts, myNick: prof ? prof.nick : ""}); }
+/* ---------- 感想(承認制) ---------- */
+async function loadCmts(id) {
+  const c = calls.find(x => x.id === id); if (!c) return;
+  try {
+    const ap = (await getDocs(query(collection(db, "calls", id, "comments"), where("status", "==", "approved")))).docs.map(d => ({id: d.id, ...d.data()}));
+    let pd = [];
+    if (me && c.ownerUid === me.uid) pd = (await getDocs(collection(db, "calls", id, "comments"))).docs.map(d => ({id: d.id, ...d.data()})).filter(m => m.status === "pending");
+    ap.sort((a, b) => ((a.at && a.at.seconds) || 0) - ((b.at && b.at.seconds) || 0));
+    cmts[id] = {approved: ap, pending: pd};
+  } catch (e) {}
+}
+async function checkPending(openPopup) {
+  if (!me || !prof) { pendAll = []; paintReviewBtn(); return; }
+  const mine = calls.filter(c => c.ownerUid === me.uid);
+  const all = [];
+  for (const c of mine) {
+    try {
+      const snap = await getDocs(collection(db, "calls", c.id, "comments"));
+      snap.forEach(d => { const m = {id: d.id, callId: c.id, ver: c.versionName || "", songTitle: SONGS[si].title, ...d.data()}; if (m.status === "pending") all.push(m); });
+    } catch (e) {}
+  }
+  pendAll = all; paintReviewBtn();
+  const ids = new Set(all.map(m => m.callId + "|" + m.id));
+  const hasNew = [...ids].some(x => !pendKnown.has(x));
+  pendKnown = ids;
+  if (openPopup && hasNew && all.length) { renderReview(); $("cmov").style.display = "block"; }
+}
+function paintReviewBtn() { const b = $("reviewBtn"); if (!b) return; const show = !!(me && prof && pendAll.length); b.style.display = show ? "block" : "none"; b.textContent = "感想の承認待ち(" + pendAll.length + "件)"; }
+function renderReview() {
+  const el = $("cmList"); if (!el) return;
+  el.innerHTML = pendAll.map(m => '<div class="cmt"><b>' + esc(m.name) + '</b><span>' + esc(m.text) + '</span><span class="cmtSub">' + esc(m.songTitle) + (m.ver ? " 「" + esc(m.ver) + "」" : "") + '</span><span class="cmtBtns"><button data-a="cmtOk" data-i="' + m.callId + '|' + m.id + '">公開する</button><button data-a="cmtNg" data-i="' + m.callId + '|' + m.id + '">公開しない</button></span></div>').join("") || '<div class="cmtNone">承認待ちの感想はありません</div>';
+}
+setInterval(() => { if (me && prof) checkPending(true); }, 60000);
+
 
 /* ---------- 作成 ---------- */
 function renderMk() { $("mkList").innerHTML = UI.mkList(mk.scenes); }
@@ -230,7 +280,31 @@ const A = {
       native = false;
     }
   },
-  toggle: id => { openId = openId === id ? null : id; render(); },
+  toggle: async id => { openId = openId === id ? null : id; render(); if (openId === id) { await loadCmts(id); render(); } },
+  cmtWrite: async id => {
+    const c = calls.find(x => x.id === id); if (!c) return;
+    const name = ($("cn-" + id).value || "").trim(), text = ($("ct-" + id).value || "").trim();
+    if (!name) return toast("ニックネームを入れてください");
+    if (!text) return toast("感想を書いてください");
+    try {
+      await addDoc(collection(db, "calls", id, "comments"), {name: name.slice(0, 20), text: text.slice(0, 200), status: "pending", uid: me ? me.uid : null, ownerUid: c.ownerUid, at: serverTimestamp()});
+      try { await addDoc(collection(db, "notifications"), {callId: id, ownerUid: c.ownerUid, kind: "comment", at: serverTimestamp()}); } catch (e) {}
+      $("ct-" + id).value = "";
+      toast("感想を送りました。作者の承認後に公開されます");
+    } catch (e) { toast("感想を送れませんでした"); }
+  },
+  cmtOk: async key => {
+    const p = key.split("|");
+    try { await updateDoc(doc(db, "calls", p[0], "comments", p[1]), {status: "approved"}); await loadCmts(p[0]); await checkPending(false); render(); renderReview(); toast("感想を公開しました"); }
+    catch (e) { toast("公開できませんでした"); }
+  },
+  cmtNg: async key => {
+    const p = key.split("|");
+    try { await deleteDoc(doc(db, "calls", p[0], "comments", p[1])); await loadCmts(p[0]); await checkPending(false); render(); renderReview(); toast("感想を公開しませんでした"); }
+    catch (e) { toast("処理できませんでした"); }
+  },
+  review: () => { $("menu").style.display = "none"; renderReview(); $("cmov").style.display = "block"; },
+  closeReview: () => { $("cmov").style.display = "none"; },
   use: id => { act = id; refPlay = false; sess = null; paintApply(); applyAct(); A.closeOv(); },
   heart: async id => {
     if (!guard()) return;
@@ -245,7 +319,7 @@ const A = {
   register: async i => {
     const nick = $("nick").value.trim();
     if (!nick) return toast("ニックネームを入れてください");
-    const before = prof, next = {nick, oshi: +i, icon: pickI};
+    const before = prof, next = {nick, oshi: +i, icon: pickI, mailNotify: $("mailNotify").checked};
     try {
       await setDoc(doc(db, "users", me.uid), before ? next : {...next, createdAt: serverTimestamp()}, {merge: true});
       if (before && (before.oshi !== next.oshi || before.nick !== nick || (before.icon || 0) !== pickI)) {   // 推し・名前を変えたら、自分の推しコールも合わせる

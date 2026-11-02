@@ -156,3 +156,17 @@ body.nofs{overflow:hidden}
 .mkvBody{background:#1c1e38;border:1px solid #2c2f57;border-radius:14px;padding:18px;color:#cfd2f2;line-height:1.8}
 .refitem{background:#1c1e38;border:1px solid #2c2f57;border-radius:14px;padding:12px 14px;margin-bottom:10px}
 .refitem .rs{font-size:12px;line-height:1.7;color:#cfd2f2}
+.cmts{margin-top:10px;border-top:1px solid #2c2f57;padding-top:8px}
+.cmtT{font-size:12px;font-weight:900;color:#cfd2f2;margin-bottom:6px}
+.cmt{display:flex;flex-direction:column;gap:2px;background:#14152b;border:1px solid #2c2f57;border-radius:10px;padding:7px 10px;margin-bottom:6px;font-size:13px}
+.cmt b{color:#ffd2e6;font-size:12px}
+.cmtBtns{display:flex;gap:8px;margin-top:4px}
+.cmtBtns button{height:32px;padding:0 12px;font-size:12px;font-weight:700;border-radius:16px}
+.cmtSub{font-size:11px;color:#8e91b8}
+.cmtNone{font-size:12px;color:#8e91b8;margin-bottom:6px}
+.cmtForm{display:flex;gap:6px;margin-top:6px}
+.cmtForm input{flex:1;min-width:0;background:#14152b;border:1px solid #2c2f57;border-radius:10px;color:#eef;padding:8px 10px;font-size:13px}
+.cmtForm button{flex:none;width:auto;padding:0 14px;font-weight:700}
+.cmtNote{font-size:11px;color:#8e91b8;margin-top:4px}
+.cmtPend{margin-top:8px}
+.mailrow{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;margin:6px 0}
