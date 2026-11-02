@@ -153,7 +153,7 @@ async function loadCmts(id) {
   try {
     const ap = (await getDocs(query(collection(db, "calls", id, "comments"), where("status", "==", "approved")))).docs.map(d => ({id: d.id, ...d.data()}));
     let pd = [];
-    if (me && c.ownerUid === me.uid) pd = (await getDocs(collection(db, "calls", id, "comments"))).docs.map(d => ({id: d.id, ...d.data()})).filter(m => m.status === "pending");
+    if (me && c.ownerUid === me.uid) pd = (await getDocs(query(collection(db, "calls", id, "comments"), where("ownerUid", "==", me.uid)))).docs.map(d => ({id: d.id, ...d.data()})).filter(m => m.status === "pending");
     ap.sort((a, b) => ((a.at && a.at.seconds) || 0) - ((b.at && b.at.seconds) || 0));
     cmts[id] = {approved: ap, pending: pd};
   } catch (e) {}
@@ -164,7 +164,7 @@ async function checkPending(openPopup) {
   const all = [];
   for (const c of mine) {
     try {
-      const snap = await getDocs(collection(db, "calls", c.id, "comments"));
+      const snap = await getDocs(query(collection(db, "calls", c.id, "comments"), where("ownerUid", "==", me.uid)));
       snap.forEach(d => { const m = {id: d.id, callId: c.id, ver: c.versionName || "", songTitle: SONGS[si].title, ...d.data()}; if (m.status === "pending") all.push(m); });
     } catch (e) {}
   }
