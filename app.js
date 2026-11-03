@@ -284,7 +284,7 @@ const A = {
     try { await navigator.clipboard.writeText(u); toast("リンクをコピーしました"); }
     catch { const ta = document.createElement("textarea"); ta.value = u; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast("リンクをコピーしました"); }
   },
-  spGo: () => { if (confirm("使いたければ、僕にSpotifyのアカウント情報を知らせる勇気があるなら、使ってもらっても大丈夫です。ただし先着24名（SpotifyのAPIの仕様上）まで。")) location.href = "spotify.html"; },
+  spGo: () => { if (confirm("使いたいと思ったなら、僕にSpotifyのアカウント情報を知らせる勇気があるなら、使ってもらっても大丈夫です。ただし先着24名（SpotifyのAPIの仕様上）まで。")) location.href = "spotify.html"; },
   whoami: () => { if (!me || !prof) return; $("mypage").style.display = "block"; loadMyPage(); },
   closeMy: () => { $("mypage").style.display = "none"; },
   userPage: uid => { if (me && uid === me.uid) return A.whoami(); openUserPage(uid); },
