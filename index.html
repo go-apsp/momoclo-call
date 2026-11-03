@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ももクロコール共有(テスト中)</title>
-<link rel="stylesheet" href="style.css?v=20">
+<link rel="stylesheet" href="style.css?v=21">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 </head>
 <body>
@@ -73,7 +73,7 @@
   <div id="pEv"></div>
   <button id="ovbtn" data-a="openOv">みんなの<span>推し</span>コール</button>
   <div id="info"></div>
-  <div style="text-align:center;font-size:10px;color:#8e91b8">build 20</div>
+  <div style="text-align:center;font-size:10px;color:#8e91b8">build 21</div>
 
   <section id="mk">
     <h2>推しコールを作る</h2>
@@ -112,6 +112,8 @@
   <p>ニックネームは他の人に表示されます。推しとアイコンは、あとからメニューで変えられます。</p>
   <input type="text" id="nick" placeholder="ニックネーム" maxlength="20">
   <label class="mailrow"><input type="checkbox" id="mailNotify" checked> 感想が書き込まれたらメールで知らせる</label>
+  <label class="pflabel" for="pfPr">PR文（任意）</label>
+  <textarea id="pfPr" rows="3" maxlength="100" placeholder="例: みんなでコールを楽しもう！"></textarea>
   <div id="icons"></div>
 </div></div>
 <div id="cmov" class="ovl">
@@ -123,6 +125,11 @@
 <div id="mypage" class="ovl">
   <div class="obar"><button data-a="closeMy">戻る</button><b>マイページ</b></div>
   <div id="myBody"></div>
+</div>
+
+<div id="userpage" class="ovl">
+  <div class="obar"><button data-a="closeUser">戻る</button><b>ユーザーページ</b></div>
+  <div id="upBody"></div>
 </div>
 
 <div id="tlov" class="ovl">
@@ -152,7 +159,7 @@
 
 <div id="toast"></div>
 
-<script src="ui.js?v=20" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="app.js?v=20" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
+<script src="ui.js?v=21" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
+<script src="app.js?v=21" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
 </body>
 </html>

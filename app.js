@@ -116,6 +116,7 @@ function openSheet(edit) {
   sh.querySelector("h2").textContent = edit ? "推し・アイコンの変更" : "はじめての登録";
   $("nick").value = edit && prof ? prof.nick : "";
   $("mailNotify").checked = !(edit && prof && prof.mailNotify === false);
+  $("pfPr").value = edit && prof ? (prof.pr || "") : "";
   pickI = edit && prof ? (prof.icon || 0) : 0; UI.sheetIcons(pickI);
   sh.insertAdjacentHTML("beforeend", OSHI.map((o, i) => `<button style="border-color:${o[1]}" data-a="register" data-i="${i}">${o[0]}</button>`).join("")
     + (edit ? '<button data-a="closeSheet" style="grid-column:1/3;border:2px solid #8e91b8">キャンセル</button>' : ""));
@@ -179,6 +180,22 @@ async function checkPending(openPopup) {
   if (openPopup && hasNew && all.length) { renderReview(); $("cmov").style.display = "block"; }
 }
 let myPend = [];
+async function openUserPage(uid) {
+  const rep = calls.find(c => c.ownerUid === uid);
+  if (!rep) return;
+  let p = {nick: rep.ownerName, oshi: rep.oshi, icon: rep.ownerIcon || 0, pr: ""};
+  $("upBody").innerHTML = '<div class="cmtNone">読み込み中…</div>';
+  $("userpage").style.display = "block";
+  if (me) { try { const d = await getDoc(doc(db, "users", uid)); if (d.exists()) { const u = d.data(); p = {nick: u.nick, oshi: u.oshi, icon: u.icon || 0, pr: u.pr || ""}; } } catch (e) {} }
+  let mine = [];
+  try {
+    const snap = await getDocs(query(collection(db, "calls"), where("ownerUid", "==", uid), where("public", "==", true)));
+    snap.forEach(d => { const c = {id: d.id, ...d.data()}; const s = SONGS.find(x => x.vid === c.videoId); c.songTitle = s ? s.title : ""; mine.push(c); });
+  } catch (e) {}
+  mine.sort((a, b) => ((b.createdAt && b.createdAt.seconds) || 0) - ((a.createdAt && a.createdAt.seconds) || 0));
+  $("upBody").innerHTML = UI.userPage({prof: p, calls: mine});
+}
+
 async function loadMyPage() {
   const el = $("myBody"); if (!el || !me || !prof) return;
   el.innerHTML = '<div class="cmtNone">読み込み中…</div>';
@@ -251,9 +268,12 @@ const A = {
   logout: async () => { await signOut(auth); A.menu(); toast("ログアウトしました"); },
   whoami: () => { if (!me || !prof) return; $("mypage").style.display = "block"; loadMyPage(); },
   closeMy: () => { $("mypage").style.display = "none"; },
+  userPage: uid => { if (me && uid === me.uid) return A.whoami(); openUserPage(uid); },
+  closeUser: () => { $("userpage").style.display = "none"; },
   mypOpen: async key => {
     const p = key.split("|"), idx = SONGS.findIndex(s => s.vid === p[0]);
     $("mypage").style.display = "none";
+    $("userpage").style.display = "none";
     if (idx >= 0 && idx !== si) { si = idx; VID = SONGS[si].vid; try { localStorage.setItem("momo_song", si); } catch (e) {} UI.songSel(si); if (ytReady) yt.cueVideoById(VID); }
     openId = p[1];
     await loadCalls();
@@ -365,7 +385,7 @@ const A = {
   register: async i => {
     const nick = $("nick").value.trim();
     if (!nick) return toast("ニックネームを入れてください");
-    const before = prof, next = {nick, oshi: +i, icon: pickI, mailNotify: $("mailNotify").checked};
+    const before = prof, next = {nick, oshi: +i, icon: pickI, mailNotify: $("mailNotify").checked, pr: $("pfPr").value.trim().slice(0, 100)};
     try {
       await setDoc(doc(db, "users", me.uid), before ? next : {...next, createdAt: serverTimestamp()}, {merge: true});
       if (before && (before.oshi !== next.oshi || before.nick !== nick || (before.icon || 0) !== pickI)) {   // 推し・名前を変えたら、自分の推しコールも合わせる
