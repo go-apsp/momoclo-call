@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spotify埋め込みテスト | momoclo-call</title>
+<style>
+  body { font-family: sans-serif; background: #14152b; color: #f4f4fb; margin: 0; padding: 16px; }
+  h1 { font-size: 17px; }
+  .note { font-size: 12px; color: #b9bbd9; line-height: 1.7; }
+  #embed { margin: 12px 0; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  button { background: #ff5c8a; color: #fff; border: none; border-radius: 999px; padding: 10px 16px; font-size: 14px; }
+  button.sub { background: #2c2e52; }
+  #stat { background: #1d1f3d; border-radius: 10px; padding: 10px 12px; font-size: 14px; line-height: 1.9; }
+  #card { min-height: 64px; margin-top: 12px; }
+  .c-call { background: #ff5c8a; color: #fff; border-radius: 12px; padding: 14px; font-size: 20px; font-weight: bold; text-align: center; }
+  .c-sing { background: #4d7cff; color: #fff; border-radius: 12px; padding: 14px; font-size: 20px; font-weight: bold; text-align: center; }
+  .c-koko { background: #f7b500; color: #14152b; border-radius: 12px; padding: 14px; font-size: 18px; font-weight: bold; text-align: center; }
+  #log { font-size: 11px; color: #8e91b8; white-space: pre-wrap; margin-top: 10px; max-height: 180px; overflow: auto; }
+</style>
+</head>
+<body>
+<h1>Spotify埋め込みプレイヤー テスト</h1>
+<p class="note">テスト曲: 「走れ!」ももいろクローバーZ(本編 約273秒)。確認ポイント: (1)再生位置が取れるか (2)位置に合わせてカードが出るか (3)フル再生か30秒プレビューか(下の「長さ」で判定)。</p>
+
+<div id="embed"></div>
+
+<div class="row">
+  <button id="bPlay">▶ 再生(プログラムから)</button>
+  <button id="bPause" class="sub">⏸ 一時停止/再開</button>
+  <button id="bSeek" class="sub">+10秒シーク</button>
+</div>
+
+<div id="stat">
+  再生位置: <b id="pos">-</b> 秒 / 長さ: <b id="dur">-</b> 秒<br>
+  状態: <b id="st">準備中</b> / 判定: <b id="judge">-</b>
+</div>
+
+<div id="card"></div>
+<div id="log"></div>
+
+<script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
+<script>
+var ctrl = null;
+var lastPos = 0, lastAt = 0, playing = false, durMs = 0;
+var fired = {};
+var SCENES = [
+  { t: 5,  d: 4, k: "call", x: "ハイ!ハイ!ハイ!ハイ!" },
+  { t: 12, d: 5, k: "sing", x: "走れ!走れ!走れ!走れ!" },
+  { t: 20, d: 6, k: "koko", x: "ここが好き!(テスト)" }
+];
+function log(m) {
+  var el = document.getElementById("log");
+  el.textContent += m + "\n";
+  el.scrollTop = el.scrollHeight;
+}
+function estPos() {
+  if (!playing) return lastPos;
+  return lastPos + (Date.now() - lastAt) / 1000;
+}
+window.onSpotifyIframeApiReady = function (IFrameAPI) {
+  var el = document.getElementById("embed");
+  IFrameAPI.createController(el, { uri: "spotify:track:45R1m5osIXo92tgY1eHTeW", width: "100%", height: 152 }, function (c) {
+    ctrl = c;
+    log("コントローラ準備完了");
+    document.getElementById("st").textContent = "準備完了";
+    c.addListener("ready", function () { log("ready イベント"); });
+    c.addListener("playback_update", function (e) {
+      var d = e.data;
+      lastPos = d.position / 1000;
+      lastAt = Date.now();
+      playing = !d.isPaused;
+      durMs = d.duration;
+      document.getElementById("dur").textContent = (d.duration / 1000).toFixed(1);
+      document.getElementById("st").textContent = d.isPaused ? "一時停止中" : "再生中";
+      document.getElementById("judge").textContent = d.duration > 60000 ? "フル再生" : (d.duration > 0 ? "30秒プレビューの可能性" : "-");
+      log("playback_update: pos=" + (d.position / 1000).toFixed(2) + "s dur=" + (d.duration / 1000).toFixed(1) + "s paused=" + d.isPaused);
+    });
+  });
+};
+document.getElementById("bPlay").addEventListener("click", function () { if (ctrl) { ctrl.play(); log("play() を呼んだ"); } });
+document.getElementById("bPause").addEventListener("click", function () { if (ctrl) { ctrl.togglePlay(); log("togglePlay() を呼んだ"); } });
+document.getElementById("bSeek").addEventListener("click", function () { if (ctrl) { var t = Math.floor(estPos()) + 10; ctrl.seek(t); log("seek(" + t + ") を呼んだ"); } });
+
+setInterval(function () {
+  var p = estPos();
+  document.getElementById("pos").textContent = p.toFixed(2);
+  var html = "";
+  SCENES.forEach(function (s, i) {
+    if (p >= s.t && p < s.t + s.d) {
+      html = '<div class="c-' + s.k + '">' + s.x + "</div>";
+      if (!fired[i]) { fired[i] = true; log("カード表示: " + s.t + "s " + s.x); }
+    }
+  });
+  document.getElementById("card").innerHTML = html;
+}, 100);
+</script>
+</body>
+</html>
