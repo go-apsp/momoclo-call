@@ -10,3 +10,12 @@
 .spNote{text-align:center;font-size:11px;color:#8e91b8;margin:14px 0 2px}
 
 .spReqBtn{margin:2px 0 10px;padding:9px 22px;border-radius:999px;border:2px solid #ff5d8f;background:#ff5d8f;color:#fff;font-weight:900;font-size:14px;cursor:pointer}
+
+.spReqDone{text-align:center;font-weight:900;color:#7ee2a8;margin:4px 0 12px}
+.spReqWait{font-size:12px;color:#8e91b8;font-weight:700;margin-top:2px}
+.reqSheet{position:fixed;inset:0;background:rgba(5,6,18,.66);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px}
+.reqCard{background:#171833;border:1px solid #2c2f55;border-radius:18px;padding:22px 20px;max-width:340px;width:100%;text-align:center}
+.reqTitle{font-weight:900;font-size:17px;margin-bottom:8px}
+.reqMsg{font-size:13px;color:#b9bce0;margin:0 0 16px}
+.reqBtns{display:flex;gap:10px;justify-content:center}
+.reqCancel{padding:9px 18px;border-radius:999px;border:2px solid #3a3e66;background:transparent;color:#d7d9f2;font-weight:900;font-size:14px;cursor:pointer}

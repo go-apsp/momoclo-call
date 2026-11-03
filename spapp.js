@@ -172,6 +172,7 @@ function paintLogin() {
   $("mkbtn").style.display = $("oshibtn").style.display = $("logout").style.display = me && prof ? "block" : "none";
   if (!(me && prof)) A.endMk();
   paintReviewBtn();
+  if (me && prof) checkSpReq();
 }
 function openSheet(edit) {
   const sh = $("sheet").firstElementChild;
@@ -209,6 +210,20 @@ function applyAct() {
 }
 
 /* ---------- 一覧(一番上のレイヤー) ---------- */
+
+function showSpReqDone() {
+  const b = document.querySelector("[data-a='spReq']");
+  if (b) b.style.display = "none";
+  const d = $("spReqDone");
+  if (d) d.style.display = "block";
+}
+async function checkSpReq() {
+  if (!me || !prof) return;
+  try {
+    const q = await getDocs(query(collection(db, "spRequests"), where("uid", "==", me.uid)));
+    if (!q.empty) showSpReqDone();
+  } catch (e) {}
+}
 function render() { $("list").innerHTML = UI.list(calls, {me, liked, openId, cmts, myNick: prof ? prof.nick : ""}); }
 /* ---------- 感想(承認制) ---------- */
 async function loadCmts(id) {
@@ -299,16 +314,18 @@ const A = {
     if (spTrack !== VID) { spPlayUri(VID, 0); return; }
     spAnchor.paused ? spPlayer.resume() : spPlayer.pause();
   },
-  spReq: async () => {
+  spReq: () => {
     if (!me || !prof) { toast("ログインしてから押してください"); return; }
+    $("reqSheet").style.display = "flex";
+  },
+  spReqCancel: () => { $("reqSheet").style.display = "none"; },
+  spReqGo: async () => {
+    $("reqSheet").style.display = "none";
     try {
       const q = await getDocs(query(collection(db, "spRequests"), where("uid", "==", me.uid)));
-      if (!q.empty) { toast("すでに申し込み済みです"); return; }
-    } catch (e) {}
-    if (!confirm("申し込みます。本当にいいですか？")) return;
-    try {
+      if (!q.empty) { showSpReqDone(); toast("すでに申し込み済みです"); return; }
       await addDoc(collection(db, "spRequests"), {uid: me.uid, nick: prof.nick, at: serverTimestamp()});
-      toast("申し込みました。確認までお待ちください");
+      showSpReqDone();
     } catch (e) { toast("申し込めませんでした"); }
   },
   spConnect: () => { if (!spTokens) spAuthStart(); else spEnsurePlayer(); },
