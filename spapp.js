@@ -299,6 +299,18 @@ const A = {
     if (spTrack !== VID) { spPlayUri(VID, 0); return; }
     spAnchor.paused ? spPlayer.resume() : spPlayer.pause();
   },
+  spReq: async () => {
+    if (!me || !prof) { toast("ログインしてから押してください"); return; }
+    try {
+      const q = await getDocs(query(collection(db, "spRequests"), where("uid", "==", me.uid)));
+      if (!q.empty) { toast("すでに申し込み済みです"); return; }
+    } catch (e) {}
+    if (!confirm("申し込みます。本当にいいですか？")) return;
+    try {
+      await addDoc(collection(db, "spRequests"), {uid: me.uid, nick: prof.nick, at: serverTimestamp()});
+      toast("申し込みました。確認までお待ちください");
+    } catch (e) { toast("申し込めませんでした"); }
+  },
   spConnect: () => { if (!spTokens) spAuthStart(); else spEnsurePlayer(); },
   pen: () => $("pen").classList.toggle("on"),
   penColor: (i, b) => { $("pen").style.color = PEN[i][1]; document.documentElement.style.setProperty("--pc", PEN[i][1]); document.querySelectorAll("#dots button").forEach(x => x.classList.toggle("sel", x === b)); },

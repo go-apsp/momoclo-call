@@ -74,6 +74,7 @@ gtag('config', 'G-00QSZME258');
       <button id="tabUsers">ユーザー管理</button>
       <button id="tabSongs">曲一覧</button>
       <button id="tabRefs">参考コール</button>
+      <button id="tabReqs">申込</button>
     </div>
 
     <div id="paneCalls">
@@ -92,6 +93,11 @@ gtag('config', 'G-00QSZME258');
         <button class="act" id="songAdd" style="background:#ff5d8f;border-color:#ff5d8f;color:#fff;font-weight:900">この曲を追加</button>
       </div>
       <div id="songList"></div>
+    </div>
+
+    <div id="paneReqs" class="hidden">
+      <p class="note">Spotify版の使用申し込みです。対応したら削除してください。</p>
+      <div id="reqList"></div>
     </div>
 
     <div id="paneRefs" class="hidden">
@@ -145,7 +151,7 @@ let toastTimer = null;
 function toast(s) { const t = $("toast"); t.textContent = s; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 2800); }
 const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
 
-let me = null, USERS = [], CALLS = [], REFS = [], ADM_SONGS = [], ADMINS = {}, pendingDel = null, pendingRefDel = null, pendingSongDel = null;
+let me = null, USERS = [], CALLS = [], REFS = [], REQS = [], ADM_SONGS = [], ADMINS = {}, pendingDel = null, pendingRefDel = null, pendingSongDel = null;
 
 async function loadAll() {
   const um = new Map();
@@ -156,11 +162,12 @@ async function loadAll() {
   if (me) (await getDocs(query(collection(db, "calls"), where("ownerUid", "==", me.uid)))).forEach(d => cm.set(d.id, {id: d.id, ...d.data()}));
   CALLS = [...cm.values()];
   REFS = (await getDocs(collection(db, "refs"))).docs.map(d => ({id: d.id, ...d.data()}));
+  try { REQS = (await getDocs(query(collection(db, "spRequests"), orderBy("at", "desc")))).docs.map(d => ({id: d.id, ...d.data()})); } catch (e) { REQS = []; }
   try { ADM_SONGS = (await getDocs(query(collection(db, "songs"), orderBy("order")))).docs.map(d => ({id: d.id, ...d.data()})); } catch (e) { ADM_SONGS = []; }
   ADMINS = {};
   try { (await getDocs(collection(db, "admins"))).forEach(d => { ADMINS[d.id] = d.data(); }); } catch (e) {}
   fillRefSongs();
-  renderCalls(); renderUsers(); renderSongs(); renderRefs();
+  renderCalls(); renderUsers(); renderSongs(); renderRefs(); renderReqs();
 }
 
 function stats() {
@@ -281,6 +288,21 @@ async function delSongYes() {
 
 const KIND = {"コール": "call", "シンガロン": "sing", "ココ好き": "koko"};
 const KLAB = {call: "コール", sing: "シンガロン", koko: "ココ好き!"};
+function fmtAt(ts) {
+  if (!ts || !ts.seconds) return "";
+  const d = new Date(ts.seconds * 1000);
+  return d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate() + " " + d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+function renderReqs() {
+  const el = $("reqList");
+  if (!el) return;
+  el.innerHTML = REQS.length ? REQS.map(r => '<div class="card" style="display:flex;align-items:center;gap:10px"><b>' + esc(r.nick || "") + '</b><span class="note">' + fmtAt(r.at) + '</span><span style="flex:1"></span><button class="act danger" data-qdel="' + r.id + '">削除</button></div>').join("") : '<p class="note">申し込みはまだありません。</p>';
+  el.querySelectorAll("[data-qdel]").forEach(b => b.addEventListener("click", async () => {
+    try { await deleteDoc(doc(db, "spRequests", b.dataset.qdel)); REQS = REQS.filter(x => x.id !== b.dataset.qdel); renderReqs(); toast("申し込みを削除しました"); }
+    catch (e) { toast("削除できませんでした"); }
+  }));
+}
+
 function renderRefs() {
   $("refList").innerHTML = REFS.map(r => {
     const lines = (r.scenes || []).map(s => fmt(s.t) + " " + (KLAB[s.k] || s.k) + " 「" + esc(s.x) + "」").join("<br>");
@@ -325,7 +347,7 @@ async function delRefYes() {
 }
 
 function showTab(t) {
-  ["Calls", "Users", "Songs", "Refs"].forEach(k => {
+  ["Calls", "Users", "Songs", "Refs", "Reqs"].forEach(k => {
     $("pane" + k).classList.toggle("hidden", k.toLowerCase() !== t);
     $("tab" + k).classList.toggle("sel", k.toLowerCase() === t);
   });
@@ -334,6 +356,7 @@ $("tabCalls").addEventListener("click", () => showTab("calls"));
 $("tabUsers").addEventListener("click", () => showTab("users"));
 $("tabSongs").addEventListener("click", () => showTab("songs"));
 $("tabRefs").addEventListener("click", () => showTab("refs"));
+$("tabReqs").addEventListener("click", () => showTab("reqs"));
 $("q").addEventListener("input", renderCalls);
 $("refAdd").addEventListener("click", addRef);
 $("songAdd").addEventListener("click", addSong);
