@@ -279,6 +279,11 @@ function skipIntro() { clearIntroTm(); const el = $("intro"); el.style.display =
 const A = {
   login: async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { toast("ログインできませんでした"); } },
   logout: async () => { await signOut(auth); A.menu(); toast("ログアウトしました"); },
+  copyLink: async () => {
+    const u = "https://go-apsp.github.io/momoclo-call/";
+    try { await navigator.clipboard.writeText(u); toast("リンクをコピーしました"); }
+    catch { const ta = document.createElement("textarea"); ta.value = u; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast("リンクをコピーしました"); }
+  },
   whoami: () => { if (!me || !prof) return; $("mypage").style.display = "block"; loadMyPage(); },
   closeMy: () => { $("mypage").style.display = "none"; },
   userPage: uid => { if (me && uid === me.uid) return A.whoami(); openUserPage(uid); },
