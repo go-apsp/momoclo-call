@@ -296,7 +296,22 @@ function fmtAt(ts) {
 function renderReqs() {
   const el = $("reqList");
   if (!el) return;
-  el.innerHTML = REQS.length ? REQS.map(r => '<div class="card" style="display:flex;align-items:center;gap:10px"><b>' + esc(r.nick || "") + '</b><span class="note">' + fmtAt(r.at) + '</span><span style="flex:1"></span><button class="act danger" data-qdel="' + r.id + '">削除</button></div>').join("") : '<p class="note">申し込みはまだありません。</p>';
+  el.innerHTML = REQS.length ? REQS.map(r => '<div class="card"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b>' + esc(r.nick || "") + '</b><span class="note">' + fmtAt(r.at) + '</span>' + (r.status === "approved" ? '<span class="badge pub">承認済み</span>' : "") + '<span style="flex:1"></span>' + (r.status === "approved" ? "" : '<button class="act" data-qok="' + r.id + '">承認する</button>') + '<button class="act" data-qmsg="' + r.id + '">メッセージ</button><button class="act danger" data-qdel="' + r.id + '">削除</button></div>' + (r.spName || r.spEmail ? '<div class="note" style="margin-top:6px">Spotify表示名: ' + esc(r.spName || "") + ' / メール: ' + esc(r.spEmail || "") + '</div>' : "") + '</div>').join("") : '<p class="note">申し込みはまだありません。</p>';
+  el.querySelectorAll("[data-qok]").forEach(b => b.addEventListener("click", async () => {
+    const r = REQS.find(x => x.id === b.dataset.qok); if (!r) return;
+    try {
+      await addDoc(collection(db, "messages"), {toUid: r.uid, text: "Spotify版の使用申請が承認されました。", at: serverTimestamp()});
+      await updateDoc(doc(db, "spRequests", r.id), {status: "approved"});
+      r.status = "approved"; renderReqs(); toast("承認して、メッセージを送りました");
+    } catch (e) { toast("承認できませんでした"); }
+  }));
+  el.querySelectorAll("[data-qmsg]").forEach(b => b.addEventListener("click", async () => {
+    const r = REQS.find(x => x.id === b.dataset.qmsg); if (!r) return;
+    const t = prompt((r.nick || "") + "さんへのメッセージを入力してください");
+    if (!t) return;
+    try { await addDoc(collection(db, "messages"), {toUid: r.uid, text: String(t).slice(0, 500), at: serverTimestamp()}); toast("メッセージを送りました"); }
+    catch (e) { toast("送れませんでした"); }
+  }));
   el.querySelectorAll("[data-qdel]").forEach(b => b.addEventListener("click", async () => {
     try { await deleteDoc(doc(db, "spRequests", b.dataset.qdel)); REQS = REQS.filter(x => x.id !== b.dataset.qdel); renderReqs(); toast("申し込みを削除しました"); }
     catch (e) { toast("削除できませんでした"); }

@@ -320,11 +320,15 @@ const A = {
   },
   spReqCancel: () => { $("reqSheet").style.display = "none"; },
   spReqGo: async () => {
+    const spName = ($("spNameIn").value || "").trim();
+    const spEmail = ($("spMailIn").value || "").trim();
+    if (!spName) { toast("Spotifyの表示名を入力してください"); return; }
+    if (!spEmail || spEmail.indexOf("@") < 0) { toast("メールアドレスを入力してください"); return; }
     $("reqSheet").style.display = "none";
     try {
       const q = await getDocs(query(collection(db, "spRequests"), where("uid", "==", me.uid)));
       if (!q.empty) { showSpReqDone(); toast("すでに申し込み済みです"); return; }
-      await addDoc(collection(db, "spRequests"), {uid: me.uid, nick: prof.nick, at: serverTimestamp()});
+      await addDoc(collection(db, "spRequests"), {uid: me.uid, nick: prof.nick, spName: spName.slice(0, 50), spEmail: spEmail.slice(0, 100), at: serverTimestamp()});
       showSpReqDone();
     } catch (e) { toast("申し込めませんでした"); }
   },

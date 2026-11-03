@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ももクロコール共有(テスト中)</title>
-<link rel="stylesheet" href="style.css?v=38">
-<link rel="stylesheet" href="sp.css?v=38">
+<link rel="stylesheet" href="style.css?v=40">
+<link rel="stylesheet" href="sp.css?v=40">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 </head>
 <body>
@@ -39,7 +39,7 @@
       <label class="mrow">カードの位置(上げる)<input type="range" id="cpos" min="0" max="120" value="0"></label>
     </div>
   </header>
-  <p class="spNote">このページを観覧することは可能ですが、ご使用に当たっては、私へあなたのSpotifyアカウント情報を預ける必要があります。それでももしご使用になられたい場合は、こちらから申請してください。ただし先着24名まで（SpotifyのAPIの仕様上）。一応、拡張申請はする予定です。なかなか厳しいらしいけど、うまくいくかな。</p>
+  <p class="spNote">このページを観覧することは可能ですが、ご使用になられたい場合は、こちらにアカウントの表示名と、Spotifyアカウントに登録しているメールアドレスを知らせていただくことになります。こちらから申請してください。ただし先着24名まで（SpotifyのAPIの仕様上）。一応、拡張申請はする予定です。なかなか厳しいらしいけど、うまくいくかな。</p>
   <div style="text-align:center"><button class="spReqBtn" data-a="spReq">使用を申し込む</button></div>
   <div id="spReqDone" class="spReqDone" style="display:none">申請登録が完了しました<div class="spReqWait">管理人からの承認待ちです</div></div>
 
@@ -85,7 +85,7 @@
   <button id="play" data-a="play">再生</button>
   <button id="ovbtn" data-a="openOv">みんなの<span>推し</span>コール</button>
   <div id="info"></div>
-  <div style="text-align:center;font-size:10px;color:#8e91b8">Spotify版 build 38</div>
+  <div style="text-align:center;font-size:10px;color:#8e91b8">Spotify版 build 40</div>
 
   <section id="mk">
     <h2>推しコールを作る</h2>
@@ -159,14 +159,16 @@
 
 <div id="toast"></div>
 
-<script src="spui.js?v=38" onerror="window.__show('spui.js を読み込めません。spui.js もアップロードしてください')"></script>
-<script src="spapp.js?v=38" onerror="window.__show('spapp.js を読み込めません。spapp.js もアップロードしてください')"></script>
+<script src="spui.js?v=40" onerror="window.__show('spui.js を読み込めません。spui.js もアップロードしてください')"></script>
+<script src="spapp.js?v=40" onerror="window.__show('spapp.js を読み込めません。spapp.js もアップロードしてください')"></script>
 
   <div id="reqSheet" class="reqSheet" style="display:none">
     <div class="reqCard">
       <div class="reqTitle">使用の申請</div>
-      <p class="reqMsg">Spotify版の使用を申請します。</p>
-      <div class="reqBtns"><button class="spReqBtn" data-a="spReqGo">申請する</button><button class="reqCancel" data-a="spReqCancel">キャンセル</button></div>
+      <p class="reqMsg">Spotify版の使用を申請します。登録に必要な2つを入力してください。</p>
+      <input id="spNameIn" class="reqIn" type="text" placeholder="Spotifyの表示名" autocomplete="off">
+      <input id="spMailIn" class="reqIn" type="email" placeholder="Spotifyアカウントのメールアドレス" autocomplete="off">
+      <div class="reqBtns"><button class="spReqBtn" data-a="spReqGo">登録する</button><button class="reqCancel" data-a="spReqCancel">キャンセル</button></div>
     </div>
   </div>
 </body>

@@ -19,3 +19,5 @@
 .reqMsg{font-size:13px;color:#b9bce0;margin:0 0 16px}
 .reqBtns{display:flex;gap:10px;justify-content:center}
 .reqCancel{padding:9px 18px;border-radius:999px;border:2px solid #3a3e66;background:transparent;color:#d7d9f2;font-weight:900;font-size:14px;cursor:pointer}
+
+.reqIn{display:block;width:100%;box-sizing:border-box;margin:0 0 10px;padding:10px 12px;border-radius:10px;border:1px solid #3a3e66;background:#10122a;color:#f4f4fb;font-size:14px}

@@ -170,7 +170,12 @@
       var pend = x.pend.length ? x.pend.map(function (m) {
         return '<div class="cmt"><b>' + esc(m.name) + "</b><span>" + esc(m.text) + '</span><span class="cmtBtns"><button data-a="mypCmtOk" data-i="' + m.callId + "|" + m.id + '">公開する</button><button data-a="mypCmtNg" data-i="' + m.callId + "|" + m.id + '">公開しない</button></span></div>';
       }).join("") : '<div class="cmtNone">承認待ちの感想はありません</div>';
-      return prof + '<h3 class="myH">自分の推しコール</h3>' + calls + '<h3 class="myH">感想の承認待ち</h3>' + pend;
+      var msgs = (x.msgs && x.msgs.length) ? x.msgs.map(function (m) {
+        var d = m.at && m.at.seconds ? new Date(m.at.seconds * 1000) : null;
+        var ds = d ? (d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate()) : "";
+        return '<div class="cmt"><span>' + esc(m.text) + '</span><span class="cmtSub">' + ds + '</span></div>';
+      }).join("") : '<div class="cmtNone">メッセージはまだありません</div>';
+      return prof + '<h3 class="myH">管理人からのメッセージ</h3>' + msgs + '<h3 class="myH">自分の推しコール</h3>' + calls + '<h3 class="myH">感想の承認待ち</h3>' + pend;
     },
     userPage: function (x) {
       var p = x.prof;

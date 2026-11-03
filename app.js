@@ -207,7 +207,10 @@ async function loadMyPage() {
     try { const cs = await getDocs(query(collection(db, "calls", c.id, "comments"), where("ownerUid", "==", me.uid))); cs.forEach(d => { const m = {id: d.id, callId: c.id, ...d.data()}; if (m.status === "pending") myPend.push(m); }); } catch (e) {}
   }
   const sTitle = vid => { const s2 = SONGS.find(x => x.vid === vid); return s2 ? s2.title : "不明な曲"; };
-  el.innerHTML = UI.myPage({prof: prof, calls: mine.map(c => ({...c, songTitle: sTitle(c.videoId)})), pend: myPend});
+  let msgs = [];
+  try { msgs = (await getDocs(query(collection(db, "messages"), where("toUid", "==", me.uid)))).docs.map(d => ({id: d.id, ...d.data()})); } catch (e) {}
+  msgs.sort((x, y) => ((y.at && y.at.seconds) || 0) - ((x.at && x.at.seconds) || 0));
+  el.innerHTML = UI.myPage({prof: prof, calls: mine.map(c => ({...c, songTitle: sTitle(c.videoId)})), pend: myPend, msgs: msgs});
 }
 function paintReviewBtn() { const b = $("reviewBtn"); if (!b) return; const show = !!(me && prof && pendAll.length); b.style.display = show ? "block" : "none"; b.textContent = "感想の承認待ち(" + pendAll.length + "件)"; }
 function renderReview() {
@@ -284,7 +287,7 @@ const A = {
     try { await navigator.clipboard.writeText(u); toast("リンクをコピーしました"); }
     catch { const ta = document.createElement("textarea"); ta.value = u; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast("リンクをコピーしました"); }
   },
-  spGo: () => { if (confirm("Spotify版へ移行します。この先は表示はできますが、使いたいとお思いになられて、かつ僕にSpotifyのアカウント情報を知らせる勇気があるなら、使ってもらっても大丈夫です。ただし先着24名（SpotifyのAPIの仕様上）まで。")) location.href = "spotify.html"; },
+  spGo: () => { if (confirm("Spotify版へ移行します。この先は表示はできますが、ご使用になられたい場合は、アカウントの表示名と、Spotifyアカウントに登録しているメールアドレスを知らせていただくことになります。ただし先着24名まで（SpotifyのAPIの仕様上）。")) location.href = "spotify.html"; },
   whoami: () => { if (!me || !prof) return; $("mypage").style.display = "block"; loadMyPage(); },
   closeMy: () => { $("mypage").style.display = "none"; },
   userPage: uid => { if (me && uid === me.uid) return A.whoami(); openUserPage(uid); },
