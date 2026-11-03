@@ -191,3 +191,12 @@ body.nofs{overflow:hidden}
 .pflabel{display:block;font-size:12px;font-weight:700;color:var(--mut);margin:12px 0 6px}
 #sheet textarea{width:100%;border-radius:12px;border:2px solid #8e91b8;background:var(--bg);color:var(--ink);padding:10px 12px;font:inherit;resize:vertical}
 #sheet textarea::placeholder{color:#7d80a8}
+.evNote{font-size:12px;line-height:1.6;color:var(--ink);padding:2px 0;overflow-wrap:anywhere}
+#intro{position:absolute;inset:0;z-index:8;display:none;overflow:hidden;background:#f6f1ea;cursor:pointer}
+#inImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:filter 3.8s ease-in-out}
+#intro.whiteout #inImg{filter:brightness(1.4) blur(7px)}
+#inFlash{position:absolute;inset:0;background:#fff;opacity:0;transition:opacity 3.8s ease-in-out;pointer-events:none;z-index:3}
+#intro.whiteout #inFlash{opacity:1}
+#inCount{position:absolute;left:50%;top:50%;width:104px;height:104px;margin:-52px 0 0 -52px;border:4px solid rgba(255,255,255,.92);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:52px;font-weight:900;color:#fff;background:rgba(60,40,60,.28);z-index:2;text-shadow:0 1px 6px rgba(0,0,0,.25)}
+#inCount.tick{animation:tick .22s}
+@keyframes tick{0%{transform:translate(0,0)}30%{transform:translate(1px,-1px)}60%{transform:translate(-1px,1px)}100%{transform:translate(0,0)}}

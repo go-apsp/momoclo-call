@@ -156,7 +156,8 @@
       var head = '<button class="evHead" data-a="evToggle"><span>評価・感想</span><span>' + (x.open ? "▲" : "▼") + "</span></button>";
       if (!x.open) return '<div class="evBox">' + head + "</div>";
       var heart = '<button class="hr" style="background:' + (x.liked.has(c.id) ? "#ff3b4f" : "#3a3f6b") + '" data-a="heart" data-i="' + c.id + '">♥ ' + (c.hearts || 0) + "</button>";
-      return '<div class="evBox">' + head + '<div class="evBody"><div class="evRow">' + heart + "<span>湧き " + (c.used || 0) + "</span></div>" + UI.cmtHtml(c, x, "p") + "</div></div>";
+      var meta = (c.versionName ? '<div class="evNote">バージョン: ' + esc(c.versionName) + "</div>" : "") + (c.note ? '<div class="evNote">備考: ' + esc(c.note) + "</div>" : "");
+      return '<div class="evBox">' + head + '<div class="evBody">' + meta + '<div class="evRow">' + heart + "<span>湧き " + (c.used || 0) + "</span></div>" + UI.cmtHtml(c, x, "p") + "</div></div>";
     },
     myPage: function (x) {
       var p = x.prof;

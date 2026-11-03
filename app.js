@@ -263,6 +263,19 @@ async function writeCmt(id, np, tp) {
   } catch (e) { toast("感想を送れませんでした"); }
 }
 
+let introTm = [];
+function clearIntroTm() { introTm.forEach(clearTimeout); introTm = []; }
+function runIntro() {
+  const el = $("intro"), cnt = $("inCount"), fl = $("inFlash"), im = $("inImg");
+  clearIntroTm();
+  el.classList.remove("whiteout"); el.style.transition = ""; el.style.opacity = "1"; el.style.display = "block";
+  fl.style.opacity = "0"; cnt.style.display = "flex";
+  ["3", "2", "1"].forEach((n, i) => introTm.push(setTimeout(() => { cnt.textContent = n; cnt.classList.remove("tick"); void cnt.offsetWidth; cnt.classList.add("tick"); }, i * 1000)));
+  introTm.push(setTimeout(() => { cnt.style.display = "none"; el.classList.add("whiteout"); }, 3000));
+  introTm.push(setTimeout(() => { yt.playVideo(); el.style.transition = "opacity .35s"; el.style.opacity = "0"; }, 6900));
+  introTm.push(setTimeout(() => { el.style.display = "none"; el.classList.remove("whiteout"); el.style.transition = ""; clearIntroTm(); }, 7300));
+}
+function skipIntro() { clearIntroTm(); const el = $("intro"); el.style.display = "none"; el.classList.remove("whiteout"); yt.playVideo(); }
 const A = {
   login: async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { toast("ログインできませんでした"); } },
   logout: async () => { await signOut(auth); A.menu(); toast("ログアウトしました"); },
@@ -292,7 +305,14 @@ const A = {
   menu: () => { const m = $("menu"); m.style.display = m.style.display === "block" ? "none" : "block"; },
   openOv: () => { $("menu").style.display = "none"; $("ov").style.display = "block"; render(); },
   closeOv: () => { $("ov").style.display = "none"; },
-  play: () => { if (!ytReady) return; if (sess && sess.t0 && Date.now() - sess.t0 > LIMIT) { sess = null; paintApply(); } yt.getPlayerState() === 1 ? yt.pauseVideo() : yt.playVideo(); },
+  play: () => {
+    if (!ytReady) return;
+    if (sess && sess.t0 && Date.now() - sess.t0 > LIMIT) { sess = null; paintApply(); }
+    if ($("intro").style.display === "block") { skipIntro(); return; }
+    if (yt.getPlayerState() === 1) { yt.pauseVideo(); return; }
+    if (yt.getPlayerState() === 2 && yt.getCurrentTime() > 1) { yt.playVideo(); return; }
+    runIntro();
+  },
   pen: () => $("pen").classList.toggle("on"),
   penColor: (i, b) => { $("pen").style.color = PEN[i][1]; document.documentElement.style.setProperty("--pc", PEN[i][1]); document.querySelectorAll("#dots button").forEach(x => x.classList.toggle("sel", x === b)); },
   help: () => toast("このタイミングで一緒にコールやシンガロンができます"),
@@ -457,6 +477,7 @@ document.addEventListener("click", e => {
   if (b && A[b.dataset.a]) A[b.dataset.a](b.dataset.i, b);
 });
 document.addEventListener("change", e => { const b = e.target.closest("[data-c]"); if (b && A[b.dataset.c]) A[b.dataset.c](b.value, b); });
+$("intro").addEventListener("click", () => { if ($("intro").style.display === "block") skipIntro(); });
 $("cpos").addEventListener("input", e => { $("cards").style.bottom = 10 + +e.target.value + "px"; });
 $("mkDur").addEventListener("input", e => { $("mkDurVal").textContent = e.target.value + "秒"; });
 document.addEventListener("input", e => {
