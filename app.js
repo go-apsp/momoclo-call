@@ -25,8 +25,10 @@ async function loadSongs() {
   try {
     const snap = await getDocs(query(collection(db, "songs"), orderBy("order")));
     if (!snap.empty) {
-      const arr = snap.docs.map(d => { const x = d.data(); return {s: x.title, title: x.title, vid: x.yid, startSec: x.startSec || 0, endSec: x.endSec || 0}; });
+      const arr = snap.docs.map(d => { const x = d.data(); return {s: x.title, title: x.title, vid: x.yid, startSec: x.startSec || 0, endSec: x.endSec || 0, isDefault: !!x.isDefault}; });
       SONGS.length = 0; arr.forEach(x => SONGS.push(x));
+      const di = arr.findIndex(x => x.isDefault);
+      if (di >= 0) si = di;
       si = Math.min(si, SONGS.length - 1); VID = SONGS[si].vid;
       UI.songSel(si);
       if (ytReady) yt.cueVideoById(VID);

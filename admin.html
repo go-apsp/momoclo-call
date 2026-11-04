@@ -260,17 +260,23 @@ function renderSongs() {
     $("songSeed").addEventListener("click", seedSongs);
     return;
   }
-  $("songList").innerHTML = ADM_SONGS.map(s => {
+  $("songList").innerHTML = ADM_SONGS.map((s, idx) => {
     const n = CALLS.filter(c => c.videoId === s.yid).length;
     const rng = (+s.endSec > +s.startSec && +s.endSec > 0) ? ' / 再生範囲: ' + fmt(s.startSec || 0) + '〜' + fmt(s.endSec) : ' / 再生範囲: なし';
-    return '<div class="card"><div class="row"><div class="grow"><div class="title">♪ ' + esc(s.title) + '</div>'
+    return '<div class="card"><div class="row"><div class="grow"><div class="title">♪ ' + esc(s.title) + (s.isDefault ? ' <span class="badge pub">最初に表示</span>' : '') + '</div>'
       + '<div class="sub">YouTube: ' + esc(s.yid || "") + ' / 推しコール ' + n + '件(表示分)' + rng + '</div></div>'
+      + '<button class="act" data-sup="' + s.id + '"' + (idx === 0 ? " disabled" : "") + '>↑ 上へ</button>'
+      + '<button class="act" data-sdn="' + s.id + '"' + (idx === ADM_SONGS.length - 1 ? " disabled" : "") + '>↓ 下へ</button>'
+      + (s.isDefault ? "" : '<button class="act" data-sdef="' + s.id + '">最初に表示する曲にする</button>')
       + '<button class="act" data-sedit="' + s.id + '">範囲を編集</button>'
       + (pendingSongDel === s.id
         ? '<span class="num" style="color:#ff8fa0">削除しますか?</span><button class="act danger" data-sdel-yes>はい、削除</button><button class="act" data-sdel-no>やめる</button>'
         : '<button class="act danger" data-sdel="' + s.id + '">削除</button>')
       + '</div></div>';
   }).join("");
+  $("songList").querySelectorAll("[data-sup]").forEach(b => b.addEventListener("click", () => moveSong(b.dataset.sup, -1)));
+  $("songList").querySelectorAll("[data-sdn]").forEach(b => b.addEventListener("click", () => moveSong(b.dataset.sdn, 1)));
+  $("songList").querySelectorAll("[data-sdef]").forEach(b => b.addEventListener("click", () => setDefaultSong(b.dataset.sdef)));
   $("songList").querySelectorAll("[data-sedit]").forEach(b => b.addEventListener("click", () => editSongRange(b.dataset.sedit)));
   $("songList").querySelectorAll("[data-sdel]").forEach(b => b.addEventListener("click", () => { pendingSongDel = b.dataset.sdel; renderSongs(); }));
   $("songList").querySelectorAll("[data-sdel-yes]").forEach(b => b.addEventListener("click", delSongYes));
@@ -342,6 +348,23 @@ async function addSong() {
     resetSongForm();
     renderSongs(); fillRefSongs(); toast("曲を追加しました");
   } catch (e) { toast("追加できませんでした(運営アカウントでログインしているか、ルールの設定を確認してください)"); }
+}
+async function moveSong(id, dir) {
+  const i = ADM_SONGS.findIndex(x => x.id === id); if (i < 0) return;
+  const j = i + dir; if (j < 0 || j >= ADM_SONGS.length) return;
+  const tmp = ADM_SONGS[i]; ADM_SONGS[i] = ADM_SONGS[j]; ADM_SONGS[j] = tmp;
+  try {
+    await Promise.all(ADM_SONGS.map((s, k) => updateDoc(doc(db, "songs", s.id), {order: k})));
+    ADM_SONGS.forEach((s, k) => { s.order = k; });
+    renderSongs(); fillRefSongs(); toast("曲の順番を変えました");
+  } catch (e) { toast("順番を変えられませんでした(運営アカウントでログインしているか確認してください)"); try { await loadAll(); } catch (e2) {} }
+}
+async function setDefaultSong(id) {
+  try {
+    await Promise.all(ADM_SONGS.map(s => updateDoc(doc(db, "songs", s.id), {isDefault: s.id === id})));
+    ADM_SONGS.forEach(s => { s.isDefault = s.id === id; });
+    renderSongs(); toast("最初に表示する曲を設定しました");
+  } catch (e) { toast("設定できませんでした(運営アカウントでログインしているか確認してください)"); }
 }
 async function delSongYes() {
   const id = pendingSongDel; pendingSongDel = null;
