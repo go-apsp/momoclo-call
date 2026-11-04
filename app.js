@@ -141,8 +141,32 @@ async function loadCalls() {
     }
     calls = [...m.values()].sort((a, b) => (b.hearts || 0) - (a.hearts || 0));
   } catch (e) { toast("読み込めませんでした。通信を確認してください"); }
-  if (!calls.some(c => c.id === act)) act = calls[0] ? calls[0].id : null;
-  applyAct(); render(); checkPending(true);
+  let refApplied = false;
+  if (!act && !randPlay) {   // 初期表示: その曲の参考コールがあれば、それを最初に表示する
+    try {
+      const snap = await getDocs(query(collection(db, "refs"), where("videoId", "==", VID)));
+      if (!snap.empty) {
+        const rs = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        rs.sort((a, b) => ((a.createdAt && a.createdAt.seconds) || 0) - ((b.createdAt && b.createdAt.seconds) || 0));
+        refCalls = rs;
+        applyRef(rs[0]);
+        refApplied = true;
+      }
+    } catch (e) {}
+  }
+  if (!refApplied) {
+    if (!calls.some(c => c.id === act)) act = calls[0] ? calls[0].id : null;
+    applyAct();
+  }
+  render(); checkPending(true);
+}
+function applyRef(c) {
+  refPlay = true; randPlay = false; act = null; sess = null; paintApply();
+  EV = c.scenes.map(x => ({...x})).sort((a, b) => a.t - b.t);
+  $("who").innerHTML = '<div class="st">♪ ' + esc(SONGS[si].title) + '</div><div class="wn">参考コール' + (c.versionName ? "<i>" + esc(c.versionName) + "</i>" : "") + "</div>";
+  $("info").textContent = "";
+  $("panelbody").innerHTML = "参考コールで再生中です";
+  renderPEv();
 }
 function applyAct() {
   const c = calls.find(x => x.id === act);
@@ -359,12 +383,7 @@ const A = {
   closeRef: () => { $("refov").style.display = "none"; },
   useRef: id => {
     const c = refCalls.find(x => x.id === id); if (!c) return;
-    refPlay = true; randPlay = false; act = null; sess = null; paintApply();
-    EV = c.scenes.map(x => ({...x})).sort((a, b) => a.t - b.t);
-    $("who").innerHTML = '<div class="st">♪ ' + esc(SONGS[si].title) + '</div><div class="wn">参考コール' + (c.versionName ? "<i>" + esc(c.versionName) + "</i>" : "") + "</div>";
-    $("info").textContent = "";
-    $("panelbody").innerHTML = "参考コールで再生中です";
-    renderPEv();
+    applyRef(c);
     A.closeRef();
     if (ytReady) yt.seekTo(rangeStart(), true);
     toast("参考コールで再生します");
