@@ -136,7 +136,7 @@
     refs: function (refs) {
       return refs.map(function (c) {
         var lines = c.scenes.map(function (x) { return fmt(x.t) + " " + LAB[x.k] + " 「" + esc(x.x) + "」"; }).join("<br>");
-        return '<div class="refitem"><b>' + esc(c.versionName || "参考コール") + '</b><div class="rs">' + lines + '</div><div class="act" style="margin-top:8px"><button class="w" data-a="useRef" data-i="' + c.id + '">これで再生</button></div></div>';
+        return '<div class="refitem"><b>' + esc(c.versionName || "参考コール") + '</b><div class="rs">' + lines + '</div><div class="act" style="margin-top:8px"><button class="w" data-a="useRef" data-i="' + c.id + '">これで再生</button><button data-a="spOpenRef" data-i="' + c.id + '">シェアポイント</button></div></div>';
       }).join("") || '<div style="color:var(--mut);font-size:13px">この曲の参考コールはまだありません。</div>';
     },
     cmtHtml: function (c, x, pfx) {
