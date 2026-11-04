@@ -239,3 +239,6 @@ body.nofs{overflow:hidden}
 .shTh{background:#262626;color:#fff}
 .shLn{background:#06c755;color:#fff}
 .shCp{background:#fff;color:var(--ink)}
+
+/* シェアポイント専用画面: 動画が見えるよう下からのシートにする */
+#spPage{top:auto;max-height:58%;border-radius:20px 20px 0 0;box-shadow:0 -8px 28px rgba(20,20,60,.28)}

@@ -400,8 +400,10 @@ async function openSpPage(id, a, b) {
   const sc = (c.scenes || []).filter(s => s.t + s.d > a && s.t < b).sort((x, y) => x.t - y.t);
   body.innerHTML = '<div class="spPgT">♪ ' + esc(sg ? sg.title : "") + "</div>"
     + '<div class="spPgMeta">' + esc(c.ownerName) + "さんの推しコール" + (c.versionName ? " 「" + esc(c.versionName) + "」" : "") + "<br>範囲: " + fmt(a) + " 〜 " + fmt(b) + "</div>"
+    + '<div id="spAutoNote" class="spPgMeta" style="display:none">自動再生中です。音が出ない場合は、画面をどこかタップしてください</div>'
     + '<button class="spPlayBtn" data-a="spPlay" data-i="' + c.id + "|" + a + "|" + b + '">この範囲を再生</button>'
     + (sc.length ? sc.map(s => '<div class="spPgScene">' + fmt(s.t) + " " + LAB[s.k] + " 「" + esc(s.x) + "」</div>").join("") : '<div class="spPgMeta">この範囲に場面はありません</div>');
+  tryAutoSp("call", c.id, a, b);
 }
 async function openSrPage(id, a, b) {
   const el = $("spPage"); el.style.display = "block";
@@ -417,8 +419,53 @@ async function openSrPage(id, a, b) {
   const sc = (c.scenes || []).filter(s => s.t + s.d > a && s.t < b).sort((x, y) => x.t - y.t);
   body.innerHTML = '<div class="spPgT">♪ ' + esc(sg ? sg.title : "") + "</div>"
     + '<div class="spPgMeta">参考コール' + (c.versionName ? " 「" + esc(c.versionName) + "」" : "") + "<br>範囲: " + fmt(a) + " 〜 " + fmt(b) + "</div>"
+    + '<div id="spAutoNote" class="spPgMeta" style="display:none">自動再生中です。音が出ない場合は、画面をどこかタップしてください</div>'
     + '<button class="spPlayBtn" data-a="spPlayRef" data-i="' + c.id + "|" + a + "|" + b + '">この範囲を再生</button>'
     + (sc.length ? sc.map(s => '<div class="spPgScene">' + fmt(s.t) + " " + LAB[s.k] + " 「" + esc(s.x) + "」</div>").join("") : '<div class="spPgMeta">この範囲に場面はありません</div>');
+  tryAutoSp("ref", c.id, a, b);
+}
+async function startSpCall(id, a, b) {
+  let c = calls.find(x => x.id === id);
+  if (!c) {
+    try { const d = await getDoc(doc(db, "calls", id)); if (d.exists()) c = {id: d.id, ...d.data()}; } catch (e) {}
+    if (!c) { toast("コールが見つかりませんでした"); return; }
+    const idx0 = SONGS.findIndex(s => s.vid === c.videoId);
+    if (idx0 >= 0 && idx0 !== si) { si = idx0; VID = SONGS[si].vid; try { localStorage.setItem("momo_song", si); } catch (e) {} UI.songSel(si); if (ytReady) yt.cueVideoById(VID); }
+    await loadCalls();
+    if (!calls.some(x => x.id === id)) { toast("コールが見つかりませんでした"); return; }
+  } else {
+    const idx = SONGS.findIndex(s => s.vid === c.videoId);
+    if (idx >= 0 && idx !== si) { si = idx; VID = SONGS[si].vid; try { localStorage.setItem("momo_song", si); } catch (e) {} UI.songSel(si); if (ytReady) yt.cueVideoById(VID); await loadCalls(); }
+  }
+  act = id; refPlay = false; randPlay = false; sess = null; paintApply(); applyAct(); render();
+  spRange = {a: a, b: b};
+  if (ytReady) { yt.seekTo(a, true); yt.playVideo(); }
+}
+async function startSpRef(id, a, b) {
+  let c = refCalls.find(x => x.id === id) || (curRef && curRef.id === id ? curRef : null);
+  if (!c) { try { const d = await getDoc(doc(db, "refs", id)); if (d.exists()) c = {id: d.id, ...d.data()}; } catch (e) {} }
+  if (!c) { toast("参考コールが見つかりませんでした"); return; }
+  const idx = SONGS.findIndex(s => s.vid === c.videoId);
+  if (idx >= 0 && idx !== si) { si = idx; VID = SONGS[si].vid; try { localStorage.setItem("momo_song", si); } catch (e) {} UI.songSel(si); if (ytReady) yt.cueVideoById(VID); await loadCalls(); }
+  applyRef(c);
+  spRange = {a: a, b: b};
+  if (ytReady) { yt.seekTo(a, true); yt.playVideo(); }
+}
+async function tryAutoSp(kind, id, a, b) {
+  let n = 0;
+  while (!ytReady && n < 25) { await new Promise(r => setTimeout(r, 400)); n++; }
+  if (!ytReady) return;
+  if (kind === "ref") await startSpRef(id, a, b); else await startSpCall(id, a, b);
+  setTimeout(() => {
+    try {
+      if (yt.getPlayerState() !== 1) {
+        yt.mute(); yt.playVideo();
+        const note = $("spAutoNote"); if (note) note.style.display = "block";
+        const un = () => { try { yt.unMute(); } catch (e) {} document.removeEventListener("pointerdown", un); };
+        document.addEventListener("pointerdown", un);
+      }
+    } catch (e) {}
+  }, 1600);
 }
 function checkSpHash() {
   const h = location.hash || "";
@@ -541,42 +588,9 @@ const A = {
     catch { const ta = document.createElement("textarea"); ta.value = url; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast("リンクをコピーしました"); }
   },
   spPageClose: () => { $("spPage").style.display = "none"; try { history.replaceState(null, "", location.pathname); } catch (e) {} },
-  spPlay: async key => {
-    const p = key.split("|"), id = p[0], a = +p[1], b = +p[2];
-    $("spPage").style.display = "none";
-    try { history.replaceState(null, "", location.pathname); } catch (e) {}
-    let c = calls.find(x => x.id === id);
-    if (!c) {
-      try { const d = await getDoc(doc(db, "calls", id)); if (d.exists()) c = {id: d.id, ...d.data()}; } catch (e) {}
-      if (!c) return toast("コールが見つかりませんでした");
-      const idx0 = SONGS.findIndex(s => s.vid === c.videoId);
-      if (idx0 >= 0 && idx0 !== si) { si = idx0; VID = SONGS[si].vid; try { localStorage.setItem("momo_song", si); } catch (e) {} UI.songSel(si); if (ytReady) yt.cueVideoById(VID); }
-      await loadCalls();
-      if (!calls.some(x => x.id === id)) return toast("コールが見つかりませんでした");
-    } else {
-      const idx = SONGS.findIndex(s => s.vid === c.videoId);
-      if (idx >= 0 && idx !== si) { si = idx; VID = SONGS[si].vid; try { localStorage.setItem("momo_song", si); } catch (e) {} UI.songSel(si); if (ytReady) yt.cueVideoById(VID); await loadCalls(); }
-    }
-    act = id; refPlay = false; randPlay = false; sess = null; paintApply(); applyAct(); render();
-    spRange = {a: a, b: b};
-    if (ytReady) { yt.seekTo(a, true); yt.playVideo(); }
-    toast("シェアポイントの範囲を再生します");
-  },
+  spPlay: key => { const p = key.split("|"); A.spPageClose(); startSpCall(p[0], +p[1], +p[2]).then(() => toast("シェアポイントの範囲を再生します")); },
   spOpenRef: id => openSpPanelRef(id),
-  spPlayRef: async key => {
-    const p = key.split("|"), id = p[0], a = +p[1], b = +p[2];
-    $("spPage").style.display = "none";
-    try { history.replaceState(null, "", location.pathname); } catch (e) {}
-    let c = refCalls.find(x => x.id === id) || (curRef && curRef.id === id ? curRef : null);
-    if (!c) { try { const d = await getDoc(doc(db, "refs", id)); if (d.exists()) c = {id: d.id, ...d.data()}; } catch (e) {} }
-    if (!c) return toast("参考コールが見つかりませんでした");
-    const idx = SONGS.findIndex(s => s.vid === c.videoId);
-    if (idx >= 0 && idx !== si) { si = idx; VID = SONGS[si].vid; try { localStorage.setItem("momo_song", si); } catch (e) {} UI.songSel(si); if (ytReady) yt.cueVideoById(VID); await loadCalls(); }
-    applyRef(c);
-    spRange = {a: a, b: b};
-    if (ytReady) { yt.seekTo(a, true); yt.playVideo(); }
-    toast("シェアポイントの範囲を再生します");
-  },
+  spPlayRef: key => { const p = key.split("|"); A.spPageClose(); startSpRef(p[0], +p[1], +p[2]).then(() => toast("シェアポイントの範囲を再生します")); },
   mypSpOpen: id => { const s = mySps.find(x => x.id === id); if (!s) return; $("mypage").style.display = "none"; if (String(s.callId || "").indexOf("ref:") === 0) openSrPage(s.callId.slice(4), s.a, s.b); else openSpPage(s.callId, s.a, s.b); },
   mypSpShare: id => { const s = mySps.find(x => x.id === id); if (s) A.spCopy(spLinkFor(s)); },
   mypSpDel: async id => { try { await deleteDoc(doc(db, "spPoints", id)); toast("シェアポイントを削除しました"); } catch (e) { toast("削除できませんでした"); } loadMyPage(); },
