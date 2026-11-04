@@ -376,13 +376,13 @@ const A = {
     if (!scenes.length) return toast("場面がまだありません");
     randPlay = true; refPlay = false; act = null; sess = null; paintApply();
     EV = scenes.sort((a, b) => a.t - b.t);
-    $("who").innerHTML = '<div class="st">♪ ' + esc(SONGS[si].title) + '</div><div class="wn">ランダム再生モード</div>';
+    $("who").innerHTML = '<div class="st">♪ ' + esc(SONGS[si].title) + '</div><div class="wn">コールランダム再生モード</div>';
     $("info").textContent = "";
-    $("panelbody").innerHTML = "ランダム再生モードです。みんなの推しコールから、場面ごとに選んで再生しています";
+    $("panelbody").innerHTML = "コールランダム再生モードです。みんなの推しコールから、場面ごとに選んで再生しています";
     renderPEv();
     A.closeOv();
     if (ytReady) yt.seekTo(rangeStart(), true);
-    toast("ランダム再生モードで再生します");
+    toast("コールランダム再生モードで再生します");
   },
   mkv: () => { $("mkvWarn").style.display = "flex"; },
   mkvCancel: () => { $("mkvWarn").style.display = "none"; },
