@@ -162,6 +162,31 @@ body.nofs{overflow:hidden}
 .mkvCard .act{margin-top:16px}
 .mkvBody{background:#1c1e38;border:1px solid #2c2f57;border-radius:14px;padding:18px;color:#cfd2f2;line-height:1.8}
 .bbsGo{display:block;text-align:center;background:#ff7ab8;color:#fff;font-weight:900;font-size:15px;border-radius:26px;padding:14px 12px;text-decoration:none}
+#spPanel{background:#1c1e38;border:1px solid #2c2f57;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:9px}
+.spHead{display:flex;justify-content:space-between;align-items:center;font-size:15px}
+.spHead button{font-size:12px;color:var(--mut);border:1px solid #3a3f6b;border-radius:14px;padding:4px 12px}
+.spFor{font-size:13px;color:#cfd2f2}
+.spRow{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.spRow button{font-size:12px;font-weight:700;color:#ff7ab8;border:1.5px solid #ff7ab8;border-radius:14px;padding:4px 11px}
+#spPanel input[type=range]{width:100%;accent-color:#ff7ab8;height:28px}
+.spBtns{display:flex;gap:8px}
+.spBtns button{flex:1;height:44px;border-radius:12px;font-weight:900;border:2px solid #ff7ab8;color:#ff7ab8}
+#spResult{display:flex;flex-direction:column;gap:9px}
+.spLink{font-size:12px;word-break:break-all;background:#14152b;border:1px solid #2c2f57;border-radius:10px;padding:9px 11px;color:#cfd2f2}
+.spShare{display:flex;gap:8px}
+.spShare a,.spShare button{flex:1;text-align:center;height:40px;line-height:40px;border-radius:10px;font-weight:900;font-size:13px;text-decoration:none}
+.spX{background:#000;color:#fff}
+.spLine{background:#06c755;color:#fff}
+.spCopy{background:#3a3f6b;color:#fff}
+.ogpPrev{border:1px solid #2c2f57;border-radius:12px;overflow:hidden;background:#14152b}
+.ogpPrev img{width:100%;display:block}
+.ogpPrev .og{padding:9px 12px}
+.ogpPrev .og b{display:block;font-size:14px}
+.ogpPrev .og span{font-size:12px;color:var(--mut)}
+.spPgT{font-size:16px;font-weight:900;line-height:1.5}
+.spPgMeta{font-size:13px;color:var(--mut);line-height:1.7}
+.spPgScene{font-size:13px;line-height:1.8;border-bottom:1px dashed #2c2f57;padding:5px 0}
+.spPlayBtn{display:block;width:100%;height:52px;border-radius:26px;background:#ff7ab8;color:#fff;font-weight:900;font-size:16px;margin:14px 0}
 .refitem{background:#1c1e38;border:1px solid #2c2f57;border-radius:14px;padding:12px 14px;margin-bottom:10px}
 .refitem .rs{font-size:12px;line-height:1.7;color:#cfd2f2}
 .cmts{margin-top:10px;border-top:1px solid #2c2f57;padding-top:8px}

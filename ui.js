@@ -98,6 +98,7 @@
           + '<div class="dt">' + (c.note ? "<div>備考:" + esc(c.note) + "</div>" : "") + '<div class="used">みんなが ' + (c.used || 0) + '回 一緒に湧きました</div><div class="act">'
           + '<button class="hr" style="background:' + (x.liked.has(c.id) ? "#ff3b4f" : "#3a3f6b") + '" data-a="heart" data-i="' + c.id + '">♥ ' + (c.hearts || 0) + "</button>"
           + '<button class="w" data-a="use" data-i="' + c.id + '">これで再生</button>'
+          + '<button data-a="spOpen" data-i="' + c.id + '">シェアポイント</button>'
           + '<button data-a="tl" data-i="' + c.id + '">タイムライン</button>'
           + (!own && c.allowRef ? '<button data-a="ref" data-i="' + c.id + '">参考にする</button>' : "")
           + (own ? '<button data-a="pub" data-i="' + c.id + '">' + (c.public ? "非公開にする" : "公開する") + '</button><button data-a="edit" data-i="' + c.id + '">編集</button><button data-a="del" data-i="' + c.id + '">削除</button>' : "")
@@ -157,7 +158,7 @@
       if (!x.open) return '<div class="evBox">' + head + "</div>";
       var heart = '<button class="hr" style="background:' + (x.liked.has(c.id) ? "#ff3b4f" : "#3a3f6b") + '" data-a="heart" data-i="' + c.id + '">♥ ' + (c.hearts || 0) + "</button>";
       var meta = (c.versionName ? '<div class="evNote">バージョン: ' + esc(c.versionName) + "</div>" : "") + (c.note ? '<div class="evNote">備考: ' + esc(c.note) + "</div>" : "");
-      return '<div class="evBox">' + head + '<div class="evBody">' + meta + '<div class="evRow">' + heart + "<span>湧き " + (c.used || 0) + "</span></div>" + UI.cmtHtml(c, x, "p") + "</div></div>";
+      return '<div class="evBox">' + head + '<div class="evBody">' + meta + '<div class="evRow">' + heart + "<span>湧き " + (c.used || 0) + '</span></div><button class="w" style="width:100%;height:44px;border-radius:12px;margin:4px 0 8px" data-a="spOpen" data-i="' + c.id + '">シェアポイントを作る</button>' + UI.cmtHtml(c, x, "p") + "</div></div>";
     },
     myPage: function (x) {
       var p = x.prof;
@@ -180,7 +181,10 @@
         var ds = d ? (d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate()) : "";
         return '<div class="cmt"><span>' + esc(m.text) + '</span><span class="cmtSub">' + ds + '</span></div>';
       }).join("") : '<div class="cmtNone">掲示板の通知はまだありません</div>';
-      return prof + '<h3 class="myH">管理人からのメッセージ</h3>' + msgs + '<h3 class="myH">掲示板の通知</h3>' + notes + '<h3 class="myH">自分の推しコール</h3>' + calls + '<h3 class="myH">感想の承認待ち</h3>' + pend;
+      var sps = (x.sps && x.sps.length) ? x.sps.map(function (m) {
+        return '<div class="cmt"><span>♪ ' + esc(m.title || "") + (m.ver ? " 「" + esc(m.ver) + "」" : "") + "<br>" + fmt(m.a) + "〜" + fmt(m.b) + '</span><span class="cmtBtns"><button data-a="mypSpOpen" data-i="' + m.id + '">開く</button><button data-a="mypSpShare" data-i="' + m.id + '">リンクをコピー</button><button data-a="mypSpDel" data-i="' + m.id + '">削除</button></span></div>';
+      }).join("") : '<div class="cmtNone">シェアポイントはまだありません</div>';
+      return prof + '<h3 class="myH">管理人からのメッセージ</h3>' + msgs + '<h3 class="myH">掲示板の通知</h3>' + notes + '<h3 class="myH">自分のシェアポイント</h3>' + sps + '<h3 class="myH">自分の推しコール</h3>' + calls + '<h3 class="myH">感想の承認待ち</h3>' + pend;
     },
     userPage: function (x) {
       var p = x.prof;

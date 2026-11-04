@@ -51,6 +51,7 @@ const LIMIT = 600000;   // 湧きを数えるのは、再生を始めてから10
 let mk = {scenes: [], type: "call", from: null, base: ""};
 let tlId = null, tlZoom = false, tlD = 1, mkPv = null, refCalls = [], refPlay = false, randPlay = false, mkMeas = null;
 let cmts = {}, pendAll = [], pendKnown = new Set();
+let spRange = null, spEdit = null, mySps = [];
 
 /* ---------- MV(YouTube) ---------- */
 let yt = null, ytReady = false, last = 0, drag = false;
@@ -80,6 +81,7 @@ function loop(ts) {
   if (st === 0 && sess) { sess = null; paintApply(); }   // 曲が終わったら、次回の再生でリセット
   if (mkPv && t >= mkPv.until) { mkPv = null; if (ytReady) yt.pauseVideo(); toast("プレビューが終わりました"); }   // プレビューは表示終了+3秒で止める
   const R = curRange(); if (R && pl && !mkPv && t >= R.e) yt.pauseVideo();   // 再生範囲の終わりで止める
+  if (spRange && pl && !mkPv && t >= spRange.b) { spRange = null; yt.pauseVideo(); toast("シェアポイントの範囲が終わりました"); }   // シェアポイントの終点で止める
   if (pl && act && !isMine() && !mkPv) { const q = sessFor(); if (!q.t0) { q.t0 = Date.now(); q.ready = loadPrev(q); } }   // 再生を始めてから10分を数える
   if (!drag) { bar.max = dur(); bar.value = t; }
   $("tm").textContent = fmt(t); $("dur").textContent = fmt(dur());
@@ -97,6 +99,7 @@ requestAnimationFrame(loop);
 
 UI.songSel(si);
 loadSongs();
+checkSpHash();
 $("dots").innerHTML = PEN.map((p, i) => `<button aria-label="${p[0]}" data-a="penColor" data-i="${i}" class="${i === 4 ? "sel" : ""}"><i style="background:${p[1]}"></i></button>`).join("");
 
 /* ---------- 認証・登録 ---------- */
@@ -243,7 +246,11 @@ async function loadMyPage() {
   let notes = [];
   try { notes = (await getDocs(query(collection(db, "bbsNotes"), where("toUid", "==", me.uid)))).docs.map(d => ({id: d.id, ...d.data()})); } catch (e) {}
   notes.sort((x, y) => ((y.at && y.at.seconds) || 0) - ((x.at && x.at.seconds) || 0));
-  el.innerHTML = UI.myPage({prof: prof, calls: mine.map(c => ({...c, songTitle: sTitle(c.videoId)})), pend: myPend, msgs: msgs, notes: notes});
+  let sps = [];
+  try { sps = (await getDocs(query(collection(db, "spPoints"), where("uid", "==", me.uid)))).docs.map(d => ({id: d.id, ...d.data()})); } catch (e) {}
+  sps.sort((x, y) => ((y.at && y.at.seconds) || 0) - ((x.at && x.at.seconds) || 0));
+  mySps = sps;
+  el.innerHTML = UI.myPage({prof: prof, calls: mine.map(c => ({...c, songTitle: sTitle(c.videoId)})), pend: myPend, msgs: msgs, notes: notes, sps: sps});
 }
 function paintReviewBtn() { const b = $("reviewBtn"); if (!b) return; const show = !!(me && prof && pendAll.length); b.style.display = show ? "block" : "none"; b.textContent = "感想の承認待ち(" + pendAll.length + "件)"; }
 function renderReview() {
@@ -312,6 +319,68 @@ function runIntro() {
   introTm.push(setTimeout(() => { el.style.display = "none"; el.classList.remove("whiteout"); el.style.transition = ""; clearIntroTm(); }, 7300));
 }
 function skipIntro() { clearIntroTm(); const el = $("intro"); el.style.display = "none"; el.classList.remove("whiteout"); yt.playVideo(); }
+/* ---------- シェアポイント ---------- */
+const SPBASE = "https://go-apsp.github.io/momoclo-call/";
+function spLink(id, a, b) { return SPBASE + "#sp=" + id + "&a=" + (+a).toFixed(1) + "&b=" + (+b).toFixed(1); }
+function spVals() { return {a: +$("spA").value, b: +$("spB").value}; }
+function paintSpVals() { const v = spVals(); $("spAv").textContent = fmt(v.a); $("spBv").textContent = fmt(v.b); }
+function openSpPanel(id) {
+  const c = calls.find(x => x.id === id); if (!c) return;
+  if (act !== id) { act = id; refPlay = false; randPlay = false; spRange = null; sess = null; paintApply(); applyAct(); render(); }
+  A.closeOv();
+  spEdit = id;
+  $("spFor").textContent = "♪ " + SONGS[si].title + " / " + c.ownerName + "さんの推しコール" + (c.versionName ? " 「" + c.versionName + "」" : "");
+  const D = Math.max(dur(), 1), t0 = Math.min(now() || rangeStart(), D);
+  const A0 = Math.max(rangeStart(), Math.floor(t0));
+  $("spA").max = D; $("spB").max = D;
+  $("spA").value = A0; $("spB").value = Math.min(D, A0 + 30);
+  paintSpVals();
+  $("spResult").innerHTML = (me && prof) ? "" : '<div class="spLink">ログインしていないため、このシェアポイントは保存されません（リンクのコピーとシェアはできます）</div>';
+  $("spPanel").style.display = "flex";
+  $("spPanel").scrollIntoView({behavior: "smooth", block: "center"});
+}
+async function createSp() {
+  const c = calls.find(x => x.id === spEdit); if (!c) return;
+  const v = spVals(), a = v.a, b = v.b;
+  if (!(b > a + 0.4)) return toast("終点は始点より後にしてください");
+  const link = spLink(c.id, a, b);
+  let saved = false;
+  if (me && prof) {
+    try { await addDoc(collection(db, "spPoints"), {uid: me.uid, callId: c.id, title: SONGS[si].title, ver: c.versionName || "", a: a, b: b, at: serverTimestamp()}); saved = true; } catch (e) {}
+  }
+  const txt = encodeURIComponent("♪ " + SONGS[si].title + " の推しコール " + fmt(a) + "〜" + fmt(b) + " | ももクロコール共有");
+  $("spResult").innerHTML = '<div class="spLink">' + esc(link) + "</div>"
+    + '<div class="spShare"><button class="spCopy" data-a="spCopy" data-i="' + esc(link) + '">リンクをコピー</button>'
+    + '<a class="spX" target="_blank" rel="noopener" href="https://twitter.com/intent/tweet?text=' + txt + "&url=" + encodeURIComponent(link) + '">Xでシェア</a>'
+    + '<a class="spLine" target="_blank" rel="noopener" href="https://social-plugins.line.me/lineit/share?url=' + encodeURIComponent(link) + '">LINEでシェア</a></div>'
+    + '<div class="ogpPrev"><img src="ogp.jpg" alt=""><div class="og"><b>未完成なコールウェブアプリ</b><span>見る…？</span></div></div>'
+    + (saved ? '<div class="spFor">マイページに保存しました</div>' : "");
+  toast("シェアポイントを作成しました");
+}
+async function openSpPage(id, a, b) {
+  const el = $("spPage"); el.style.display = "block";
+  const body = $("spPageBody");
+  body.innerHTML = '<div class="cmtNone">読み込み中…</div>';
+  let c = null;
+  try { const d = await getDoc(doc(db, "calls", id)); if (d.exists()) c = {id: d.id, ...d.data()}; } catch (e) {}
+  if (!c || (c.public !== true && !(me && c.ownerUid === me.uid))) {
+    body.innerHTML = '<div class="spPgT">このシェアポイントは表示できませんでした</div><div class="spPgMeta">コールが非公開か、削除された可能性があります。</div>';
+    return;
+  }
+  const sg = SONGS.find(s => s.vid === c.videoId);
+  const sc = (c.scenes || []).filter(s => s.t + s.d > a && s.t < b).sort((x, y) => x.t - y.t);
+  body.innerHTML = '<div class="spPgT">♪ ' + esc(sg ? sg.title : "") + "</div>"
+    + '<div class="spPgMeta">' + esc(c.ownerName) + "さんの推しコール" + (c.versionName ? " 「" + esc(c.versionName) + "」" : "") + "<br>範囲: " + fmt(a) + " 〜 " + fmt(b) + "</div>"
+    + '<button class="spPlayBtn" data-a="spPlay" data-i="' + c.id + "|" + a + "|" + b + '">この範囲を再生</button>'
+    + (sc.length ? sc.map(s => '<div class="spPgScene">' + fmt(s.t) + " " + LAB[s.k] + " 「" + esc(s.x) + "」</div>").join("") : '<div class="spPgMeta">この範囲に場面はありません</div>');
+}
+function checkSpHash() {
+  const m = (location.hash || "").match(/sp=([^&]+)&a=([\d.]+)&b=([\d.]+)/);
+  if (m) openSpPage(m[1], +m[2], +m[3]);
+}
+$("spA").addEventListener("input", paintSpVals);
+$("spB").addEventListener("input", paintSpVals);
+
 const A = {
   login: async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { toast("ログインできませんでした"); } },
   logout: async () => { await signOut(auth); A.menu(); toast("ログアウトしました"); },
@@ -341,7 +410,7 @@ const A = {
     si = +i; VID = SONGS[si].vid; act = null; EV = [];
     try { localStorage.setItem("momo_song", String(si)); } catch (e) {}
     if (ytReady) yt.cueVideoById(VID);
-    mkPv = null; refPlay = false; randPlay = false;
+    mkPv = null; refPlay = false; randPlay = false; spRange = null;
     mk = {scenes: [], type: "call", from: null, base: ""}; renderMk(); UI.songSel(si); sess = null; paintApply(); applyAct(); loadCalls();
   },
   menu: () => { const m = $("menu"); m.style.display = m.style.display === "block" ? "none" : "block"; },
@@ -412,6 +481,41 @@ const A = {
   mkvCancel: () => { $("mkvWarn").style.display = "none"; },
   mkvOk: () => { $("mkvWarn").style.display = "none"; $("mkvPage").style.display = "block"; },
   closeMkv: () => { $("mkvPage").style.display = "none"; },
+  spOpen: id => openSpPanel(id),
+  spClose: () => { $("spPanel").style.display = "none"; },
+  spSetA: () => { $("spA").value = Math.floor(now()); paintSpVals(); },
+  spSetB: () => { $("spB").value = Math.ceil(now()); paintSpVals(); },
+  spPreview: () => { const v = spVals(); if (!(v.b > v.a + 0.4)) return toast("終点は始点より後にしてください"); spRange = {a: v.a, b: v.b}; if (ytReady) { yt.seekTo(v.a, true); yt.playVideo(); } },
+  spCreate: () => createSp(),
+  spCopy: async url => {
+    try { await navigator.clipboard.writeText(url); toast("リンクをコピーしました"); }
+    catch { const ta = document.createElement("textarea"); ta.value = url; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); toast("リンクをコピーしました"); }
+  },
+  spPageClose: () => { $("spPage").style.display = "none"; try { history.replaceState(null, "", location.pathname); } catch (e) {} },
+  spPlay: async key => {
+    const p = key.split("|"), id = p[0], a = +p[1], b = +p[2];
+    $("spPage").style.display = "none";
+    try { history.replaceState(null, "", location.pathname); } catch (e) {}
+    let c = calls.find(x => x.id === id);
+    if (!c) {
+      try { const d = await getDoc(doc(db, "calls", id)); if (d.exists()) c = {id: d.id, ...d.data()}; } catch (e) {}
+      if (!c) return toast("コールが見つかりませんでした");
+      const idx0 = SONGS.findIndex(s => s.vid === c.videoId);
+      if (idx0 >= 0 && idx0 !== si) { si = idx0; VID = SONGS[si].vid; try { localStorage.setItem("momo_song", si); } catch (e) {} UI.songSel(si); if (ytReady) yt.cueVideoById(VID); }
+      await loadCalls();
+      if (!calls.some(x => x.id === id)) return toast("コールが見つかりませんでした");
+    } else {
+      const idx = SONGS.findIndex(s => s.vid === c.videoId);
+      if (idx >= 0 && idx !== si) { si = idx; VID = SONGS[si].vid; try { localStorage.setItem("momo_song", si); } catch (e) {} UI.songSel(si); if (ytReady) yt.cueVideoById(VID); await loadCalls(); }
+    }
+    act = id; refPlay = false; randPlay = false; sess = null; paintApply(); applyAct(); render();
+    spRange = {a: a, b: b};
+    if (ytReady) { yt.seekTo(a, true); yt.playVideo(); }
+    toast("シェアポイントの範囲を再生します");
+  },
+  mypSpOpen: id => { const s = mySps.find(x => x.id === id); if (!s) return; $("mypage").style.display = "none"; openSpPage(s.callId, s.a, s.b); },
+  mypSpShare: id => { const s = mySps.find(x => x.id === id); if (s) A.spCopy(spLink(s.callId, s.a, s.b)); },
+  mypSpDel: async id => { try { await deleteDoc(doc(db, "spPoints", id)); toast("シェアポイントを削除しました"); } catch (e) { toast("削除できませんでした"); } loadMyPage(); },
   panel: () => { const p = $("panel"); p.style.display = p.style.display === "block" ? "none" : "block"; },
   fs: () => {   // アプリ専用の全画面。端末の全画面機能が使えれば使い、使えなければ画面いっぱいに広げる
     const m = $("mv"), on = !m.classList.contains("fs"), el = document.documentElement;
@@ -449,7 +553,7 @@ const A = {
     toast("編集モード: 保存するとスコアと感想はリセットされます");
   },
   closeReview: () => { $("cmov").style.display = "none"; },
-  use: id => { act = id; refPlay = false; randPlay = false; sess = null; paintApply(); applyAct(); A.closeOv(); },
+  use: id => { act = id; refPlay = false; randPlay = false; spRange = null; sess = null; paintApply(); applyAct(); A.closeOv(); },
   heart: async id => {
     if (!guard()) return;
     const own = calls.find(x => x.id === id);
