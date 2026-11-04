@@ -85,7 +85,7 @@
       $("icons").innerHTML = MIC.map(function (m, i) { return '<button data-a="pickIcon" data-i="' + i + '" class="' + (i === sel ? "sel" : "") + '" aria-label="アイコン' + (i + 1) + '">' + m + "</button>"; }).join("");
     },
     mkList: function (scenes) {
-      return scenes.map(function (e, i) { return '<div class="mkrow"><span>' + fmt(e.t) + "</span><span>" + LAB[e.k] + '</span><span class="sp">' + esc(e.x) + '</span><input type="range" class="dursl" min="1" max="20" step="0.5" value="' + e.d + '" data-dur="' + i + '" aria-label="表示時間"><span class="durval">' + e.d + '秒</span><button class="pvb" data-a="pvScene" data-i="' + i + '">プレビュー</button><button aria-label="削除" data-a="delScene" data-i="' + i + '">×</button></div>'; }).join("")
+      return scenes.map(function (e, i) { return '<div class="mkrow"><span>' + fmt(e.t) + "</span><span>" + LAB[e.k] + '</span><span class="sp">' + esc(e.x) + '</span><input type="range" class="dursl" min="1" max="20" step="0.1" value="' + e.d + '" data-dur="' + i + '" aria-label="表示時間"><span class="durval">' + e.d + '秒</span><button class="adjb" data-a="durAdjRow" data-i="' + i + '|-0.1" aria-label="0.1秒短く">−</button><button class="adjb" data-a="durAdjRow" data-i="' + i + '|0.1" aria-label="0.1秒長く">＋</button><button class="pvb" data-a="pvScene" data-i="' + i + '">プレビュー</button><button aria-label="削除" data-a="delScene" data-i="' + i + '">×</button></div>'; }).join("")
         || '<div style="font-size:12px;color:var(--mut)">動画を止めて、追加したい位置で「この位置に追加」を押します。</div>';
     },
     list: function (calls, x) {

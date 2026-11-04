@@ -83,7 +83,7 @@ input[type=range]{width:100%;accent-color:var(--pink);height:28px;margin:0}
 #mk input[type=text],#sheet input{height:44px;border-radius:12px;border:2px solid #8e91b8;background:var(--bg);color:var(--ink);padding:0 12px;font:inherit;width:100%}
 #mk label{font-size:12px;display:flex;align-items:center;gap:8px;min-height:44px}
 #mk .add{height:48px;border-radius:24px;background:#ffd23f;color:#2a2410;font-weight:900}
-.mkrow{display:flex;align-items:center;gap:8px;font-size:13px;min-height:44px;border-bottom:1px solid #3a3f6b}
+.mkrow{display:flex;align-items:center;gap:8px;font-size:13px;min-height:44px;border-bottom:1px solid #3a3f6b;flex-wrap:wrap}
 .mkrow button{width:44px;height:44px;font-size:18px;color:var(--mut)}
 #sheet{position:fixed;inset:0;background:rgba(10,10,24,.7);display:none;align-items:flex-end;z-index:45}
 #sheet>div{width:100%;max-width:480px;margin:0 auto;background:var(--panel);border-radius:20px 20px 0 0;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -138,7 +138,14 @@ body.nofs{overflow:hidden}
 .durrow{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:700}
 .durrow input[type=range]{flex:1}
 .durrow b{color:#ffd23f;min-width:40px;text-align:right}
-.mkrow .dursl{width:70px;flex:none;height:24px}
+.mkrow .dursl{flex:1 1 120px;width:auto;min-width:120px;height:24px}
+.playrow{display:flex;gap:8px;align-items:stretch}
+.playrow #play{flex:1}
+.skb{padding:0 10px;border-radius:20px;border:2px solid #8e91b8;font-weight:900;font-size:13px;color:#f4f4fb;background:#262a4a}
+#randcall{width:100%;min-height:48px;border-radius:24px;border:2px solid #a66bff;color:#c9a7ff;font-weight:900;margin-bottom:12px;background:transparent}
+.adjb{width:34px;height:34px;border-radius:50%;border:2px solid #ffd23f;color:#ffd23f;font-weight:900;font-size:16px;flex:none;background:transparent;line-height:1}
+.mkrow .adjb{width:32px;height:32px;font-size:14px}
+#mkMeas{margin-top:8px;width:100%;min-height:44px;border-radius:22px;border:2px solid #4dc9ff;color:#4dc9ff;font-weight:900;background:transparent}
 .mkrow .durval{font-size:11px;color:#ffd23f;min-width:32px}
 .mkrow .pvb{width:auto;padding:0 10px;font-size:12px;font-weight:700;color:#ffd23f;border:1px solid #ffd23f;border-radius:16px;height:32px}
 .tlHint{font-size:11px;color:#8e91b8;margin-top:6px;text-align:right}

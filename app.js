@@ -25,7 +25,7 @@ async function loadSongs() {
   try {
     const snap = await getDocs(query(collection(db, "songs"), orderBy("order")));
     if (!snap.empty) {
-      const arr = snap.docs.map(d => { const x = d.data(); return {s: x.title, title: x.title, vid: x.yid}; });
+      const arr = snap.docs.map(d => { const x = d.data(); return {s: x.title, title: x.title, vid: x.yid, startSec: x.startSec || 0, endSec: x.endSec || 0}; });
       SONGS.length = 0; arr.forEach(x => SONGS.push(x));
       si = Math.min(si, SONGS.length - 1); VID = SONGS[si].vid;
       UI.songSel(si);
@@ -47,7 +47,7 @@ let me = null, prof = null, calls = [], liked = new Set(), act = null, openId = 
 let EV = [], cur = null, sess = null, pickI = 0, native = false;
 const LIMIT = 600000;   // 湧きを数えるのは、再生を始めてから10分
 let mk = {scenes: [], type: "call", from: null, base: ""};
-let tlId = null, tlZoom = false, tlD = 1, mkPv = null, refCalls = [], refPlay = false;
+let tlId = null, tlZoom = false, tlD = 1, mkPv = null, refCalls = [], refPlay = false, randPlay = false, mkMeas = null;
 let cmts = {}, pendAll = [], pendKnown = new Set();
 
 /* ---------- MV(YouTube) ---------- */
@@ -64,9 +64,12 @@ window.onYouTubeIframeAPIReady = () => {
 };
 const now = () => ytReady ? yt.getCurrentTime() : 0;
 const dur = () => ytReady ? (yt.getDuration() || 240) : 240;
+const curRange = () => { const sg = SONGS[si]; return (sg && +sg.endSec > +sg.startSec && +sg.endSec > 0) ? {s: +sg.startSec, e: +sg.endSec} : null; };
+const clampT = t => { const R = curRange(); return Math.max(R ? R.s : 0, Math.min(R ? R.e : dur(), t)); };
+const rangeStart = () => { const R = curRange(); return R ? R.s : 0; };
 const bar = $("bar");
 bar.addEventListener("input", () => { drag = true; });
-bar.addEventListener("change", () => { drag = false; if (ytReady) yt.seekTo(+bar.value, true); });
+bar.addEventListener("change", () => { drag = false; if (ytReady) yt.seekTo(clampT(+bar.value), true); });
 
 function loop(ts) {
   last = ts;
@@ -74,6 +77,7 @@ function loop(ts) {
   $("play").textContent = $("fsplay").textContent = pl ? "一時停止" : "再生";
   if (st === 0 && sess) { sess = null; paintApply(); }   // 曲が終わったら、次回の再生でリセット
   if (mkPv && t >= mkPv.until) { mkPv = null; if (ytReady) yt.pauseVideo(); toast("プレビューが終わりました"); }   // プレビューは表示終了+3秒で止める
+  const R = curRange(); if (R && pl && !mkPv && t >= R.e) yt.pauseVideo();   // 再生範囲の終わりで止める
   if (pl && act && !isMine() && !mkPv) { const q = sessFor(); if (!q.t0) { q.t0 = Date.now(); q.ready = loadPrev(q); } }   // 再生を始めてから10分を数える
   if (!drag) { bar.max = dur(); bar.value = t; }
   $("tm").textContent = fmt(t); $("dur").textContent = fmt(dur());
@@ -308,7 +312,7 @@ const A = {
     si = +i; VID = SONGS[si].vid; act = null; EV = [];
     try { localStorage.setItem("momo_song", String(si)); } catch (e) {}
     if (ytReady) yt.cueVideoById(VID);
-    mkPv = null; refPlay = false;
+    mkPv = null; refPlay = false; randPlay = false;
     mk = {scenes: [], type: "call", from: null, base: ""}; renderMk(); UI.songSel(si); sess = null; paintApply(); applyAct(); loadCalls();
   },
   menu: () => { const m = $("menu"); m.style.display = m.style.display === "block" ? "none" : "block"; },
@@ -319,6 +323,8 @@ const A = {
     if (sess && sess.t0 && Date.now() - sess.t0 > LIMIT) { sess = null; paintApply(); }
     if ($("intro").style.display === "block") { skipIntro(); return; }
     if (yt.getPlayerState() === 1) { yt.pauseVideo(); return; }
+    const R = curRange();
+    if (R) { const t = yt.getCurrentTime(); if (t < R.s - 0.05 || t >= R.e - 0.3) yt.seekTo(R.s, true); }
     if (yt.getPlayerState() === 2 && yt.getCurrentTime() > 1) { yt.playVideo(); return; }
     runIntro();
   },
@@ -327,7 +333,7 @@ const A = {
   help: () => toast("このタイミングで一緒にコールやシンガロンができます"),
   waku: async () => {
     if (!cur) return toast("コール・シンガロンの場面で押してね");
-    if (refPlay) return toast("一緒に湧いた!");
+    if (refPlay || randPlay) return toast("一緒に湧いた!");
     if (isMine()) return toast("一緒に湧いた! ※自分の推しコールなのでスコアは反映されません");
     const q = sessFor(); if (!q.t0) { q.t0 = Date.now(); q.ready = loadPrev(q); }
     if (Date.now() - q.t0 > LIMIT) return toast("タイム制限がかかりました。これ以上は反映されません。次回再生時にリセットされます", 4500);
@@ -351,13 +357,32 @@ const A = {
   closeRef: () => { $("refov").style.display = "none"; },
   useRef: id => {
     const c = refCalls.find(x => x.id === id); if (!c) return;
-    refPlay = true; act = null; sess = null; paintApply();
+    refPlay = true; randPlay = false; act = null; sess = null; paintApply();
     EV = c.scenes.map(x => ({...x})).sort((a, b) => a.t - b.t);
     $("who").innerHTML = '<div class="st">♪ ' + esc(SONGS[si].title) + '</div><div class="wn">参考コール' + (c.versionName ? "<i>" + esc(c.versionName) + "</i>" : "") + "</div>";
     $("info").textContent = "";
+    $("panelbody").innerHTML = "参考コールで再生中です";
+    renderPEv();
     A.closeRef();
-    if (ytReady) yt.seekTo(0, true);
+    if (ytReady) yt.seekTo(rangeStart(), true);
     toast("参考コールで再生します");
+  },
+  randomPlay: () => {
+    const pubs = calls.filter(c => c.public);
+    if (!pubs.length) return toast("公開中の推しコールがまだありません");
+    const byT = new Map();
+    pubs.forEach(c => (c.scenes || []).forEach(sc => { const k = Math.round(sc.t); if (!byT.has(k)) byT.set(k, []); byT.get(k).push(sc); }));
+    const scenes = [...byT.keys()].sort((a, b) => a - b).map(t => { const arr = byT.get(t); return {...arr[Math.floor(Math.random() * arr.length)], t}; });
+    if (!scenes.length) return toast("場面がまだありません");
+    randPlay = true; refPlay = false; act = null; sess = null; paintApply();
+    EV = scenes.sort((a, b) => a.t - b.t);
+    $("who").innerHTML = '<div class="st">♪ ' + esc(SONGS[si].title) + '</div><div class="wn">ランダム再生モード</div>';
+    $("info").textContent = "";
+    $("panelbody").innerHTML = "ランダム再生モードです。みんなの推しコールから、場面ごとに選んで再生しています";
+    renderPEv();
+    A.closeOv();
+    if (ytReady) yt.seekTo(rangeStart(), true);
+    toast("ランダム再生モードで再生します");
   },
   mkv: () => { $("mkvWarn").style.display = "flex"; },
   mkvCancel: () => { $("mkvWarn").style.display = "none"; },
@@ -400,7 +425,7 @@ const A = {
     toast("編集モード: 保存するとスコアと感想はリセットされます");
   },
   closeReview: () => { $("cmov").style.display = "none"; },
-  use: id => { act = id; refPlay = false; sess = null; paintApply(); applyAct(); A.closeOv(); },
+  use: id => { act = id; refPlay = false; randPlay = false; sess = null; paintApply(); applyAct(); A.closeOv(); },
   heart: async id => {
     if (!guard()) return;
     const own = calls.find(x => x.id === id);
@@ -429,11 +454,39 @@ const A = {
   editProf: () => { A.menu(); $("mypage").style.display = "none"; openSheet(true); },
   closeSheet: () => { $("sheet").style.display = "none"; },
   startMk: () => { if (!guard()) return; mk.editId = null; A.menu(); $("mk").style.display = "flex"; renderMk(); $("mk").scrollIntoView({behavior: "smooth"}); },
-  endMk: () => { $("mk").style.display = "none"; },
-  seek: (d) => { if (ytReady) yt.seekTo(Math.max(0, Math.min(dur(), now() + +d)), true); },
+  endMk: () => { $("mk").style.display = "none"; if (mkMeas !== null) { mkMeas = null; const b = $("mkMeas"); if (b) b.textContent = "▶ 再生して表示時間を測る"; } },
+  seek: (d) => { if (ytReady) yt.seekTo(clampT(now() + +d), true); },
+  pseek: (d) => { if (ytReady) yt.seekTo(clampT(now() + +d), true); },
   type: (k) => { mk.type = k; document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === k)); const dv = k === "koko" ? 5 : 6; $("mkDur").value = dv; $("mkDurVal").textContent = dv + "秒"; },
+  durAdj: d => {
+    const c = Math.max(1, Math.min(20, Math.round((parseFloat($("mkDur").value) + parseFloat(d)) * 10) / 10));
+    $("mkDur").value = c; $("mkDurVal").textContent = c + "秒";
+  },
+  durAdjRow: key => {
+    const p = String(key).split("|"), sc = mk.scenes[+p[0]]; if (!sc) return;
+    sc.d = Math.max(1, Math.min(20, Math.round((sc.d + parseFloat(p[1])) * 10) / 10));
+    renderMk();
+  },
+  durMeas: () => {
+    if (!ytReady) return toast("動画の準備ができていません");
+    const b = $("mkMeas");
+    if (mkMeas === null) {
+      mkMeas = now();
+      if (yt.getPlayerState() !== 1) yt.playVideo();
+      b.textContent = "■ ストップ(計測中…)";
+      toast("再生中です。表示を止めたいところでストップを押してください");
+    } else {
+      const d = Math.round((now() - mkMeas) * 10) / 10;
+      mkMeas = null;
+      yt.pauseVideo();
+      const c = Math.max(1, Math.min(20, d));
+      $("mkDur").value = c; $("mkDurVal").textContent = c + "秒";
+      b.textContent = "▶ 再生して表示時間を測る";
+      toast("表示時間を " + c + " 秒にしました");
+    }
+  },
   addScene: () => {
-    mk.scenes.push({t: Math.round(now()), d: parseFloat($("mkDur").value) || 6, k: mk.type, x: $("mkText").value.trim() || LAB[mk.type]});
+    mk.scenes.push({t: Math.round(clampT(now())), d: parseFloat($("mkDur").value) || 6, k: mk.type, x: $("mkText").value.trim() || LAB[mk.type]});
     mk.scenes.sort((a, b) => a.t - b.t); $("mkText").value = ""; renderMk();
   },
   pvScene: i => {

@@ -90,7 +90,13 @@ gtag('config', 'G-00QSZME258');
         <input id="songTitle" class="fin" type="text" placeholder="例: 走れ!">
         <label class="flab">YouTube動画ID</label>
         <input id="songYid" class="fin" type="text" placeholder="例: tCD81ACqUYk(URLの v= の後ろ)">
+        <div style="margin-top:10px;position:relative;padding-top:56.25%"><div id="songYt" style="position:absolute;inset:0"></div></div>
+        <label class="flab">再生範囲(任意)</label>
+        <div class="row"><span class="sub" style="min-width:34px">開始</span><input type="range" id="songStart" min="0" max="600" step="1" value="0" style="flex:1"><b id="songStartVal">0:00</b><button class="act" id="songStartNow">現在の位置</button></div>
+        <div class="row" style="margin-top:6px"><span class="sub" style="min-width:34px">終了</span><input type="range" id="songEnd" min="0" max="600" step="1" value="0" style="flex:1"><b id="songEndVal">未設定</b><button class="act" id="songEndNow">現在の位置</button><button class="act" id="songRangeOff">範囲なし</button></div>
+        <p class="note">プレビューを再生しながら合わせられます。終了を設定すると、アプリではその範囲だけを再生します。終了が「未設定」のときは最後まで再生します。一覧の「範囲を編集」から、あとから変えることもできます。</p>
         <button class="act" id="songAdd" style="background:#ff5d8f;border-color:#ff5d8f;color:#fff;font-weight:900">この曲を追加</button>
+        <button class="act hidden" id="songEditCancel">編集をやめる</button>
       </div>
       <div id="songList"></div>
     </div>
@@ -152,6 +158,7 @@ function toast(s) { const t = $("toast"); t.textContent = s; t.classList.add("on
 const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
 
 let me = null, USERS = [], CALLS = [], REFS = [], REQS = [], ADM_SONGS = [], ADMINS = {}, pendingDel = null, pendingRefDel = null, pendingSongDel = null;
+let songPlayer = null, songPlayerReady = false, songEditId = null;
 
 async function loadAll() {
   const um = new Map();
@@ -247,13 +254,16 @@ function renderSongs() {
   }
   $("songList").innerHTML = ADM_SONGS.map(s => {
     const n = CALLS.filter(c => c.videoId === s.yid).length;
+    const rng = (+s.endSec > +s.startSec && +s.endSec > 0) ? ' / 再生範囲: ' + fmt(s.startSec || 0) + '〜' + fmt(s.endSec) : ' / 再生範囲: なし';
     return '<div class="card"><div class="row"><div class="grow"><div class="title">♪ ' + esc(s.title) + '</div>'
-      + '<div class="sub">YouTube: ' + esc(s.yid || "") + ' / 推しコール ' + n + '件(表示分)</div></div>' 
+      + '<div class="sub">YouTube: ' + esc(s.yid || "") + ' / 推しコール ' + n + '件(表示分)' + rng + '</div></div>'
+      + '<button class="act" data-sedit="' + s.id + '">範囲を編集</button>'
       + (pendingSongDel === s.id
         ? '<span class="num" style="color:#ff8fa0">削除しますか?</span><button class="act danger" data-sdel-yes>はい、削除</button><button class="act" data-sdel-no>やめる</button>'
         : '<button class="act danger" data-sdel="' + s.id + '">削除</button>')
       + '</div></div>';
   }).join("");
+  $("songList").querySelectorAll("[data-sedit]").forEach(b => b.addEventListener("click", () => editSongRange(b.dataset.sedit)));
   $("songList").querySelectorAll("[data-sdel]").forEach(b => b.addEventListener("click", () => { pendingSongDel = b.dataset.sdel; renderSongs(); }));
   $("songList").querySelectorAll("[data-sdel-yes]").forEach(b => b.addEventListener("click", delSongYes));
   $("songList").querySelectorAll("[data-sdel-no]").forEach(b => b.addEventListener("click", () => { pendingSongDel = null; renderSongs(); }));
@@ -269,15 +279,60 @@ async function seedSongs() {
     renderSongs(); toast("3曲を登録しました");
   } catch (e) { toast("登録できませんでした(運営アカウントでログインしているか、ルールの設定を確認してください)"); }
 }
+/* 曲追加・範囲編集用プレビュー(YouTube IFrame API) */
+window.onYouTubeIframeAPIReady = () => {
+  songPlayer = new YT.Player("songYt", { videoId: "", playerVars: {playsinline: 1, rel: 0}, events: { onReady: () => { songPlayerReady = true; loadSongPreview(); } } });
+};
+{ const tag = document.createElement("script"); tag.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(tag); }
+function loadSongPreview() {
+  const yid = $("songYid").value.trim();
+  if (songPlayerReady && yid) songPlayer.cueVideoById(yid);
+}
+setInterval(() => {
+  if (!songPlayerReady) return;
+  try { const d = Math.floor(songPlayer.getDuration() || 0); if (d > 0) { $("songStart").max = d; $("songEnd").max = d; } } catch (e) {}
+}, 2000);
+function paintSongRange() {
+  $("songStartVal").textContent = fmt(+$("songStart").value);
+  $("songEndVal").textContent = +$("songEnd").value > 0 ? fmt(+$("songEnd").value) : "未設定";
+}
+function resetSongForm() {
+  songEditId = null;
+  $("songTitle").value = ""; $("songYid").value = "";
+  $("songStart").value = 0; $("songEnd").value = 0; paintSongRange();
+  $("songAdd").textContent = "この曲を追加";
+  $("songEditCancel").classList.add("hidden");
+}
+function editSongRange(id) {
+  const s = ADM_SONGS.find(x => x.id === id); if (!s) return;
+  songEditId = id;
+  $("songTitle").value = s.title || ""; $("songYid").value = s.yid || "";
+  $("songStart").value = s.startSec || 0; $("songEnd").value = s.endSec || 0; paintSongRange();
+  $("songAdd").textContent = "変更を保存";
+  $("songEditCancel").classList.remove("hidden");
+  loadSongPreview();
+  $("songTitle").scrollIntoView({behavior: "smooth"});
+  toast("「" + (s.title || "") + "」の再生範囲を編集します");
+}
 async function addSong() {
   const title = $("songTitle").value.trim(), yid = $("songYid").value.trim();
   if (!title || !yid) { toast("曲名・YouTube動画IDを入れてください"); return; }
-  const d = {title: title, yid: yid, order: ADM_SONGS.length};
+  const st = +$("songStart").value, en = +$("songEnd").value, has = en > st && en > 0;
+  if (songEditId) {
+    try {
+      await updateDoc(doc(db, "songs", songEditId), {title: title, yid: yid, startSec: has ? st : 0, endSec: has ? en : 0});
+      const s = ADM_SONGS.find(x => x.id === songEditId);
+      if (s) { s.title = title; s.yid = yid; s.startSec = has ? st : 0; s.endSec = has ? en : 0; }
+      resetSongForm(); renderSongs(); fillRefSongs(); toast("変更を保存しました");
+    } catch (e) { toast("保存できませんでした(運営アカウントでログインしているか確認してください)"); }
+    return;
+  }
+  const d = {title: title, yid: yid, order: ADM_SONGS.length, startSec: has ? st : 0, endSec: has ? en : 0};
   try {
     const r = await addDoc(collection(db, "songs"), d);
     ADM_SONGS.push({id: r.id, ...d});
-    $("songTitle").value = $("songYid").value = "";
-    renderSongs(); toast("曲を追加しました");
+    resetSongForm();
+    renderSongs(); fillRefSongs(); toast("曲を追加しました");
   } catch (e) { toast("追加できませんでした(運営アカウントでログインしているか、ルールの設定を確認してください)"); }
 }
 async function delSongYes() {
@@ -375,6 +430,14 @@ $("tabReqs").addEventListener("click", () => showTab("reqs"));
 $("q").addEventListener("input", renderCalls);
 $("refAdd").addEventListener("click", addRef);
 $("songAdd").addEventListener("click", addSong);
+$("songYid").addEventListener("change", loadSongPreview);
+$("songStart").addEventListener("input", paintSongRange);
+$("songEnd").addEventListener("input", paintSongRange);
+$("songStartNow").addEventListener("click", () => { if (songPlayerReady) { $("songStart").value = Math.floor(songPlayer.getCurrentTime() || 0); paintSongRange(); } });
+$("songEndNow").addEventListener("click", () => { if (songPlayerReady) { $("songEnd").value = Math.ceil(songPlayer.getCurrentTime() || 0); paintSongRange(); } });
+$("songRangeOff").addEventListener("click", () => { $("songEnd").value = 0; paintSongRange(); });
+$("songEditCancel").addEventListener("click", resetSongForm);
+paintSongRange();
 function fillRefSongs() {
   const list = ADM_SONGS.length ? ADM_SONGS.map(s => ({title: s.title, vid: s.yid})) : SONGS;
   const cur = $("refSong").value;

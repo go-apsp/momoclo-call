@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ももクロコール共有(テスト中)</title>
-<link rel="stylesheet" href="style.css?v=40">
+<link rel="stylesheet" href="style.css?v=42">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
 <script>
@@ -92,12 +92,18 @@ gtag('config', 'G-00QSZME258');
     <input type="range" id="bar" min="0" max="240" step="0.1" value="0" aria-label="シークバー">
     <div class="times"><span id="tm">0:00</span><span id="dur">0:00</span></div>
   </div>
-  <button id="play" data-a="play">再生</button>
+  <div class="playrow">
+    <button class="skb" data-a="pseek" data-i="-30">-30秒</button>
+    <button class="skb" data-a="pseek" data-i="-10">-10秒</button>
+    <button id="play" data-a="play">再生</button>
+    <button class="skb" data-a="pseek" data-i="10">+10秒</button>
+    <button class="skb" data-a="pseek" data-i="30">+30秒</button>
+  </div>
   <div id="pEv"></div>
   <button id="ovbtn" data-a="openOv">みんなの<span>推し</span>コール</button>
   <div id="info"></div>
   <button id="mkvBtn" data-a="mkv">ももクリDelivery特集<span class="newStamp">NEW</span></button>
-  <div style="text-align:center;font-size:10px;color:#8e91b8">build 41</div>
+  <div style="text-align:center;font-size:10px;color:#8e91b8">build 42</div>
 
   <section id="mk">
     <h2>推しコールを作る</h2>
@@ -108,7 +114,8 @@ gtag('config', 'G-00QSZME258');
     <div id="mkTypes" class="types">
       <button data-a="type" data-i="call" class="sel">コール</button><button data-a="type" data-i="sing">シンガロン</button><button data-a="type" data-i="koko">ココ好き!</button>
     </div>
-    <div class="durrow"><span>表示時間</span><input type="range" id="mkDur" min="1" max="20" step="0.5" value="6" aria-label="表示時間"><b id="mkDurVal">6秒</b></div>
+    <div class="durrow"><span>表示時間</span><button class="adjb" data-a="durAdj" data-i="-0.1" aria-label="表示時間を0.1秒短くする">−</button><input type="range" id="mkDur" min="1" max="20" step="0.1" value="6" aria-label="表示時間"><button class="adjb" data-a="durAdj" data-i="0.1" aria-label="表示時間を0.1秒長くする">＋</button><b id="mkDurVal">6秒</b></div>
+    <button id="mkMeas" data-a="durMeas">▶ 再生して表示時間を測る</button>
     <input type="text" id="mkText" placeholder="内容(例: ハイ!ハイ!)" maxlength="30">
     <button class="add" data-a="addScene">この位置に追加</button>
     <div id="mkList"></div>
@@ -127,6 +134,7 @@ gtag('config', 'G-00QSZME258');
 <div id="ov"><div class="in">
   <div class="oh"><span>みんなの<b>推し</b>コール</span><button class="ico" aria-label="閉じる" data-a="closeOv"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M6 6l14 14M20 6L6 20" fill="none" stroke="#f4f4fb" stroke-width="2.4" stroke-linecap="round"/></svg></button></div>
   <button id="refcall" data-a="refcall">参考コール</button>
+  <button id="randcall" data-a="randomPlay">ランダム再生</button>
   <div id="list"></div>
 </div></div>
 
@@ -182,7 +190,7 @@ gtag('config', 'G-00QSZME258');
 
 <div id="toast"></div>
 
-<script src="ui.js?v=40" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="app.js?v=40" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
+<script src="ui.js?v=42" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
+<script src="app.js?v=42" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
 </body>
 </html>
