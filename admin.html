@@ -39,6 +39,7 @@
   .hidden{display:none}
   #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:#262a4a;border:1px solid #2c2f57;color:#fff;padding:10px 16px;border-radius:12px;font-weight:700;opacity:0;pointer-events:none;transition:.25s;max-width:92vw;text-align:center;z-index:50}
   #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  #songYt{position:absolute!important;top:0;left:0;width:100%!important;height:100%!important;border:0}
   #loginBox{margin:18px 0}
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
@@ -90,8 +91,13 @@ gtag('config', 'G-00QSZME258');
         <input id="songTitle" class="fin" type="text" placeholder="例: 走れ!">
         <label class="flab">YouTube動画ID</label>
         <input id="songYid" class="fin" type="text" placeholder="例: tCD81ACqUYk(URLの v= の後ろ)">
-        <div style="margin-top:10px;position:relative;padding-top:56.25%"><div id="songYt" style="position:absolute;inset:0"></div></div>
+        <div style="margin-top:10px;position:relative;padding-top:56.25%;overflow:hidden;border-radius:12px"><div id="songYt"></div></div>
         <label class="flab">再生範囲(任意)</label>
+        <div style="background:#14152b;border:1px solid #2c2f57;border-radius:12px;padding:10px;margin-bottom:8px">
+          <div class="row"><b>プレビューの再生位置</b><b style="color:#ffd23f"><span id="songPosVal">0:00</span> / <span id="songDurVal">0:00</span></b></div>
+          <input type="range" id="songPos" min="0" max="600" step="0.1" value="0" style="width:100%;margin:8px 0">
+          <div class="sub">このバーはプレビューの再生と連動します。動かすと再生位置も動きます。位置を決めてから、下の開始・終了のボタンを押してください。</div>
+        </div>
         <div style="background:#14152b;border:1px solid #2c2f57;border-radius:12px;padding:10px;margin-bottom:8px">
           <div class="row"><b>開始(始点)</b><b id="songStartVal" style="color:#ffd23f">0:00</b></div>
           <input type="range" id="songStart" min="0" max="600" step="1" value="0" style="width:100%;margin:8px 0">
@@ -166,7 +172,7 @@ function toast(s) { const t = $("toast"); t.textContent = s; t.classList.add("on
 const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
 
 let me = null, USERS = [], CALLS = [], REFS = [], REQS = [], ADM_SONGS = [], ADMINS = {}, pendingDel = null, pendingRefDel = null, pendingSongDel = null;
-let songPlayer = null, songPlayerReady = false, songEditId = null;
+let songPlayer = null, songPlayerReady = false, songEditId = null, songPosDrag = false;
 
 async function loadAll() {
   const um = new Map();
@@ -304,8 +310,12 @@ function loadSongPreview() {
 }
 setInterval(() => {
   if (!songPlayerReady) return;
-  try { const d = Math.floor(songPlayer.getDuration() || 0); if (d > 0) { $("songStart").max = d; $("songEnd").max = d; } } catch (e) {}
-}, 2000);
+  try {
+    const d = Math.floor(songPlayer.getDuration() || 0);
+    if (d > 0) { $("songStart").max = d; $("songEnd").max = d; $("songPos").max = d; $("songDurVal").textContent = fmt(d); }
+    if (!songPosDrag) { const t = songPlayer.getCurrentTime() || 0; $("songPos").value = t; $("songPosVal").textContent = fmt(t); }
+  } catch (e) {}
+}, 500);
 function paintSongRange() {
   $("songStartVal").textContent = fmt(+$("songStart").value);
   $("songEndVal").textContent = +$("songEnd").value > 0 ? fmt(+$("songEnd").value) : "未設定";
@@ -468,6 +478,8 @@ $("songStartNow").addEventListener("click", () => { if (songPlayerReady) { $("so
 $("songEndNow").addEventListener("click", () => { if (songPlayerReady) { $("songEnd").value = Math.ceil(songPlayer.getCurrentTime() || 0); paintSongRange(); } });
 $("songRangeOff").addEventListener("click", () => { $("songEnd").value = 0; paintSongRange(); });
 $("songEditCancel").addEventListener("click", resetSongForm);
+$("songPos").addEventListener("input", () => { songPosDrag = true; $("songPosVal").textContent = fmt(+$("songPos").value); });
+$("songPos").addEventListener("change", () => { songPosDrag = false; if (songPlayerReady) songPlayer.seekTo(+$("songPos").value, true); });
 paintSongRange();
 function fillRefSongs() {
   const list = ADM_SONGS.length ? ADM_SONGS.map(s => ({title: s.title, vid: s.yid})) : SONGS;
