@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ももクリDelivery掲示板（ネタバレあり） | ももクロコール共有</title>
+<meta property="og:type" content="website">
+<meta property="og:title" content="ももクリDelivery掲示板（ネタバレあり）">
+<meta property="og:description" content="ももクロコール共有の中の、昔ながらの掲示板です。ネタバレを含みます。">
+<meta property="og:url" content="https://go-apsp.github.io/momoclo-call/bbs.html">
+<meta property="og:image" content="https://go-apsp.github.io/momoclo-call/ogp.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-00QSZME258');
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#fff5f8;color:#4a3542;font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif}
+#wrap{max-width:720px;margin:0 auto;padding:16px 14px 60px}
+a{color:#e75480}
+header.top{text-align:center;padding:10px 0 2px}
+h1{font-size:21px;font-weight:900;margin:4px 0;color:#d6336c;line-height:1.35}
+.toplink{font-size:13px;font-weight:700}
+.notes{background:#fff;border:2px solid #ffb3c9;border-radius:14px;padding:12px 14px;font-size:13px;line-height:1.75;margin:12px 0}
+.notes b{color:#d6336c}
+.notes p{margin:4px 0}
+#authBox{background:#fff;border:2px solid #ffd6e4;border-radius:14px;padding:10px 14px;font-size:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+.btn{background:#ff7ab8;color:#fff;font-weight:900;border-radius:20px;padding:9px 18px;font-size:14px}
+.btn.sub{background:#fff;color:#d6336c;border:2px solid #ff7ab8}
+.btn:disabled{opacity:.45;cursor:default}
+.boards{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 10px}
+.boardBtn{background:#fff;border:2px solid #ffb3c9;border-radius:18px;padding:8px 14px;font-weight:900;font-size:14px;color:#a34a68}
+.boardBtn.sel{background:#ff7ab8;border-color:#ff7ab8;color:#fff}
+.trow{display:block;width:100%;text-align:left;background:#fff;border:1.5px solid #ffd6e4;border-radius:12px;padding:11px 13px;margin:8px 0}
+.trow.tt{font-weight:900;font-size:15px;color:#83354f}
+.trow.tm{font-size:12px;color:#b08a99;margin-top:2px}
+.badge{display:inline-block;background:#ff3b30;color:#fff;font-size:10px;font-weight:800;border-radius:3px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+.badge.gray{background:#9aa0b5}
+form.box{background:#fff;border:2px solid #ffb3c9;border-radius:14px;padding:13px 14px;margin:14px 0}
+form.box h3{margin:0 0 8px;font-size:15px;color:#d6336c}
+input[type=text],textarea{width:100%;font:inherit;font-size:15px;border:1.5px solid #f3b8cd;border-radius:10px;padding:9px 11px;background:#fffafd;color:#4a3542}
+textarea{min-height:84px;resize:vertical}
+.frow{margin:8px 0}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.5}
+.chk input{margin-top:3px}
+.hint{font-size:12px;color:#b08a99}
+.post{border-bottom:1px dashed #f0c3d4;padding:10px 2px}
+.post.ph{font-size:13px;color:#a34a68}
+.post.ph b{color:#d6336c}
+.post.pt{font-size:15px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:3px}
+.post.pdel{color:#b08a99}
+.pbtns{margin-top:5px;display:flex;gap:8px}
+.pbtns button{font-size:12px;font-weight:700;color:#d6336c;border:1.5px solid #ffb3c9;border-radius:14px;padding:3px 11px;background:#fff}
+.pendTag{display:inline-block;background:#fff3bf;color:#8a6d00;font-size:11px;font-weight:800;border-radius:3px;padding:1px 6px;margin-left:6px}
+#noteOvl{position:fixed;inset:0;background:rgba(60,55,70,.45);display:none;align-items:center;justify-content:center;z-index:60;padding:16px}
+#noteCard{background:rgba(105,105,118,.96);color:#fff;border-radius:18px;padding:22px 18px;max-width:420px;width:100%;text-align:center;font-weight:700;line-height:1.7;max-height:80vh;overflow:auto}
+#noteCard.nt{text-align:left;font-size:13px;font-weight:500;background:rgba(255,255,255,.14);border-radius:10px;padding:8px 11px;margin:8px 0}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#4a3542;color:#fff;font-size:14px;font-weight:700;border-radius:20px;padding:10px 20px;opacity:0;pointer-events:none;transition:opacity.25s;z-index:70;max-width:90vw;text-align:center}
+#toast.on{opacity:.95}
+.empty{color:#b08a99;font-size:14px;padding:14px 4px}
+.backBtn{font-weight:900;color:#d6336c;font-size:14px;padding:6px 0}
+.danger{color:#c2255c;border:1.5px solid #f3b8cd;border-radius:14px;padding:5px 13px;font-size:13px;font-weight:700;background:#fff}
+</style>
+</head>
+<body>
+<div id="wrap">
+<header class="top">
+<h1>ももクリDelivery掲示板（ネタバレあり）</h1>
+<a class="toplink" href="https://go-apsp.github.io/momoclo-call/">ももクロコール共有 トップへ</a>
+</header>
+
+<div class="notes">
+<p><b></b></p>
+<p>こちらは「ももクロコール共有」というウェブアプリ内の掲示板です。</p>
+<p>この先はツアーのネタバレを含みます。まだ見たくない方はご注意ください。</p>
+<p>こんなダメダメな仕様ですが、昔ながらの掲示板をあえて再現したので、そこはご了承お願いいたします。</p>
+<p>ログインしなくても書き込めます。</p>
+<p>Googleアカウントでログインすると、自分の投稿の削除と、自分の投稿についたコメントの削除ができます。自分の投稿にコメントがついたら、ももクロコール共有のマイページに通知が届きます。</p>
+<p>「承認制」のスレッドでは、書き込みはスレ主（スレッドを立てた人）が承認するまで表示されません。</p>
+<p>住所・電話番号・メールアドレスなどの個人情報は書かないでください。</p>
+</div>
+
+<div id="authBox"><span>読み込み中…</span></div>
+
+<div id="boardArea">
+<div class="boards" id="boards"></div>
+<div id="threadList"></div>
+<form class="box" id="newThread">
+<h3>スレッドを立てる</h3>
+<div class="frow"><input type="text" id="thTitle" maxlength="50" placeholder="スレッドのタイトル"></div>
+<div class="frow"><input type="text" id="thName" maxlength="20" placeholder="名前（空なら「ななしさん」）"></div>
+<div class="frow"><textarea id="thBody" maxlength="1000" placeholder="本文"></textarea></div>
+<div class="frow"><label class="chk"><input type="checkbox" id="thAppr"><span>承認した書き込みだけ表示する（承認制）<br><span class="hint">チェックすると、このスレッドへの書き込みは、あなたが承認するまで他の人には表示されません。ログインしていないと使えません。</span></span></label></div>
+<button class="btn" type="submit">スレッドを立てる</button>
+</form>
+</div>
+
+<div id="threadArea" style="display:none">
+<button class="backBtn" id="backBoard">← 板に戻る</button>
+<h2 id="tvTitle" style="font-size:18px;color:#83354f;margin:6px 0"></h2>
+<div class="hint" id="tvMeta"></div>
+<div id="postList"></div>
+<form class="box" id="newPost">
+<h3>書き込む</h3>
+<div class="frow"><input type="text" id="poName" maxlength="20" placeholder="名前（空なら「ななしさん」）"></div>
+<div class="frow"><textarea id="poText" maxlength="1000" placeholder="コメント"></textarea></div>
+<button class="btn" type="submit">書き込む</button>
+<div class="hint" id="poHint" style="margin-top:6px"></div>
+</form>
+<div id="threadDelBox"></div>
+</div>
+</div>
+
+<div id="noteOvl"><div id="noteCard"></div></div>
+<div id="toast"></div>
+<script type="module">
+const B = "https://www.gstatic.com/firebasejs/10.12.2/";
+const appM = await import(B + "firebase-app.js");
+const authM = await import(B + "firebase-auth.js");
+const fsM = await import(B + "firebase-firestore.js");
+const firebaseConfig = {
+  apiKey: "AIzaSyBWmghjT5uh-awZEyvi53rYPe8Y8Gf2ICA",
+  authDomain: "momoclo-call.firebaseapp.com",
+  projectId: "momoclo-call",
+  storageBucket: "momoclo-call.firebasestorage.app",
+  messagingSenderId: "972978318918",
+  appId: "1:972978318918:web:921e911bc2a29571f62447"
+};
+const auth = authM.getAuth(appM.initializeApp(firebaseConfig));
+const db = fsM.getFirestore(auth.app);
+const { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp, writeBatch } = fsM;
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function toast(s, ms) { const t = $("toast"); t.textContent = s; t.classList.add("on"); clearTimeout(toast.id); toast.id = setTimeout(() => t.classList.remove("on"), ms || 2600); }
+function fmtD(ts) { if (!ts || !ts.seconds) return ""; const d = new Date(ts.seconds * 1000); return d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate() + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+const BOARDS = [ ["spoiler", "ネタバレ感想板"], ["chat", "雑談板"], ["question", "質問板"], ["info", "情報交換板"], ["notice", "告知板"] ];
+let me = null, myNick = "";
+let curBoard = "spoiler", curThread = null;
+
+function myName(input) { const v = input.value.trim(); return v || myNick || "ななしさん"; }
+function saveName(v) { try { localStorage.setItem("bbsName", v); } catch (e) {} }
+function loadName() { try { return localStorage.getItem("bbsName") || ""; } catch (e) { return ""; } }
+
+function paintAuth() {
+  const box = $("authBox");
+  if (me) {
+    box.innerHTML = "<span>ログイン中: <b>" + esc(myNick || me.displayName || "") + "</b> さん</span>"
+      + '<button class="btn sub" id="logoutBtn">ログアウト</button>'
+      + '<span class="hint">自分の投稿の削除や、自分の投稿についたコメントの削除ができます。</span>';
+    $("logoutBtn").onclick = () => authM.signOut(auth);
+  } else {
+    box.innerHTML = "<span>ログインしていません（このまま書き込めます）</span>"
+      + '<button class="btn" id="loginBtn">Googleでログイン</button>';
+    $("loginBtn").onclick = async () => {
+      try { await authM.signInWithPopup(auth, new authM.GoogleAuthProvider()); }
+      catch (e) { toast("ログインできませんでした"); }
+    };
+  }
+  $("thAppr").disabled = !me;
+}
+
+authM.onAuthStateChanged(auth, async u => {
+  me = u || null; myNick = "";
+  if (me) {
+    try { const d = await getDoc(doc(db, "users", me.uid)); if (d.exists() && d.data().nick) myNick = d.data().nick; } catch (e) {}
+    if (!myNick) myNick = me.displayName || "";
+    const saved = loadName(); if (!saved) { $("thName").value = myNick; $("poName").value = myNick; }
+  }
+  paintAuth();
+  if (curThread) openThread(curThread.id, true);
+  if (me) checkNotes();
+});
+
+function paintBoards() {
+  $("boards").innerHTML = BOARDS.map(([k, n]) => '<button class="boardBtn' + (k === curBoard ? " sel" : "") + '" data-b="' + k + '">' + n + "</button>").join("");
+  $("boards").querySelectorAll("[data-b]").forEach(b => b.onclick = () => { curBoard = b.dataset.b; paintBoards(); loadThreads(); });
+}
+
+async function loadThreads() {
+  const el = $("threadList"); el.innerHTML = '<div class="empty">読み込み中…</div>';
+  let arr = [];
+  try {
+    const snap = await getDocs(query(collection(db, "bbsThreads"), where("board", "==", curBoard)));
+    arr = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { el.innerHTML = '<div class="empty">読み込めませんでした</div>'; return; }
+  arr.sort((a, b) => ((b.lastAt && b.lastAt.seconds) || 0) - ((a.lastAt && a.lastAt.seconds) || 0));
+  el.innerHTML = arr.length ? arr.map(t =>
+    '<button class="trow" data-t="' + t.id + '"><span class="tt">' + esc(t.title) + (t.approvalOnly ? '<span class="badge gray">承認制</span>' : "") + '</span><div class="tm">' + esc(t.name) + " / " + fmtD(t.lastAt || t.at) + "</div></button>"
+  ).join("") : '<div class="empty">まだスレッドがありません</div>';
+  el.querySelectorAll("[data-t]").forEach(b => b.onclick = () => openThread(b.dataset.t));
+}
+
+$("newThread").addEventListener("submit", async e => {
+  e.preventDefault();
+  const title = $("thTitle").value.trim(), body = $("thBody").value.trim();
+  if (!title) { toast("タイトルを入れてください"); return; }
+  if (!body) { toast("本文を入れてください"); return; }
+  const appr = $("thAppr").checked && !!me;
+  const name = myName($("thName")); saveName($("thName").value.trim());
+  const uid = me ? me.uid : null;
+  try {
+    const tr = await addDoc(collection(db, "bbsThreads"), { board: curBoard, title: title, name: name, uid: uid, approvalOnly: appr, at: serverTimestamp(), lastAt: serverTimestamp() });
+    await addDoc(collection(db, "bbsThreads", tr.id, "posts"), { name: name, text: body, uid: uid, ownerUid: uid, at: serverTimestamp(), status: "approved", deleted: false });
+    $("thTitle").value = ""; $("thBody").value = ""; $("thAppr").checked = false;
+    toast("スレッドを立てました");
+    openThread(tr.id);
+  } catch (e2) { toast("立てられませんでした"); }
+});
+
+async function fetchPosts(t) {
+  const col = collection(db, "bbsThreads", t.id, "posts");
+  const map = new Map();
+  const add = snap => snap.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
+  add(await getDocs(query(col, where("status", "==", "approved"))));
+  if (me) {
+    try { add(await getDocs(query(col, where("uid", "==", me.uid)))); } catch (e) {}
+    if (t.uid && me.uid === t.uid) { try { add(await getDocs(query(col, where("ownerUid", "==", me.uid)))); } catch (e) {} }
+  }
+  const arr = [...map.values()];
+  arr.sort((a, b) => ((a.at && a.at.seconds) || 0) - ((b.at && b.at.seconds) || 0));
+  return arr;
+}
+
+async function openThread(tid, keep) {
+  let t = null;
+  try { const d = await getDoc(doc(db, "bbsThreads", tid)); if (d.exists()) t = { id: d.id, ...d.data() }; } catch (e) {}
+  if (!t) { toast("スレッドが見つかりませんでした"); return; }
+  curThread = t;
+  $("boardArea").style.display = "none";
+  $("threadArea").style.display = "block";
+  $("tvTitle").textContent = t.title;
+  $("tvMeta").textContent = "板: " + (BOARDS.find(b => b[0] === t.board) || ["", t.board])[1] + " / スレ主: " + t.name + (t.approvalOnly ? " / 承認制（承認した書き込みだけ表示されます）" : "");
+  $("poHint").textContent = t.approvalOnly ? "このスレッドは承認制です。書き込みはスレ主が承認するまで表示されません。" : "";
+  const isOwner = !!(me && t.uid && me.uid === t.uid);
+  $("threadDelBox").innerHTML = isOwner ? '<div style="margin-top:10px"><button class="danger" id="delThreadBtn">このスレッドを削除する</button></div>' : "";
+  if (isOwner) $("delThreadBtn").onclick = delThread;
+  if (!keep) window.scrollTo(0, 0);
+  paintPosts();
+}
+
+async function paintPosts() {
+  const t = curThread; if (!t) return;
+  const el = $("postList"); el.innerHTML = '<div class="empty">読み込み中…</div>';
+  let arr = [];
+  try { arr = await fetchPosts(t); } catch (e) { el.innerHTML = '<div class="empty">読み込めませんでした</div>'; return; }
+  const isOwner = !!(me && t.uid && me.uid === t.uid);
+  el.innerHTML = arr.map((p, i) => {
+    const mine = !!(me && p.uid && me.uid === p.uid);
+    let btns = "";
+    if (!p.deleted) {
+      if (p.status === "pending" && isOwner) btns += '<button data-act="ok" data-p="' + p.id + '">承認する</button><button data-act="ng" data-p="' + p.id + '">表示しない</button>';
+      if (mine || isOwner) btns += '<button data-act="del" data-p="' + p.id + '">削除</button>';
+    }
+    return '<div class="post"><div class="ph">' + (i + 1) + " ：<b>" + esc(p.name) + "</b> ： " + fmtD(p.at)
+      + (p.status === "pending" ? '<span class="pendTag">承認待ち</span>' : "") + "</div>"
+      + (p.deleted ? '<div class="pt pdel">削除されました</div>' : '<div class="pt">' + esc(p.text) + "</div>")
+      + (btns ? '<div class="pbtns">' + btns + "</div>" : "") + "</div>";
+  }).join("") || '<div class="empty">まだ書き込みがありません</div>';
+  el.querySelectorAll("[data-act]").forEach(b => b.onclick = () => postAction(b.dataset.act, b.dataset.p));
+}
+
+async function postAction(act, pid) {
+  const t = curThread; if (!t) return;
+  const ref = doc(db, "bbsThreads", t.id, "posts", pid);
+  try {
+    if (act === "ok") { await updateDoc(ref, { status: "approved" }); toast("承認しました"); }
+    if (act === "ng") { if (!confirm("この書き込みを表示しない（削除）しますか？")) return; await deleteDoc(ref); toast("表示しないようにしました"); }
+    if (act === "del") { if (!confirm("この書き込みを削除しますか？")) return; await updateDoc(ref, { deleted: true }); toast("削除しました"); }
+  } catch (e) { toast("できませんでした"); return; }
+  paintPosts();
+}
+
+async function delThread() {
+  const t = curThread; if (!t) return;
+  if (!confirm("このスレッドを削除しますか？（中の書き込みも消えます）")) return;
+  try {
+    const posts = await fetchPosts(t);
+    const batch = writeBatch(db);
+    posts.forEach(p => batch.delete(doc(db, "bbsThreads", t.id, "posts", p.id)));
+    await batch.commit();
+    await deleteDoc(doc(db, "bbsThreads", t.id));
+    toast("スレッドを削除しました");
+    backToBoard();
+  } catch (e) { toast("削除できませんでした"); }
+}
+
+function backToBoard() {
+  curThread = null;
+  $("threadArea").style.display = "none";
+  $("boardArea").style.display = "block";
+  loadThreads();
+}
+$("backBoard").onclick = backToBoard;
+
+$("newPost").addEventListener("submit", async e => {
+  e.preventDefault();
+  const t = curThread; if (!t) return;
+  const text = $("poText").value.trim();
+  if (!text) { toast("コメントを入れてください"); return; }
+  const name = myName($("poName")); saveName($("poName").value.trim());
+  const uid = me ? me.uid : null;
+  const isOwner = !!(me && t.uid && me.uid === t.uid);
+  const status = (t.approvalOnly && !isOwner) ? "pending" : "approved";
+  try {
+    await addDoc(collection(db, "bbsThreads", t.id, "posts"), { name: name, text: text, uid: uid, ownerUid: t.uid || null, at: serverTimestamp(), status: status, deleted: false });
+    await updateDoc(doc(db, "bbsThreads", t.id), { lastAt: serverTimestamp() });
+    if (t.uid && t.uid !== uid) {
+      try { await addDoc(collection(db, "bbsNotes"), { toUid: t.uid, threadId: t.id, text: status === "pending" ? "掲示板のあなたのスレッド「" + t.title + "」に承認待ちの書き込みがつきました" : "掲示板のあなたのスレッド「" + t.title + "」にコメントがつきました", at: serverTimestamp() }); } catch (e2) {}
+    }
+    $("poText").value = "";
+    toast(status === "pending" ? "書き込みました（スレ主の承認待ちです）" : "書き込みました");
+    paintPosts();
+  } catch (e3) { toast("書き込めませんでした"); }
+});
+
+async function checkNotes() {
+  if (!me) return;
+  let arr = [];
+  try {
+    const snap = await getDocs(query(collection(db, "bbsNotes"), where("toUid", "==", me.uid)));
+    arr = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { return; }
+  if (!arr.length) return;
+  let seen = 0;
+  try { seen = +localStorage.getItem("bbsSeen_" + me.uid) || 0; } catch (e) {}
+  arr.sort((a, b) => ((b.at && b.at.seconds) || 0) - ((a.at && a.at.seconds) || 0));
+  const fresh = arr.filter(n => ((n.at && n.at.seconds) || 0) * 1000 > seen);
+  if (!fresh.length) return;
+  $("noteCard").innerHTML = "<div>あなたの投稿への反応がありました（" + fresh.length + "件）</div>"
+    + fresh.slice(0, 5).map(n => '<div class="nt">' + esc(n.text) + '<br><span style="opacity:.8;font-size:11px">' + fmtD(n.at) + "</span></div>").join("")
+    + '<button class="btn" id="noteClose" style="margin-top:10px">閉じる</button>';
+  $("noteOvl").style.display = "flex";
+  $("noteClose").onclick = () => {
+    $("noteOvl").style.display = "none";
+    try { localStorage.setItem("bbsSeen_" + me.uid, String(Date.now())); } catch (e) {}
+  };
+}
+
+(function init() {
+  const saved = loadName();
+  if (saved) { $("thName").value = saved; $("poName").value = saved; }
+  paintBoards();
+  loadThreads();
+})();
+</script>
+</body>
+</html>

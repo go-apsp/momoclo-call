@@ -175,7 +175,12 @@
         var ds = d ? (d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate()) : "";
         return '<div class="cmt"><span>' + esc(m.text) + '</span><span class="cmtSub">' + ds + '</span></div>';
       }).join("") : '<div class="cmtNone">メッセージはまだありません</div>';
-      return prof + '<h3 class="myH">管理人からのメッセージ</h3>' + msgs + '<h3 class="myH">自分の推しコール</h3>' + calls + '<h3 class="myH">感想の承認待ち</h3>' + pend;
+      var notes = (x.notes && x.notes.length) ? x.notes.map(function (m) {
+        var d = m.at && m.at.seconds ? new Date(m.at.seconds * 1000) : null;
+        var ds = d ? (d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate()) : "";
+        return '<div class="cmt"><span>' + esc(m.text) + '</span><span class="cmtSub">' + ds + '</span></div>';
+      }).join("") : '<div class="cmtNone">掲示板の通知はまだありません</div>';
+      return prof + '<h3 class="myH">管理人からのメッセージ</h3>' + msgs + '<h3 class="myH">掲示板の通知</h3>' + notes + '<h3 class="myH">自分の推しコール</h3>' + calls + '<h3 class="myH">感想の承認待ち</h3>' + pend;
     },
     userPage: function (x) {
       var p = x.prof;
