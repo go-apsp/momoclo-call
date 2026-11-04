@@ -40,6 +40,9 @@
   #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:#262a4a;border:1px solid #2c2f57;color:#fff;padding:10px 16px;border-radius:12px;font-weight:700;opacity:0;pointer-events:none;transition:.25s;max-width:92vw;text-align:center;z-index:50}
   #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
   #songYt{position:absolute!important;top:0;left:0;width:100%!important;height:100%!important;border:0}
+  #refYt{position:absolute!important;top:0;left:0;width:100%!important;height:100%!important;border:0}
+  .rtype.sel{background:#ff5d8f!important;border-color:#ff5d8f!important;color:#fff!important}
+  .rrow{display:flex;align-items:center;gap:8px;font-size:13px;min-height:40px;border-bottom:1px solid #2c2f57;flex-wrap:wrap}
   #loginBox{margin:18px 0}
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
@@ -126,11 +129,23 @@ gtag('config', 'G-00QSZME258');
         <div class="title" style="margin-bottom:10px">参考コールを新規作成</div>
         <label class="flab">曲</label>
         <select id="refSong" class="fin"></select>
-        <div style="margin-top:10px;position:relative;padding-top:56.25%"><iframe id="refYt" style="position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:12px" src="" title="YouTube埋め込み" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
+        <div style="margin-top:10px;position:relative;padding-top:56.25%;overflow:hidden;border-radius:12px"><div id="refYt"></div></div>
+        <div class="row" style="margin-top:8px">
+          <button class="act" data-rseek="-30">-30秒</button><button class="act" data-rseek="-10">-10秒</button>
+          <button class="act" id="refPlayBtn" style="flex:1;background:#ff5d8f;border-color:#ff5d8f;color:#fff;font-weight:900">再生</button>
+          <button class="act" data-rseek="10">+10秒</button><button class="act" data-rseek="30">+30秒</button>
+        </div>
+        <input type="range" id="refBar" min="0" max="240" step="0.1" value="0" style="width:100%;margin-top:8px">
+        <div class="row"><span class="sub" id="refTm">0:00</span><span style="flex:1"></span><span class="sub" id="refDurT">0:00</span></div>
+        <div class="row" style="margin-top:6px">
+          <button class="act rtype sel" data-rtype="call">コール</button><button class="act rtype" data-rtype="sing">シンガロン</button><button class="act rtype" data-rtype="koko">ココ好き!</button>
+        </div>
+        <div class="row" style="margin-top:8px"><span class="sub" style="min-width:52px">表示時間</span><button class="act" data-rdur="-0.1">−</button><input type="range" id="refDur" min="1" max="20" step="0.1" value="6" style="flex:1"><button class="act" data-rdur="0.1">＋</button><b id="refDurVal" style="color:#ffd23f;min-width:44px;text-align:right">6秒</b></div>
+        <input id="refText" class="fin" type="text" placeholder="内容(例: ハイ!ハイ!)" maxlength="30" style="margin-top:8px">
+        <button class="act" id="refAddScene" style="width:100%;margin-top:8px;background:#ff5d8f;border-color:#ff5d8f;color:#fff;font-weight:900;padding:10px">この位置に追加</button>
+        <div id="refSceneList" style="margin-top:8px"></div>
         <label class="flab">バージョン名</label>
         <input id="refVer" class="fin" type="text" placeholder="例: お手本コール">
-        <label class="flab">場面(1行に1つ: 時刻 種類 文字)</label>
-        <textarea id="refScenes" class="fin" rows="5" placeholder="0:00 コール ハイ!ハイ!ハイ!ハイ!&#10;1:06 シンガロン 走れ!走れ!走れ!走れ!&#10;1:42 コール ももクロ!ももクロ!"></textarea>
         <button class="act" id="refAdd" style="background:#ff5d8f;border-color:#ff5d8f;color:#fff;font-weight:900">この内容で登録</button>
       </div>
       <div id="refList"></div>
@@ -173,6 +188,7 @@ const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(
 
 let me = null, USERS = [], CALLS = [], REFS = [], REQS = [], ADM_SONGS = [], ADMINS = {}, pendingDel = null, pendingRefDel = null, pendingSongDel = null;
 let songPlayer = null, songPlayerReady = false, songEditId = null, songPosDrag = false;
+let refPlayer = null, refReady = false, refDrag = false, refScenes = [], refType = "call";
 
 async function loadAll() {
   const um = new Map();
@@ -302,6 +318,7 @@ async function seedSongs() {
 /* 曲追加・範囲編集用プレビュー(YouTube IFrame API) */
 window.onYouTubeIframeAPIReady = () => {
   songPlayer = new YT.Player("songYt", { videoId: "", playerVars: {playsinline: 1, rel: 0}, events: { onReady: () => { songPlayerReady = true; loadSongPreview(); } } });
+  refPlayer = new YT.Player("refYt", { videoId: "", playerVars: {playsinline: 1, rel: 0}, events: { onReady: () => { refReady = true; setRefYt(); } } });
 };
 { const tag = document.createElement("script"); tag.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(tag); }
 function loadSongPreview() {
@@ -309,12 +326,22 @@ function loadSongPreview() {
   if (songPlayerReady && yid) songPlayer.cueVideoById(yid);
 }
 setInterval(() => {
-  if (!songPlayerReady) return;
-  try {
-    const d = Math.floor(songPlayer.getDuration() || 0);
-    if (d > 0) { $("songStart").max = d; $("songEnd").max = d; $("songPos").max = d; $("songDurVal").textContent = fmt(d); }
-    if (!songPosDrag) { const t = songPlayer.getCurrentTime() || 0; $("songPos").value = t; $("songPosVal").textContent = fmt(t); }
-  } catch (e) {}
+  if (songPlayerReady) {
+    try {
+      const d = Math.floor(songPlayer.getDuration() || 0);
+      if (d > 0) { $("songStart").max = d; $("songEnd").max = d; $("songPos").max = d; $("songDurVal").textContent = fmt(d); }
+      if (!songPosDrag) { const t = songPlayer.getCurrentTime() || 0; $("songPos").value = t; $("songPosVal").textContent = fmt(t); }
+    } catch (e) {}
+  }
+  if (refReady) {
+    try {
+      const d = refPlayer.getDuration() || 0, t = refPlayer.getCurrentTime() || 0;
+      if (d > 0) $("refBar").max = d;
+      if (!refDrag) $("refBar").value = t;
+      $("refTm").textContent = fmt(t); $("refDurT").textContent = fmt(d);
+      $("refPlayBtn").textContent = refPlayer.getPlayerState() === 1 ? "一時停止" : "再生";
+    } catch (e) {}
+  }
 }, 500);
 function paintSongRange() {
   $("songStartVal").textContent = fmt(+$("songStart").value);
@@ -429,26 +456,22 @@ function renderRefs() {
   $("refList").querySelectorAll("[data-rdel-no]").forEach(b => b.addEventListener("click", () => { pendingRefDel = null; renderRefs(); }));
 }
 
+function renderRefScenes() {
+  $("refSceneList").innerHTML = refScenes.map((e, i) => '<div class="rrow"><span>' + fmt(e.t) + '</span><span>' + (KLAB[e.k] || e.k) + '</span><span style="flex:1">' + esc(e.x) + '</span><span class="sub">' + e.d + '秒</span><button class="act danger" data-rsdel="' + i + '">削除</button></div>').join("")
+    || '<div class="sub">動画を止めて、追加したい位置で「この位置に追加」を押します。</div>';
+  $("refSceneList").querySelectorAll("[data-rsdel]").forEach(b => b.addEventListener("click", () => { refScenes.splice(+b.dataset.rsdel, 1); renderRefScenes(); }));
+}
 async function addRef() {
   const vid = $("refSong").value;
   const ver = $("refVer").value.trim();
-  const raw = $("refScenes").value.split("\n");
-  const scenes = []; let bad = 0;
-  raw.forEach(line => {
-    line = line.trim(); if (!line) return;
-    const m = line.match(/^(\d+):(\d+)\s+(コール|シンガロン|ココ好き)\s*(.*)$/);
-    if (!m) { bad++; return; }
-    const k = KIND[m[3]];
-    scenes.push({t: (+m[1]) * 60 + (+m[2]), d: k === "koko" ? 5 : 6, k: k, x: m[4].trim() || KLAB[k]});
-  });
-  if (!scenes.length) { toast("場面が読み取れませんでした。「0:00 コール ハイ!ハイ!」の形で書いてください"); return; }
-  scenes.sort((a, b) => a.t - b.t);
+  if (!refScenes.length) { toast("場面を追加してください"); return; }
+  const scenes = refScenes.map(e => ({...e})).sort((a, b) => a.t - b.t);
   try {
     const d = await addDoc(collection(db, "refs"), {videoId: vid, versionName: ver, scenes: scenes, createdAt: serverTimestamp()});
     REFS.push({id: d.id, videoId: vid, versionName: ver, scenes: scenes});
-    $("refVer").value = ""; $("refScenes").value = "";
+    $("refVer").value = ""; refScenes = []; renderRefScenes();
     renderRefs();
-    toast("参考コールを登録しました" + (bad ? " ※読み取れなかった行が " + bad + " 行あります" : ""));
+    toast("参考コールを登録しました");
   } catch (e) { toast("登録できませんでした(運営アカウントでログインしているか、ルールの設定を確認してください)"); }
 }
 async function delRefYes() {
@@ -470,6 +493,28 @@ $("tabRefs").addEventListener("click", () => showTab("refs"));
 $("tabReqs").addEventListener("click", () => showTab("reqs"));
 $("q").addEventListener("input", renderCalls);
 $("refAdd").addEventListener("click", addRef);
+$("refPlayBtn").addEventListener("click", () => { if (!refReady) return; if (refPlayer.getPlayerState() === 1) refPlayer.pauseVideo(); else refPlayer.playVideo(); });
+document.querySelectorAll("[data-rseek]").forEach(b => b.addEventListener("click", () => { if (refReady) refPlayer.seekTo(Math.max(0, Math.min(refPlayer.getDuration() || 0, (refPlayer.getCurrentTime() || 0) + +b.dataset.rseek)), true); }));
+$("refBar").addEventListener("input", () => { refDrag = true; });
+$("refBar").addEventListener("change", () => { refDrag = false; if (refReady) refPlayer.seekTo(+$("refBar").value, true); });
+document.querySelectorAll("[data-rtype]").forEach(b => b.addEventListener("click", () => {
+  refType = b.dataset.rtype;
+  document.querySelectorAll("[data-rtype]").forEach(x => x.classList.toggle("sel", x === b));
+  const dv = refType === "koko" ? 5 : 6; $("refDur").value = dv; $("refDurVal").textContent = dv + "秒";
+}));
+$("refDur").addEventListener("input", () => { $("refDurVal").textContent = $("refDur").value + "秒"; });
+document.querySelectorAll("[data-rdur]").forEach(b => b.addEventListener("click", () => {
+  const v = Math.max(1, Math.min(20, Math.round((parseFloat($("refDur").value) + parseFloat(b.dataset.rdur)) * 10) / 10));
+  $("refDur").value = v; $("refDurVal").textContent = v + "秒";
+}));
+$("refAddScene").addEventListener("click", () => {
+  if (!refReady) { toast("動画の準備ができていません"); return; }
+  refScenes.push({t: Math.round(refPlayer.getCurrentTime() || 0), d: parseFloat($("refDur").value) || 6, k: refType, x: $("refText").value.trim() || (KLAB[refType] || "コール")});
+  refScenes.sort((a, b) => a.t - b.t);
+  $("refText").value = "";
+  renderRefScenes();
+});
+renderRefScenes();
 $("songAdd").addEventListener("click", addSong);
 $("songYid").addEventListener("change", loadSongPreview);
 $("songStart").addEventListener("input", paintSongRange);
@@ -488,7 +533,7 @@ function fillRefSongs() {
   if (cur) $("refSong").value = cur;
   setRefYt();
 }
-function setRefYt() { const v = $("refSong").value; if (v) $("refYt").src = "https://www.youtube.com/embed/" + v; }
+function setRefYt() { const v = $("refSong").value; if (refReady && v) refPlayer.cueVideoById(v); }
 $("refSong").addEventListener("change", setRefYt);
 fillRefSongs();
 $("loginBtn").addEventListener("click", async () => {
