@@ -72,6 +72,8 @@ function render(){
   '<div class="row"><label>表示する</label><input type="checkbox" id="peVisible" checked></div>'+
   '<button type="button" class="primary" id="peSave">保存する</button> <button type="button" id="peCancelEdit" style="display:none">編集をやめる</button>'+
   '</div>';
+  host.insertAdjacentHTML("beforeend",'<div class="pe-box"><h3>履歴（元に戻す）</h3><div class="row"><label for="peHist">編集時点</label><select id="peHist"></select></div><button type="button" id="peRestore">この時点に戻す</button> <span style="font-size:12.5px;color:var(--sub)">保存するたびに自動で記録されます（最新30件）</span></div>');
+  $("peRestore").addEventListener("click",restoreHist);
   $("peArea").addEventListener("change",function(){curArea=this.value;editId=null;imgData=null;imgChanged=false;loadBlocks()});
   $("peType").addEventListener("change",syncForm);
   $("peAction").addEventListener("change",syncForm);
@@ -119,7 +121,7 @@ function onImgPick(){
   };
   img.src=URL.createObjectURL(f);
 }
-async function loadAll(){await loadPages();await loadBlocks()}
+async function loadAll(){await loadPages();await loadBlocks();await loadHistory()}
 async function loadPages(){
   pages=[];
   try{var d=await FB.getDoc(FB.doc(db,"siteMeta","pages"));if(d.exists())pages=(d.data()||{}).list||[]}catch(e){}
@@ -142,7 +144,7 @@ async function mkPage(){
   pages.push({name:nm,title:nm});
   await FB.setDoc(FB.doc(db,"siteMeta","pages"),{list:pages});
   $("peNewPage").value="";curArea="page:"+nm;
-  await loadPages();await loadBlocks();
+  await loadPages();await loadBlocks();await snap();
   alert("ページを作りました。下の「項目の追加・編集」で中身を足せます");
 }
 async function loadSections(){
@@ -164,7 +166,7 @@ async function saveSecs(order,hidden){
   var nh=[];
   host.querySelectorAll("[data-shide]").forEach(function(c){if(!c.checked)nh.push(c.getAttribute("data-shide"))});
   await FB.setDoc(FB.doc(db,"siteMeta","sections"),{order:order,hidden:nh});
-  loadSections();
+  loadSections();await snap();
 }
 async function moveSec(order,hidden,i,d){
   var j=i+d;if(j<0||j>=order.length)return;
@@ -195,12 +197,13 @@ async function loadTexts(){
     await FB.setDoc(FB.doc(db,"siteTexts",k),{
       text:$("pt-"+k).value, color:$("ptc-"+k).value, anim:$("pta-"+k).value, speed:$("pts-"+k).value, visible:$("ptv-"+k).checked
     });
+    await snap();
     alert("保存しました");
   })});
   host.querySelectorAll("[data-ptreset]").forEach(function(b){b.addEventListener("click",async function(){
     if(!confirm("この文章の設定をもとに戻しますか？"))return;
     await FB.deleteDoc(FB.doc(db,"siteTexts",b.getAttribute("data-ptreset")));
-    loadTexts();
+    loadTexts();await snap();
   })});
 }
 async function loadBlocks(){
@@ -248,7 +251,7 @@ async function moveBlock(id,d){
     sib[k].order=k;
     await FB.updateDoc(FB.doc(db,"pageBlocks",sib[k].id),{order:k});
   }
-  loadBlocks();
+  loadBlocks();await snap();
 }
 function fillForm(id){
   var b=null;blocks.forEach(function(x){if(x.id===id)b=x});
@@ -297,7 +300,6 @@ async function saveBlock(){
   if(t==="image"&&imgChanged&&imgData){
     var ref=await FB.addDoc(FB.collection(db,"pageImages"),{data:imgData});
     data.imageId=ref.id;
-    if(old&&old.imageId){try{await FB.deleteDoc(FB.doc(db,"pageImages",old.imageId))}catch(e){}}
   }else if(old){data.imageId=old.imageId||""}
   if(editId){
     await FB.updateDoc(FB.doc(db,"pageBlocks",editId),data);
@@ -306,7 +308,7 @@ async function saveBlock(){
     data.order=sib.length;
     await FB.addDoc(FB.collection(db,"pageBlocks"),data);
   }
-  clearForm();loadBlocks();
+  clearForm();loadBlocks();await snap();
   alert("保存しました");
 }
 async function delBlock(id){
@@ -317,10 +319,71 @@ async function delBlock(id){
     var kids=blocks.filter(function(x){return x.parentId===id});
     for(var i=0;i<kids.length;i++){await FB.updateDoc(FB.doc(db,"pageBlocks",kids[i].id),{parentId:""})}
   }
-  if(b.imageId){try{await FB.deleteDoc(FB.doc(db,"pageImages",b.imageId))}catch(e){}}
   await FB.deleteDoc(FB.doc(db,"pageBlocks",id));
   if(editId===id)clearForm();
-  loadBlocks();
+  loadBlocks();await snap();
+}
+var histList=[];
+function fmtT(at){var d=new Date(at);return (d.getMonth()+1)+"/"+d.getDate()+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2)+":"+("0"+d.getSeconds()).slice(-2)}
+async function collectState(){
+  var st={blocks:[],pages:pages.slice(),sections:null,texts:null};
+  var areas={top:1,bbs:1};pages.forEach(function(p){areas["page:"+p.name]=1});
+  for(var ar in areas){
+    try{var s=await FB.getDocs(FB.query(FB.collection(db,"pageBlocks"),FB.where("area","==",ar)));
+      s.forEach(function(d){var b=d.data()||{};b.id=d.id;st.blocks.push(b)});}catch(e){}
+  }
+  if($("peSecs")){try{var d=await FB.getDoc(FB.doc(db,"siteMeta","sections"));if(d.exists())st.sections=d.data()}catch(e){}}
+  if($("peTexts")){st.texts={};try{var s2=await FB.getDocs(FB.collection(db,"siteTexts"));s2.forEach(function(d){st.texts[d.id]=d.data()})}catch(e){}}
+  return st;
+}
+async function snap(){
+  try{
+    var st=await collectState();
+    await FB.addDoc(FB.collection(db,"pageBlocks"),{area:"__history__",type:"history",at:Date.now(),snap:st});
+    var s=await FB.getDocs(FB.query(FB.collection(db,"pageBlocks"),FB.where("area","==","__history__")));
+    var arr=[];s.forEach(function(d){arr.push({id:d.id,at:(d.data()||{}).at||0})});
+    arr.sort(function(a,b){return a.at-b.at});
+    while(arr.length>30){var old=arr.shift();try{await FB.deleteDoc(FB.doc(db,"pageBlocks",old.id))}catch(e){}}
+  }catch(e){}
+  loadHistory();
+}
+async function loadHistory(){
+  var sel=$("peHist");if(!sel)return;
+  histList=[];
+  try{var s=await FB.getDocs(FB.query(FB.collection(db,"pageBlocks"),FB.where("area","==","__history__")));
+    s.forEach(function(d){var v=d.data()||{};histList.push({id:d.id,at:v.at||0,snap:v.snap||{blocks:[]}})});
+  }catch(e){}
+  histList.sort(function(a,b){return b.at-a.at});
+  if(!histList.length){await snap();return}
+  sel.innerHTML=histList.map(function(h,i){return '<option value="'+h.id+'">'+fmtT(h.at)+'\u6642\u70b9\uff08\u9805\u76ee '+((h.snap.blocks||[]).length)+'\u4ef6\uff09'+(i===0?" \u203b\u3044\u307e\u306e\u72b6\u614b":"")+'</option>'}).join("");
+}
+async function restoreHist(){
+  var sel=$("peHist");if(!sel||!sel.value)return;
+  var h=null;histList.forEach(function(x){if(x.id===sel.value)h=x});
+  if(!h)return;
+  if(!confirm(fmtT(h.at)+" \u306e\u6642\u70b9\u306e\u72b6\u614b\u306b\u623b\u3057\u307e\u3059\u304b\uff1f\n\uff08\u623b\u3059\u524d\u306e\u4eca\u306e\u72b6\u614b\u3082\u5c65\u6b74\u306b\u6b8b\u308a\u307e\u3059\uff09"))return;
+  await snap();
+  var st=h.snap||{blocks:[],pages:[]};
+  try{
+    var s=await FB.getDocs(FB.collection(db,"pageBlocks"));
+    var dels=[];s.forEach(function(d){var v=d.data()||{};if(v.area!=="__history__")dels.push(d.id)});
+    for(var i=0;i<dels.length;i++){await FB.deleteDoc(FB.doc(db,"pageBlocks",dels[i]))}
+    for(var j=0;j<(st.blocks||[]).length;j++){var b=Object.assign({},st.blocks[j]);var bid=b.id;delete b.id;await FB.setDoc(FB.doc(db,"pageBlocks",bid),b)}
+    pages=(st.pages||[]).slice();
+    await FB.setDoc(FB.doc(db,"siteMeta","pages"),{list:pages});
+    if($("peSecs")){
+      if(st.sections)await FB.setDoc(FB.doc(db,"siteMeta","sections"),st.sections);
+      else{try{await FB.deleteDoc(FB.doc(db,"siteMeta","sections"))}catch(e){}}
+    }
+    if($("peTexts")&&st.texts){
+      var s2=await FB.getDocs(FB.collection(db,"siteTexts"));var cur=[];s2.forEach(function(d){cur.push(d.id)});
+      for(var k=0;k<cur.length;k++){await FB.deleteDoc(FB.doc(db,"siteTexts",cur[k]))}
+      for(var key in st.texts){await FB.setDoc(FB.doc(db,"siteTexts",key),st.texts[key])}
+    }
+  }catch(e){alert("\u623b\u3059\u9014\u4e2d\u3067\u30a8\u30e9\u30fc\u304c\u51fa\u307e\u3057\u305f\u3002\u3082\u3046\u4e00\u5ea6\u304a\u8a66\u3057\u304f\u3060\u3055\u3044");return}
+  curArea="top";editId=null;
+  await loadAll();
+  alert("\u623b\u3057\u307e\u3057\u305f");
 }
 document.addEventListener("DOMContentLoaded",function(){init().catch(function(){})});
 })();
