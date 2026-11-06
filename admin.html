@@ -45,6 +45,18 @@
   .rtype.sel{background:#ff5d8f!important;border-color:#ff5d8f!important;color:#fff!important}
   .rrow{display:flex;align-items:center;gap:8px;font-size:13px;min-height:40px;border-bottom:1px solid #2c2f57;flex-wrap:wrap}
   #loginBox{margin:18px 0}
+  .pe-box{background:#1c1e38;border:1px solid #2c2f57;border-radius:14px;padding:14px 16px;margin:14px 0}
+  .pe-box h3{margin:4px 0 10px;font-size:16px}
+  .pe-box .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0}
+  .pe-box .row label{min-width:150px;font-size:13px;color:#9aa0c8;font-weight:700}
+  .pe-box input[type="text"],.pe-box select,.pe-box textarea{background:#12142c;border:1px solid #2c2f57;border-radius:10px;color:#eef;padding:9px 10px;font:inherit;flex:1;min-width:160px}
+  .pe-box textarea{width:100%}
+  .pe-box .item{border-bottom:1px solid #2c2f57;padding:8px 0;font-size:14px}
+  .pe-box button{background:#262a4d;border:1px solid #2c2f57;color:#cfd2f2;border-radius:10px;padding:7px 12px;font-weight:700;cursor:pointer}
+  .pe-box button.primary{background:#ff5d8f;border-color:#ff5d8f;color:#fff;font-weight:900;padding:10px 22px}
+  .pe-box .n{font-weight:700}
+  .pe-box .empty{color:#9aa0c8;font-size:13.5px}
+  .pe-textrow{border-top:1px dashed #2c2f57;padding:10px 0}
 </style>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
 <script>
@@ -83,6 +95,7 @@ gtag('config', 'G-00QSZME258');
       <button id="tabSongs">曲一覧</button>
       <button id="tabRefs">参考コール</button>
       <button id="tabReqs">申込</button>
+      <button id="tabPe">ページ編集</button>
     </div>
 
     <div id="paneCalls">
@@ -120,6 +133,11 @@ gtag('config', 'G-00QSZME258');
         <button class="act hidden" id="songEditCancel">編集をやめる</button>
       </div>
       <div id="songList"></div>
+    </div>
+
+    <div id="panePe" class="hidden">
+      <p class="note">項目の追加・並び替え・色・動き・ボタンのアクションなどを、ここから自分で編集できます。保存すると公開ページに反映されます。</p>
+      <div id="pearea"></div>
     </div>
 
     <div id="paneReqs" class="hidden">
@@ -485,7 +503,7 @@ async function delRefYes() {
 }
 
 function showTab(t) {
-  ["Calls", "Users", "Songs", "Refs", "Reqs"].forEach(k => {
+  ["Calls", "Users", "Songs", "Refs", "Reqs", "Pe"].forEach(k => {
     $("pane" + k).classList.toggle("hidden", k.toLowerCase() !== t);
     $("tab" + k).classList.toggle("sel", k.toLowerCase() === t);
   });
@@ -495,6 +513,7 @@ $("tabUsers").addEventListener("click", () => showTab("users"));
 $("tabSongs").addEventListener("click", () => showTab("songs"));
 $("tabRefs").addEventListener("click", () => showTab("refs"));
 $("tabReqs").addEventListener("click", () => showTab("reqs"));
+$("tabPe").addEventListener("click", () => showTab("pe"));
 $("q").addEventListener("input", renderCalls);
 $("refAdd").addEventListener("click", addRef);
 $("refPlayBtn").addEventListener("click", () => { if (!refReady) return; if (refPlayer.getPlayerState() === 1) refPlayer.pauseVideo(); else refPlayer.playVideo(); });
@@ -558,5 +577,7 @@ onAuthStateChanged(auth, async u => {
   try { await loadAll(); } catch (e) { toast("読み込めませんでした。通信を確認してください"); }
 });
 </script>
+<script src="pe-config.js"></script>
+<script src="edit-admin.js"></script>
 </body>
 </html>

@@ -1,0 +1,276 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ユーザー: ログイン済みなら読める。自分の分だけ作成・変更できる(推し・アイコンの変更もここ)
+    match /users/{uid} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.nick is string
+        && request.resource.data.nick.size() > 0
+        && request.resource.data.nick.size() <= 20
+        && request.resource.data.oshi is int
+        && request.resource.data.oshi >= 0
+        && request.resource.data.oshi <= 5
+        && (!('icon' in request.resource.data)
+            || (request.resource.data.icon is int && request.resource.data.icon >= 0 && request.resource.data.icon <= 4));
+    }
+
+    match /calls/{id} {
+      // 公開は誰でも、下書きは本人だけ
+      allow read: if resource.data.public == true
+        || (request.auth != null && resource.data.ownerUid == request.auth.uid);
+
+      allow create: if request.auth != null
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.hearts == 0
+        && request.resource.data.used == 0
+        && request.resource.data.scenes is list
+        && request.resource.data.scenes.size() <= 100;
+
+      // 本人の編集(持ち主・ハート数・湧きの合計は変えられない)
+      allow update: if request.auth != null
+        && resource.data.ownerUid == request.auth.uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerUid', 'hearts', 'used']);
+
+      // 他の人は、公開中の推しコールのハート数(±1)と湧きの合計(今回の数との差分)だけ変えられる。本人は不可
+      allow update: if request.auth != null
+        && resource.data.public == true
+        && resource.data.ownerUid != request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hearts', 'used'])
+        && request.resource.data.hearts - resource.data.hearts >= -1
+        && request.resource.data.hearts - resource.data.hearts <= 1
+        && request.resource.data.used - resource.data.used >= -5000
+        && request.resource.data.used - resource.data.used <= 5000;
+
+      allow delete: if request.auth != null && resource.data.ownerUid == request.auth.uid;
+
+      // ハート済みの印: 自分の分だけ
+      match /hearts/{uid} {
+        allow read, create, delete: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // 感想: 誰でも承認待ちとして書き込める。公開済みは誰でも読め、承認待ちは作者だけ読める。公開の可否は作者だけ
+      match /comments/{cid} {
+        allow read: if resource.data.status == "approved"
+          || (request.auth != null && request.auth.uid == resource.data.ownerUid);
+        allow create: if request.resource.data.keys().hasOnly(['name', 'text', 'status', 'uid', 'ownerUid', 'at'])
+          && request.resource.data.status == "pending"
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 20
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 200
+          && request.resource.data.ownerUid == get(/databases/$(database)/documents/calls/$(id)).data.ownerUid
+          && (request.resource.data.uid == null
+              || (request.auth != null && request.resource.data.uid == request.auth.uid));
+        allow update: if request.auth != null && request.auth.uid == resource.data.ownerUid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          && request.resource.data.status == "approved";
+        allow delete: if request.auth != null && request.auth.uid == resource.data.ownerUid;
+      }
+
+      // 湧きの記録(ユーザーごと・推しコールごとに1つ): 自分の分だけ。自分の推しコールには付けられない
+      match /waku/{uid} {
+        allow read, delete: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if request.auth != null && request.auth.uid == uid
+          && request.resource.data.n is int
+          && request.resource.data.n >= 0
+          && request.resource.data.n <= 5000
+          && get(/databases/$(database)/documents/calls/$(id)).data.ownerUid != request.auth.uid;
+      }
+    }
+
+    // メール通知の下準備(将来のメール配信用)。誰でも作成だけでき、読み書きは誰もできない
+    match /notifications/{id} {
+      allow create: if true;
+    }
+
+    // 参考コール: 誰でも読める。作成・変更・削除は運営と許可リストの管理者だけ
+    match /refs/{id} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null
+        && (request.auth.token.email == "syuji3.being@gmail.com"
+            || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // 曲リスト: 誰でも読める。追加・変更・削除は運営と許可リストの管理者だけ
+    match /songs/{id} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null
+        && (request.auth.token.email == "syuji3.being@gmail.com"
+            || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // 許可リスト(管理画面に入れるアカウント): 自分の分は読める。変更は運営だけ
+    match /admins/{uid} {
+      allow read: if request.auth != null
+        && (request.auth.uid == uid
+            || request.auth.token.email == "syuji3.being@gmail.com"
+            || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+      allow create, update, delete: if request.auth != null
+        && request.auth.token.email == "syuji3.being@gmail.com";
+    }
+
+    // Spotify版の使用申し込み: ログインした会員が自分の分だけ作成でき、重複チェック用に自分の分だけ読める。読み取り(一覧)と削除は運営と許可リストの管理者だけ
+    match /spRequests/{id} {
+      allow read: if request.auth != null
+        && (request.auth.token.email == "syuji3.being@gmail.com"
+            || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+            || resource.data.uid == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['uid', 'nick', 'spName', 'spEmail', 'at'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.nick is string
+        && request.resource.data.nick.size() > 0
+        && request.resource.data.nick.size() <= 20
+        && (!('spName' in request.resource.data)
+            || (request.resource.data.spName is string && request.resource.data.spName.size() > 0 && request.resource.data.spName.size() <= 50))
+        && (!('spEmail' in request.resource.data)
+            || (request.resource.data.spEmail is string && request.resource.data.spEmail.size() > 3 && request.resource.data.spEmail.size() <= 100));
+      allow update: if request.auth != null
+        && (request.auth.token.email == "syuji3.being@gmail.com"
+            || exists(/databases/$(database)/documents/admins/$(request.auth.uid)))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status == "approved";
+      allow delete: if request.auth != null
+        && (request.auth.token.email == "syuji3.being@gmail.com"
+            || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // 管理人からユーザーへのメッセージ: 本人と運営・管理者だけ読める。作成は運営・管理者だけ
+    match /messages/{id} {
+      allow read: if request.auth != null
+        && (resource.data.toUid == request.auth.uid
+            || request.auth.token.email == "syuji3.being@gmail.com"
+            || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+      allow create: if request.auth != null
+        && (request.auth.token.email == "syuji3.being@gmail.com"
+            || exists(/databases/$(database)/documents/admins/$(request.auth.uid)))
+        && request.resource.data.keys().hasOnly(['toUid', 'text', 'at'])
+        && request.resource.data.toUid is string
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 500;
+      allow delete: if request.auth != null
+        && (resource.data.toUid == request.auth.uid
+            || request.auth.token.email == "syuji3.being@gmail.com"
+            || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // ももクリDelivery掲示板のスレッド: 誰でも読める。作成は誰でも(承認制はログイン必須)。最終更新の更新は誰でも、削除はスレ主と運営だけ
+    match /bbsThreads/{tid} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['board', 'title', 'name', 'uid', 'approvalOnly', 'at', 'lastAt'])
+        && request.resource.data.board in ['spoiler', 'chat', 'question', 'info', 'notice']
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 50
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 20
+        && request.resource.data.approvalOnly is bool
+        && (request.resource.data.uid == null
+            || (request.auth != null && request.resource.data.uid == request.auth.uid))
+        && (request.resource.data.approvalOnly == false
+            || (request.auth != null && request.resource.data.uid == request.auth.uid));
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastAt']);
+      allow delete: if request.auth != null
+        && (resource.data.uid == request.auth.uid
+            || request.auth.token.email == "syuji3.being@gmail.com"
+            || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+
+      // 書き込み: 承認済みは誰でも読める。承認待ちは書いた本人とスレ主だけ。作成は誰でも(状態はスレッドの承認制に従う)
+      match /posts/{pid} {
+        allow read: if resource.data.status == 'approved'
+          || (request.auth != null && (request.auth.uid == resource.data.uid
+              || request.auth.uid == resource.data.ownerUid));
+        allow create: if request.resource.data.keys().hasOnly(['name', 'text', 'uid', 'ownerUid', 'at', 'status', 'deleted'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 20
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 1000
+          && request.resource.data.deleted == false
+          && request.resource.data.ownerUid == get(/databases/$(database)/documents/bbsThreads/$(tid)).data.uid
+          && (request.resource.data.uid == null
+              || (request.auth != null && request.resource.data.uid == request.auth.uid))
+          && ((request.resource.data.status == 'approved'
+                && (get(/databases/$(database)/documents/bbsThreads/$(tid)).data.approvalOnly == false
+                    || (request.auth != null && request.auth.uid == request.resource.data.ownerUid)))
+              || (get(/databases/$(database)/documents/bbsThreads/$(tid)).data.approvalOnly == true
+                  && request.resource.data.status == 'pending'
+                  && !(request.auth != null && request.auth.uid == request.resource.data.ownerUid)));
+        // 承認はスレ主だけ
+        allow update: if request.auth != null && request.auth.uid == resource.data.ownerUid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          && request.resource.data.status == 'approved';
+        // 削除(「削除されました」表示)は書いた本人とスレ主
+        allow update: if request.auth != null
+          && (request.auth.uid == resource.data.uid || request.auth.uid == resource.data.ownerUid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted'])
+          && request.resource.data.deleted == true;
+        // 完全な削除はスレ主と運営だけ(承認しない場合など)
+        allow delete: if request.auth != null
+          && (request.auth.uid == resource.data.ownerUid
+              || request.auth.token.email == "syuji3.being@gmail.com"
+              || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+      }
+    }
+
+    // 掲示板の通知(マイページ表示用): 宛先のスレッドのスレ主にだけ作れる。本人と運営だけ読める
+    match /bbsNotes/{id} {
+      allow read: if request.auth != null
+        && (resource.data.toUid == request.auth.uid
+            || request.auth.token.email == "syuji3.being@gmail.com"
+            || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+      allow create: if request.resource.data.keys().hasOnly(['toUid', 'text', 'at', 'threadId'])
+        && request.resource.data.toUid is string
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 200
+        && request.resource.data.threadId is string
+        && request.resource.data.toUid == get(/databases/$(database)/documents/bbsThreads/$(request.resource.data.threadId)).data.uid;
+      allow delete: if request.auth != null
+        && (resource.data.toUid == request.auth.uid
+            || request.auth.token.email == "syuji3.being@gmail.com"
+            || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // シェアポイント: ログインした本人が、自分の分だけ作成・読み取り・削除できる
+    match /spPoints/{id} {
+      allow read, delete: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['uid', 'callId', 'title', 'ver', 'a', 'b', 'at'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.callId is string
+        && request.resource.data.title is string
+        && request.resource.data.title.size() <= 100
+        && request.resource.data.ver is string
+        && request.resource.data.ver.size() <= 100
+        && request.resource.data.a is number
+        && request.resource.data.a >= 0
+        && request.resource.data.b is number
+        && request.resource.data.b > request.resource.data.a;
+    }
+
+    // ページ編集ツール: 誰でも読める。書けるのは管理者だけ
+    match /pageBlocks/{id} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    match /pageImages/{id} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    match /siteMeta/{id} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+  }
+}

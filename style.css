@@ -253,3 +253,46 @@ body.nofs{overflow:hidden}
 .cfetti{position:absolute;top:-4vh;pointer-events:none;animation:confettiFall 2.2s cubic-bezier(.25,1,.5,1) forwards}
 @keyframes confettiFall{0%{opacity:1;transform:translateY(0) rotate(0) scale(1)}80%{opacity:.9}100%{opacity:0;transform:translateY(105vh) rotate(680deg) scale(.35)}}
 body.nofs #impact{position:fixed;left:50%;bottom:8px;top:auto;z-index:60}
+
+/* ===== ページ編集ツール (build 51, edit.js) ===== */
+@keyframes paFade{from{opacity:0}to{opacity:1}}
+@keyframes paSlide{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+@keyframes paPop{0%{transform:scale(.6)}55%{transform:scale(1.12)}100%{transform:scale(1)}}
+@keyframes paFloat{from{transform:translateY(0)}to{transform:translateY(-7px)}}
+@keyframes paSparkle{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35) saturate(1.3)}}
+.pa-fade{animation-name:paFade;animation-fill-mode:both}
+.pa-slide{animation-name:paSlide;animation-fill-mode:both}
+.pa-pop{animation-name:paPop;animation-fill-mode:both}
+.pa-float{animation-name:paFloat;animation-iteration-count:infinite;animation-direction:alternate;animation-timing-function:ease-in-out}
+.pa-sparkle{animation-name:paSparkle;animation-iteration-count:infinite;animation-timing-function:ease-in-out}
+#freearea{max-width:860px;margin:10px auto;padding:0 6px}
+.pb-line{margin:10px 0}
+.pb-h{font-weight:900;font-size:21px;margin:16px 0 8px;color:#fff}
+.pb-t{font-size:15px;line-height:1.8;margin:8px 0;white-space:pre-wrap;color:#eef}
+.pb-a{color:#ff8fab;font-weight:700;text-decoration:underline;cursor:pointer}
+.pb-btn{display:inline-block;background:#ff5d8f;color:#fff;font-weight:900;font-size:15.5px;border-radius:999px;padding:10px 26px;box-shadow:0 2px 0 #c2185b;cursor:pointer}
+.pb-card{background:#1c1e38;border:1px solid #2c2f57;border-radius:16px;padding:14px 16px;margin:12px 0;color:#eef}
+.pb-card-t{font-weight:900;font-size:16.5px;margin:0 0 6px}
+.pb-card-b{font-size:14.5px;line-height:1.75;margin:0;white-space:pre-wrap}
+.pb-card-lk{margin-top:8px}
+.pb-imgwrap{display:block;margin:12px 0}
+.pb-img{max-width:100%;border-radius:14px;display:block}
+.pb-cap{font-size:13px;color:#9aa0c8;margin:4px 0 10px}
+.pb-group{background:#1c1e38;border:2px dashed rgba(255,93,143,.45);border-radius:18px;padding:12px 14px;margin:14px 0;color:#eef}
+.pb-group-t{font-weight:900;font-size:16px;margin:0 0 8px}
+.pb-group-in{overflow-y:auto;padding-right:4px}
+.gh-s{height:180px}
+.gh-m{height:280px}
+.gh-l{height:420px}
+.pb-ukka.pb-card,.pb-card.pb-ukka{background:#fff5f8;border:2px solid #ffd3e0;color:#333}
+.pb-ukka.pb-group,.pb-group.pb-ukka{background:#fff5f8;border-color:#ff9ebb;color:#333}
+.pb-ukka .pb-btn,.pb-btn.pb-ukka{background:#ff5c8a;box-shadow:0 2px 0 #e75480}
+.pb-momo.pb-card,.pb-card.pb-momo{background:#101c3a;color:#fff;border-color:#ff5c8a}
+.pb-momo.pb-group,.pb-group.pb-momo{background:#101c3a;color:#fff;border-color:#ff5c8a}
+.pdlg-ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:999;padding:18px}
+.pdlg{background:#1c1e38;border:1px solid #2c2f57;color:#eef;border-radius:18px;padding:20px;max-width:420px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.pdlg-t{font-weight:900;font-size:17px;margin:0 0 8px}
+.pdlg-b{font-size:14.5px;line-height:1.7;margin:0 0 16px;white-space:pre-wrap}
+.pdlg-btns{display:flex;gap:10px;justify-content:flex-end}
+.pdlg-ok{background:#ff5d8f;color:#fff;font-weight:900;border:0;border-radius:999px;padding:9px 22px;cursor:pointer}
+.pdlg-c{background:#262a4d;color:#cfd2f2;font-weight:700;border:1px solid #2c2f57;border-radius:999px;padding:9px 22px;cursor:pointer}
