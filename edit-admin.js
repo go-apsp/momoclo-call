@@ -27,7 +27,9 @@ async function init(){
   var appM=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
   var fsM=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
   var auM=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
-  var app=appM.initializeApp(window.PE_CONFIG,"pe");
+  var app=null;
+  for(var i=0;i<50&&!app;i++){try{app=appM.getApp()}catch(e){app=null}if(!app)await new Promise(function(r){setTimeout(r,300)})}
+  if(!app)app=appM.initializeApp(window.PE_CONFIG);
   db=fsM.getFirestore(app);FB=fsM;AU=auM;
   auM.onAuthStateChanged(auM.getAuth(app),async function(u){
     me=u;isAdmin=false;
