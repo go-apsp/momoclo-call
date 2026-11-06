@@ -242,3 +242,14 @@ body.nofs{overflow:hidden}
 
 /* シェアポイント専用画面: 動画が見えるよう下からのシートにする */
 #spPage{top:auto;max-height:58%;border-radius:20px 20px 0 0;box-shadow:0 -8px 28px rgba(20,20,60,.28)}
+
+/* ---------- build 50: 湧きリアクション演出 ---------- */
+.shake-anim{animation:cameraShake .675s ease-in-out}
+@keyframes cameraShake{0%{transform:translate(0,0)}15%{transform:translate(-6px,6px) rotate(-1.2deg)}30%{transform:translate(6px,-5px) rotate(1.2deg)}45%{transform:translate(-5px,4px) rotate(-.8deg)}60%{transform:translate(4px,-3px) rotate(.8deg)}75%{transform:translate(-2px,2px)}100%{transform:translate(0,0)}}
+#impact{position:absolute;left:50%;bottom:-13px;transform:translateX(-50%);z-index:36;max-width:92%;padding:7px 16px;border-radius:999px;background:#1b2350;border:2px solid var(--pink);box-shadow:0 0 14px rgba(255,122,184,.85),0 4px 10px rgba(0,0,0,.4);color:#ffd23f;font-size:16px;font-weight:900;text-align:center;overflow-wrap:anywhere;pointer-events:none}
+#impact.pop{animation:impactPop .9s cubic-bezier(.175,.885,.32,1.275) forwards}
+@keyframes impactPop{0%{opacity:0;transform:translateX(-50%) translateY(16px) scale(.5) rotate(-3deg)}30%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.05) rotate(1deg)}55%{opacity:1;transform:translateX(-50%) translateY(2px) scale(1)}100%{opacity:0;transform:translateX(-50%) translateY(10px) scale(1.08) rotate(2deg)}}
+#wfx{position:fixed;inset:0;pointer-events:none;z-index:45;overflow:hidden}
+.cfetti{position:absolute;top:-4vh;pointer-events:none;animation:confettiFall 2.2s cubic-bezier(.25,1,.5,1) forwards}
+@keyframes confettiFall{0%{opacity:1;transform:translateY(0) rotate(0) scale(1)}80%{opacity:.9}100%{opacity:0;transform:translateY(105vh) rotate(680deg) scale(.35)}}
+body.nofs #impact{position:fixed;left:50%;bottom:8px;top:auto;z-index:60}

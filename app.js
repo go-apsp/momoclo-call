@@ -264,6 +264,29 @@ setInterval(() => { if (me && prof) checkPending(true); }, 60000);
 /* ---------- 作成 ---------- */
 function renderMk() { $("mkList").innerHTML = UI.mkList(mk.scenes); }
 
+/* ---------- build 50: 湧きリアクション演出(画面の振動・再生中コール連動のはみ出しバッジ・紙吹雪) ---------- */
+let impactTm = null;
+function wakuFx(text) {
+  const mv = $("mv");
+  mv.classList.remove("shake-anim"); void mv.offsetWidth; mv.classList.add("shake-anim");
+  const im = $("impact");
+  im.textContent = text || "＼ 湧く! ／";
+  im.style.display = "block"; im.classList.remove("pop"); void im.offsetWidth; im.classList.add("pop");
+  clearTimeout(impactTm); impactTm = setTimeout(() => { im.style.display = "none"; }, 950);
+  const fx = $("wfx"), emo = ["✨", "⭐", "🎉", "🌸", "💖"], cols = ["#ff7ab8", "#ffd23f", "#4dc9ff", "#ff8c42", "#9dff57"];
+  for (let i = 0; i < 22; i++) {
+    const s = document.createElement("span");
+    s.className = "cfetti";
+    const paper = i % 3 === 2;
+    if (paper) { s.style.width = s.style.height = (6 + Math.random() * 6) + "px"; s.style.background = cols[i % cols.length]; s.style.borderRadius = "2px"; }
+    else { s.textContent = emo[i % emo.length]; s.style.fontSize = (14 + Math.random() * 12) + "px"; }
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDelay = (Math.random() * 0.35) + "s";
+    fx.appendChild(s);
+    setTimeout(() => s.remove(), 2700);
+  }
+}
+
 /* ---------- 湧きのスコア(再生を始めてから10分だけ数える。反映は今回の数で上書き。初回は自動で反映) ---------- */
 const isMine = () => { const c = calls.find(x => x.id === act); return !!c && !!me && c.ownerUid === me.uid; };
 function sessFor() { if (!sess || sess.id !== act) sess = {id: act, t0: 0, n: 0, prev: null, first: true, ready: null, tm: 0}; return sess; }
@@ -527,11 +550,11 @@ const A = {
   help: () => toast("このタイミングで一緒にコールやシンガロンができます"),
   waku: async () => {
     if (!cur) return toast("コール・シンガロンの場面で押してね");
-    if (refPlay || randPlay) return toast("一緒に湧いた!");
-    if (isMine()) return toast("一緒に湧いた! ※自分の推しコールなのでスコアは反映されません");
+    if (refPlay || randPlay) { wakuFx(cur ? cur.x : null); return toast("一緒に湧いた!"); }
+    if (isMine()) { wakuFx(cur.x); return toast("一緒に湧いた! ※自分の推しコールなのでスコアは反映されません"); }
     const q = sessFor(); if (!q.t0) { q.t0 = Date.now(); q.ready = loadPrev(q); }
     if (Date.now() - q.t0 > LIMIT) return toast("タイム制限がかかりました。これ以上は反映されません。次回再生時にリセットされます", 4500);
-    await q.ready; q.n++;
+    await q.ready; q.n++; wakuFx(cur.x);
     toast(me && prof ? "一緒に湧いた! 今回 " + q.n + " 回" : "一緒に湧いた! ※ログインすると、スコアに反映されます");
     if (q.first) { clearTimeout(q.tm); q.tm = setTimeout(() => saveWaku(q), 2500); } else paintApply();
   },
