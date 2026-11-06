@@ -43,8 +43,9 @@ function render(){
   host.innerHTML=
   '<div class="pe-box"><h3>項目の編集</h3>'+
   '<div class="row"><label for="peArea">編集するページ</label><select id="peArea"></select></div>'+
-  '<div class="row"><label for="peNewPage">新しいページを作る（名前）</label><input type="text" id="peNewPage" placeholder="例: お知らせ"></div>'+
-  '<button type="button" id="peMkPage">ページを作る</button> <span id="pePageLink" style="font-size:13px"></span>'+
+  '<div class="row"><label for="peNewPage">新しいページのタイトル</label><input type="text" id="peNewPage" placeholder="例: お知らせ"></div>'+
+  '<div class="row"><label for="peNewAddr">アドレス（ファイル名）</label><input type="text" id="peNewAddr" placeholder="例: news（半角英数字がおすすめ）"></div>'+
+  '<button type="button" id="peMkPage">ページを作る</button> <button type="button" id="peDelPage" style="display:none">このページを削除</button> <span id="pePageLink" style="font-size:13px"></span>'+
   '<div id="peList" style="margin-top:12px"></div>'+
   '<h3 style="margin-top:16px">項目の追加・編集</h3>'+
   '<div class="row"><label>種類</label><select id="peType">'+
@@ -81,6 +82,7 @@ function render(){
   $("peSave").addEventListener("click",saveBlock);
   $("peCancelEdit").addEventListener("click",function(){clearForm()});
   $("peMkPage").addEventListener("click",mkPage);
+  $("peDelPage").addEventListener("click",delPage);
   syncForm();
 }
 function syncForm(){
@@ -132,20 +134,41 @@ async function loadPages(){
 }
 function updPageLink(){
   var el=$("pePageLink");if(!el)return;
+  var dp=$("peDelPage");if(dp)dp.style.display=(curArea.indexOf("page:")===0)?"":"none";
   if(curArea.indexOf("page:")===0){
     var nm=curArea.slice(5);
     el.innerHTML='このページのアドレス: <a href="page.html?p='+encodeURIComponent(nm)+'" target="_blank" rel="noopener">page.html?p='+esc(nm)+'</a>';
   }else el.textContent="";
 }
 async function mkPage(){
-  var nm=$("peNewPage").value.trim();
-  if(!nm){alert("ページの名前を入れてください");return}
-  if(pages.some(function(p){return p.name===nm})){alert("その名前のページはもうあります");return}
-  pages.push({name:nm,title:nm});
+  var title=$("peNewPage").value.trim();
+  var addr=$("peNewAddr").value.trim();
+  if(!title){alert("ページのタイトルを入れてください");return}
+  if(!addr){alert("アドレス（ファイル名）を入れてください");return}
+  if(/[?&#\/\s]/.test(addr)){alert("アドレスに空白や ? & # / は使えません");return}
+  if(pages.some(function(p){return p.name===addr})){alert("そのアドレスのページはもうあります");return}
+  pages.push({name:addr,title:title});
   await FB.setDoc(FB.doc(db,"siteMeta","pages"),{list:pages});
-  $("peNewPage").value="";curArea="page:"+nm;
+  $("peNewPage").value="";$("peNewAddr").value="";curArea="page:"+addr;
   await loadPages();await loadBlocks();await snap();
   alert("ページを作りました。下の「項目の追加・編集」で中身を足せます");
+}
+async function delPage(){
+  if(curArea.indexOf("page:")!==0)return;
+  var nm=curArea.slice(5);
+  var pg=null;pages.forEach(function(p){if(p.name===nm)pg=p});
+  if(!confirm("ページ「"+(pg?(pg.title||nm):nm)+"」を削除しますか？\n中身の項目も全部消えます（履歴には残るので、戻すことはできます）"))return;
+  await snap();
+  try{
+    var s=await FB.getDocs(FB.query(FB.collection(db,"pageBlocks"),FB.where("area","==",curArea)));
+    var ids=[];s.forEach(function(d){ids.push(d.id)});
+    for(var i=0;i<ids.length;i++){await FB.deleteDoc(FB.doc(db,"pageBlocks",ids[i]))}
+    pages=pages.filter(function(p){return p.name!==nm});
+    await FB.setDoc(FB.doc(db,"siteMeta","pages"),{list:pages});
+  }catch(e){alert("削除できませんでした");return}
+  curArea="top";editId=null;
+  await loadAll();await snap();
+  alert("ページを削除しました");
 }
 async function loadSections(){
   var host=$("peSecs");if(!host)return;
