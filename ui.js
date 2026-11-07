@@ -24,9 +24,9 @@
   window.UI = {
     LAB: LAB, OSHI: OSHI, PEN: PEN, esc: esc, fmt: fmt, colorOf: colorOf, mic: mic,
     songs: [
-      {s: "走れ!", title: "走れ!", vid: "tCD81ACqUYk", tid: "45R1m5osIXo92tgY1eHTeW", spOffset: 0},
-      {s: "Event Horizon", title: "Event Horizon", vid: "XN4RSUj15TE", tid: "1hHkOBpuly0rAoFuKWy5CM", spOffset: 0},
-      {s: "行くぜっ!怪盗少女 -ZZ ver.-", title: "行くぜっ!怪盗少女 -ZZ ver.-", vid: "f-X5-pYU9gM", tid: "6gIf4tylgA6mr7mj62Pz55", spOffset: 0}
+      {s: "走れ!", title: "走れ!", vid: "tCD81ACqUYk"},
+      {s: "Event Horizon", title: "Event Horizon", vid: "XN4RSUj15TE"},
+      {s: "行くぜっ!怪盗少女 -ZZ ver.-", title: "行くぜっ!怪盗少女 -ZZ ver.-", vid: "f-X5-pYU9gM"}
     ],
     /* 曲選択(プルダウン) */
     songSel: function (sel) {
