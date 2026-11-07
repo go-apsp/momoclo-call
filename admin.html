@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>管理画面 | ukkaを楽しむ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&family=Zen+Maru+Gothic:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0RF123WR73"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-0RF123WR73');
+</script>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="index.html">← ページに戻る</a></p>
+  <h1 style="font-size:24px">管理画面</h1>
+  <p style="margin:10px 0 14px"><a href="https://analytics.google.com/analytics/web/#/a414521003p562293992/reports/intelligenthome" target="_blank" rel="noopener" style="display:inline-block;padding:10px 16px;border-radius:999px;background:var(--pink);color:#fff;text-decoration:none;font-weight:700">📊 アクセス解析（Googleアナリティクス）を開く</a></p>
+  <div class="err" id="err"></div>
+
+  <div class="form" id="loginbox">
+    <p>管理者だけが使えます。Googleアカウントでログインしてください。</p>
+    <button class="primary" id="login">Googleでログイン</button>
+    <p id="who" style="margin-top:10px"></p>
+  </div>
+
+  <div id="adminarea" style="display:none">
+    <h2>動画の管理</h2>
+    <div id="vlist" class="list"></div>
+    <div class="form">
+      <div class="row">
+        <label for="vurl">YouTubeのURL、または動画ID</label>
+        <input type="text" id="vurl" placeholder="https://youtu.be/… または動画ID">
+      </div>
+      <div class="row">
+        <label for="vtitle">タイトル（空欄なら自動で取得します）</label>
+        <input type="text" id="vtitle" placeholder="タイトル">
+      </div>
+      <button class="primary" id="vadd">動画を追加</button>
+    </div>
+
+    <h2>コメントの管理</h2>
+    <div class="row" style="margin-bottom:10px">
+      <select id="cvsel" aria-label="動画を選ぶ"></select>
+    </div>
+    <div id="clist" class="list"></div>
+
+    <h2>ページ編集（見た目編集）</h2>
+    <p style="font-size:13.5px;color:var(--sub)">項目の追加・並び替え・色・動き・ボタンのアクションなどを、ここから自分で編集できます。保存すると公開ページに反映されます。</p>
+    <div id="pearea"></div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="edit-admin.js?v=4"></script>
+<script>
+(function(){
+"use strict";
+var $=function(id){return document.getElementById(id)};
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function fmt(t){t=Math.max(0,Math.floor(t||0));var m=Math.floor(t/60),s=t%60;return m+":"+(s<10?"0":"")+s}
+var BUILTIN=[
+ {youtubeId:"1Bsn_63O9sY",title:"ukka「Final Chapter」＠Kanadevia Hall (2026.05.24)"},
+ {youtubeId:"pd4gCJTcRAA",title:"〖ライブ映像〗ukka新体制お披露目ワンマンライブ「New Chapter “7”」"}
+];
+var db,FB,AU,me=null,isAdmin=false,videos=[],docs={};
+function showErr(m){var e=$("err");e.textContent=m;e.style.display="block"}
+
+async function init(){
+  var appM=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+  var fsM=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+  var auM=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+  var app=appM.initializeApp(window.FB_CONFIG);
+  db=fsM.getFirestore(app);FB=fsM;AU=auM;
+  auM.onAuthStateChanged(auM.getAuth(app),async function(u){
+    me=u;
+    if(!u){$("who").textContent="";$("adminarea").style.display="none";return}
+    $("who").textContent="ログイン中: "+(u.displayName||u.email||"");
+    try{
+      var d=await FB.getDoc(FB.doc(db,"admins",u.uid));
+      isAdmin=d.exists();
+    }catch(e){isAdmin=false}
+    if(isAdmin){$("adminarea").style.display="block";loadVideos()}
+    else{$("adminarea").style.display="none";showErr("このアカウントは管理者として登録されていません。")}
+  });
+  auM.getRedirectResult(auM.getAuth(app)).catch(function(e){showErr("ログインできませんでした。（"+(e&&e.code?e.code:"")+"）")});
+  $("login").addEventListener("click",function(){
+    auM.signInWithPopup(auM.getAuth(app),new auM.GoogleAuthProvider()).catch(function(e){showErr("ログインできませんでした。（"+(e&&e.code?e.code:"")+"）")});
+  });
+}
+async function loadVideos(){
+  videos=BUILTIN.map(function(v){return{youtubeId:v.youtubeId,title:v.title,builtin:true}});
+  docs={};
+  var snap=await FB.getDocs(FB.collection(db,"videos"));
+  var extra=[];
+  snap.forEach(function(d){var v=d.data();if(v&&v.youtubeId){docs[v.youtubeId]=d.id;extra.push({youtubeId:v.youtubeId,title:v.title||v.youtubeId,order:(typeof v.order==="number"?v.order:999)})}});
+  extra.sort(function(a,b){return a.order-b.order});
+  extra.forEach(function(v){if(!videos.some(function(x){return x.youtubeId===v.youtubeId}))videos.push(v)});
+  $("vlist").innerHTML=videos.map(function(v){
+    return '<div class="item"><span class="n">'+esc(v.title)+'</span><br><span style="color:var(--sub);font-size:12.5px">'+esc(v.youtubeId)+'</span>'+
+      (v.builtin?' <span style="color:var(--sub);font-size:12.5px">（最初から入っている動画）</span>':' <button data-del="'+esc(v.youtubeId)+'">削除</button>')+'</div>';
+  }).join("");
+  var sel=$("cvsel");sel.innerHTML="";
+  videos.forEach(function(v){var o=document.createElement("option");o.value=v.youtubeId;o.textContent=v.title;sel.appendChild(o)});
+  loadComments(sel.value);
+}
+async function loadComments(vid){
+  var q=FB.query(FB.collection(db,"comments"),FB.where("videoId","==",vid));
+  var snap=await FB.getDocs(q);var arr=[];
+  snap.forEach(function(d){var c=d.data();arr.push({id:d.id,name:c.name||"",text:c.text||"",t:(typeof c.t==="number"?c.t:0)})});
+  arr.sort(function(a,b){return a.t-b.t});
+  $("clist").innerHTML=arr.length?arr.map(function(c){
+    return '<div class="item"><span class="t" style="color:var(--pink-d);font-weight:700;margin-right:8px">'+fmt(c.t)+'</span><span class="n" style="font-weight:700;margin-right:8px">'+esc(c.name)+'</span>'+esc(c.text)+' <button data-cdel="'+c.id+'">削除</button></div>';
+  }).join(""):'<p class="empty">コメントはまだありません。</p>';
+}
+function parseId(s){
+  s=(s||"").trim();if(!s)return "";
+  var m=s.match(/[?&]v=([\w-]{6,})/)||s.match(/youtu\.be\/([\w-]{6,})/)||s.match(/shorts\/([\w-]{6,})/)||s.match(/^([\w-]{6,})$/);
+  return m?m[1]:"";
+}
+document.addEventListener("click",async function(ev){
+  var del=ev.target.closest("[data-del]");
+  if(del){
+    var vid=del.getAttribute("data-del");
+    if(!confirm("この動画を削除しますか？"))return;
+    await FB.deleteDoc(FB.doc(db,"videos",docs[vid]));loadVideos();return;
+  }
+  var cdel=ev.target.closest("[data-cdel]");
+  if(cdel){
+    if(!confirm("このコメントを削除しますか？"))return;
+    await FB.deleteDoc(FB.doc(db,"comments",cdel.getAttribute("data-cdel")));loadComments($("cvsel").value);return;
+  }
+});
+$("cvsel").addEventListener("change",function(){loadComments(this.value)});
+$("vadd").addEventListener("click",async function(){
+  var id=parseId($("vurl").value);
+  if(!id){alert("URLか動画IDを入れてください");return}
+  if(videos.some(function(v){return v.youtubeId===id})){alert("その動画はもう入っています");return}
+  var title=$("vtitle").value.trim();
+  if(!title){
+    try{
+      var r=await fetch("https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v="+id+"&format=json");
+      if(r.ok){var j=await r.json();title=j.title||id}
+    }catch(e){}
+    if(!title)title=id;
+  }
+  await FB.addDoc(FB.collection(db,"videos"),{youtubeId:id,title:title,order:Date.now(),at:FB.serverTimestamp()});
+  $("vurl").value="";$("vtitle").value="";loadVideos();
+});
+init().catch(function(){showErr("読み込みに失敗しました。")});
+})();
+</script>
+</body>
+</html>
