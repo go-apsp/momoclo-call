@@ -1,3 +1,4 @@
+import { getAuth, browserLocalPersistence } from 'firebase/auth'; 
 (async () => {
 const B = "https://www.gstatic.com/firebasejs/10.12.2/";
 const M = {};
