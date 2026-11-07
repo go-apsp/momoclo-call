@@ -111,15 +111,6 @@ gtag('config', 'G-00QSZME258');
         <input id="songTitle" class="fin" type="text" placeholder="例: 走れ!">
         <label class="flab">YouTube動画ID</label>
         <input id="songYid" class="fin" type="text" placeholder="例: tCD81ACqUYk(URLの v= の後ろ)">
-        <label class="flab">SpotifyトラックID（またはURL・任意）</label>
-        <input id="songTid" class="fin" type="text" placeholder="例: 45R1m5osIXo92tgY1eHTeW または https://open.spotify.com/track/...">
-        <label class="flab">Spotifyモードのズレ調整（秒・任意）</label>
-        <div class="row" style="background:#14152b;border:1px solid #2c2f57;border-radius:12px;padding:8px 10px;margin-bottom:4px">
-          <button class="act" type="button" id="songOffMinus">−0.1秒</button>
-          <b id="songOffVal" style="color:#1ed760;min-width:68px;text-align:center">+0.0秒</b>
-          <button class="act" type="button" id="songOffPlus">＋0.1秒</button>
-          <button class="act" type="button" id="songOffZero">0秒に戻す</button>
-        </div>
         <div style="margin-top:10px;position:relative;padding-top:56.25%;overflow:hidden;border-radius:12px"><div id="songYt"></div></div>
         <label class="flab">再生範囲(任意)</label>
         <div style="background:#14152b;border:1px solid #2c2f57;border-radius:12px;padding:10px;margin-bottom:8px">
@@ -205,23 +196,10 @@ const auth = getAuth(appM.initializeApp(firebaseConfig));
 const db = getFirestore(auth.app);
 
 const OSHI = [["赤推し", "#ff3b4f"], ["黄色推し", "#ffd23f"], ["ピンク推し", "#ff7ab3"], ["紫推し", "#a66bff"], ["箱推し", "#39d0ff"], ["決まってない", "#8e91b8"]];
-const DEF_TIDS = {"tCD81ACqUYk": "45R1m5osIXo92tgY1eHTeW", "XN4RSUj15TE": "1hHkOBpuly0rAoFuKWy5CM", "f-X5-pYU9gM": "6gIf4tylgA6mr7mj62Pz55"};
-function parseSpTid(v) {
-  const s = String(v == null ? "" : v).trim();
-  if (!s) return "";
-  const m = s.match(/(?:track[:/])([A-Za-z0-9]{22})/);
-  if (m) return m[1];
-  const m2 = s.match(/^([A-Za-z0-9]{22})$/);
-  return m2 ? m2[1] : s.split("?")[0].split("/").pop();
-}
-function fmtOff(v) {
-  const n = Math.round((+v || 0) * 10) / 10;
-  return (n >= 0 ? "+" : "") + n.toFixed(1) + "秒";
-}
 const SONGS = [
-  {title: "走れ!", vid: "tCD81ACqUYk", tid: "45R1m5osIXo92tgY1eHTeW", spOffset: 0},
-  {title: "Event Horizon", vid: "XN4RSUj15TE", tid: "1hHkOBpuly0rAoFuKWy5CM", spOffset: 0},
-  {title: "行くぜっ!怪盗少女 -ZZ ver.-", vid: "f-X5-pYU9gM", tid: "6gIf4tylgA6mr7mj62Pz55", spOffset: 0}
+  {title: "走れ!", vid: "tCD81ACqUYk"},
+  {title: "Event Horizon", vid: "XN4RSUj15TE"},
+  {title: "行くぜっ!怪盗少女 -ZZ ver.-", vid: "f-X5-pYU9gM"}
 ];
 const songName = vid => (SONGS.find(s => s.vid === vid) || {title: vid}).title;
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, m => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[m]));
@@ -303,4 +281,303 @@ function renderUsers() {
     const joined = u.createdAt && u.createdAt.toDate ? u.createdAt.toDate().toLocaleDateString("ja-JP") : "";
     const isAdmin = !!ADMINS[u.id];
     return '<div class="card"><div class="row"><div class="grow"><div class="title">' + esc(u.nick || "") + (isAdmin ? ' <span class="badge pub">管理者</span>' : "") + '</div>'
-      + '<div class="sub"><span class="dot" style="background:' + o[1] + '"></span>推し: ' + o[0] + ' / 推しコール ' + n + '件(表示分)' + (joined ? ' / 登録: ' + joined : "") + '<br>U
+      + '<div class="sub"><span class="dot" style="background:' + o[1] + '"></span>推し: ' + o[0] + ' / 推しコール ' + n + '件(表示分)' + (joined ? ' / 登録: ' + joined : "") + '<br>UID: ' + u.id + '</div></div>'
+      + '<button class="act" data-admin="' + u.id + '">' + (isAdmin ? "管理者から外す" : "管理者にする") + '</button>'
+      + '</div></div>';
+  }).join("") || '<div class="card">ユーザーがいません。</div>';
+  $("userList").querySelectorAll("[data-admin]").forEach(b => b.addEventListener("click", () => toggleAdmin(b.dataset.admin)));
+}
+async function toggleAdmin(uid) {
+  const u = USERS.find(x => x.id === uid);
+  try {
+    if (ADMINS[uid]) { await deleteDoc(doc(db, "admins", uid)); delete ADMINS[uid]; toast("管理者から外しました"); }
+    else { await setDoc(doc(db, "admins", uid), {nick: u ? u.nick : "", at: serverTimestamp()}); ADMINS[uid] = {nick: u ? u.nick : ""}; toast("管理者にしました"); }
+    renderUsers();
+  } catch (e) { toast("変更できませんでした(許可リストを変えられるのは運営だけです)"); }
+}
+
+function renderSongs() {
+  if (!ADM_SONGS.length) {
+    $("songList").innerHTML = '<div class="card"><div class="title">曲リストはまだデータに登録されていません</div>'
+      + '<div class="sub" style="margin:6px 0 10px">今はアプリ内蔵の3曲で動いています。データに登録すると、ここで追加・削除できるようになります。</div>'
+      + '<button class="act" id="songSeed" style="background:#ff5d8f;border-color:#ff5d8f;color:#fff;font-weight:900">内蔵の3曲をデータに登録する</button></div>';
+    $("songSeed").addEventListener("click", seedSongs);
+    return;
+  }
+  $("songList").innerHTML = ADM_SONGS.map((s, idx) => {
+    const n = CALLS.filter(c => c.videoId === s.yid).length;
+    const rng = (+s.endSec > +s.startSec && +s.endSec > 0) ? ' / 再生範囲: ' + fmt(s.startSec || 0) + '〜' + fmt(s.endSec) : ' / 再生範囲: なし';
+    return '<div class="card"><div class="row"><div class="grow"><div class="title">♪ ' + esc(s.title) + (s.isDefault ? ' <span class="badge pub">最初に表示</span>' : '') + '</div>'
+      + '<div class="sub">YouTube: ' + esc(s.yid || "") + ' / 推しコール ' + n + '件(表示分)' + rng + '</div></div>'
+      + '<button class="act" data-sup="' + s.id + '"' + (idx === 0 ? " disabled" : "") + '>↑ 上へ</button>'
+      + '<button class="act" data-sdn="' + s.id + '"' + (idx === ADM_SONGS.length - 1 ? " disabled" : "") + '>↓ 下へ</button>'
+      + (s.isDefault ? "" : '<button class="act" data-sdef="' + s.id + '">最初に表示する曲にする</button>')
+      + '<button class="act" data-sedit="' + s.id + '">範囲を編集</button>'
+      + (pendingSongDel === s.id
+        ? '<span class="num" style="color:#ff8fa0">削除しますか?</span><button class="act danger" data-sdel-yes>はい、削除</button><button class="act" data-sdel-no>やめる</button>'
+        : '<button class="act danger" data-sdel="' + s.id + '">削除</button>')
+      + '</div></div>';
+  }).join("");
+  $("songList").querySelectorAll("[data-sup]").forEach(b => b.addEventListener("click", () => moveSong(b.dataset.sup, -1)));
+  $("songList").querySelectorAll("[data-sdn]").forEach(b => b.addEventListener("click", () => moveSong(b.dataset.sdn, 1)));
+  $("songList").querySelectorAll("[data-sdef]").forEach(b => b.addEventListener("click", () => setDefaultSong(b.dataset.sdef)));
+  $("songList").querySelectorAll("[data-sedit]").forEach(b => b.addEventListener("click", () => editSongRange(b.dataset.sedit)));
+  $("songList").querySelectorAll("[data-sdel]").forEach(b => b.addEventListener("click", () => { pendingSongDel = b.dataset.sdel; renderSongs(); }));
+  $("songList").querySelectorAll("[data-sdel-yes]").forEach(b => b.addEventListener("click", delSongYes));
+  $("songList").querySelectorAll("[data-sdel-no]").forEach(b => b.addEventListener("click", () => { pendingSongDel = null; renderSongs(); }));
+}
+async function seedSongs() {
+  const defs = [
+    {title: "走れ!", yid: "tCD81ACqUYk", order: 0},
+    {title: "Event Horizon", yid: "XN4RSUj15TE", order: 1},
+    {title: "行くぜっ!怪盗少女 -ZZ ver.-", yid: "f-X5-pYU9gM", order: 2}
+  ];
+  try {
+    for (const d of defs) { const r = await addDoc(collection(db, "songs"), d); ADM_SONGS.push({id: r.id, ...d}); }
+    renderSongs(); toast("3曲を登録しました");
+  } catch (e) { toast("登録できませんでした(運営アカウントでログインしているか、ルールの設定を確認してください)"); }
+}
+/* 曲追加・範囲編集用プレビュー(YouTube IFrame API) */
+window.onYouTubeIframeAPIReady = () => {
+  songPlayer = new YT.Player("songYt", { videoId: "", playerVars: {playsinline: 1, rel: 0}, events: { onReady: () => { songPlayerReady = true; loadSongPreview(); } } });
+  refPlayer = new YT.Player("refYt", { videoId: "", playerVars: {playsinline: 1, rel: 0}, events: { onReady: () => { refReady = true; setRefYt(); } } });
+};
+{ const tag = document.createElement("script"); tag.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(tag); }
+function loadSongPreview() {
+  const yid = $("songYid").value.trim();
+  if (songPlayerReady && yid) songPlayer.cueVideoById(yid);
+}
+setInterval(() => {
+  if (songPlayerReady) {
+    try {
+      const d = Math.floor(songPlayer.getDuration() || 0);
+      if (d > 0) { $("songStart").max = d; $("songEnd").max = d; $("songPos").max = d; $("songDurVal").textContent = fmt(d); }
+      if (!songPosDrag) { const t = songPlayer.getCurrentTime() || 0; $("songPos").value = t; $("songPosVal").textContent = fmt(t); }
+    } catch (e) {}
+  }
+  if (refReady) {
+    try {
+      const d = refPlayer.getDuration() || 0, t = refPlayer.getCurrentTime() || 0;
+      if (d > 0) $("refBar").max = d;
+      if (!refDrag) $("refBar").value = t;
+      $("refTm").textContent = fmt(t); $("refDurT").textContent = fmt(d);
+      $("refPlayBtn").textContent = refPlayer.getPlayerState() === 1 ? "一時停止" : "再生";
+    } catch (e) {}
+  }
+}, 500);
+function paintSongRange() {
+  $("songStartVal").textContent = fmt(+$("songStart").value);
+  $("songEndVal").textContent = +$("songEnd").value > 0 ? fmt(+$("songEnd").value) : "未設定";
+}
+function resetSongForm() {
+  songEditId = null;
+  $("songTitle").value = ""; $("songYid").value = "";
+  $("songStart").value = 0; $("songEnd").value = 0; paintSongRange();
+  $("songAdd").textContent = "この曲を追加";
+  $("songEditCancel").classList.add("hidden");
+}
+function editSongRange(id) {
+  const s = ADM_SONGS.find(x => x.id === id); if (!s) return;
+  songEditId = id;
+  $("songTitle").value = s.title || ""; $("songYid").value = s.yid || "";
+  $("songStart").value = s.startSec || 0; $("songEnd").value = s.endSec || 0; paintSongRange();
+  $("songAdd").textContent = "変更を保存";
+  $("songEditCancel").classList.remove("hidden");
+  loadSongPreview();
+  $("songTitle").scrollIntoView({behavior: "smooth"});
+  toast("「" + (s.title || "") + "」の再生範囲を編集します");
+}
+async function addSong() {
+  const title = $("songTitle").value.trim(), yid = $("songYid").value.trim();
+  if (!title || !yid) { toast("曲名・YouTube動画IDを入れてください"); return; }
+  const st = +$("songStart").value, en = +$("songEnd").value, has = en > st && en > 0;
+  if (songEditId) {
+    try {
+      await updateDoc(doc(db, "songs", songEditId), {title: title, yid: yid, startSec: has ? st : 0, endSec: has ? en : 0});
+      const s = ADM_SONGS.find(x => x.id === songEditId);
+      if (s) { s.title = title; s.yid = yid; s.startSec = has ? st : 0; s.endSec = has ? en : 0; }
+      resetSongForm(); renderSongs(); fillRefSongs(); toast("変更を保存しました");
+    } catch (e) { toast("保存できませんでした(運営アカウントでログインしているか確認してください)"); }
+    return;
+  }
+  const d = {title: title, yid: yid, order: ADM_SONGS.length, startSec: has ? st : 0, endSec: has ? en : 0};
+  try {
+    const r = await addDoc(collection(db, "songs"), d);
+    ADM_SONGS.push({id: r.id, ...d});
+    resetSongForm();
+    renderSongs(); fillRefSongs(); toast("曲を追加しました");
+  } catch (e) { toast("追加できませんでした(運営アカウントでログインしているか、ルールの設定を確認してください)"); }
+}
+async function moveSong(id, dir) {
+  const i = ADM_SONGS.findIndex(x => x.id === id); if (i < 0) return;
+  const j = i + dir; if (j < 0 || j >= ADM_SONGS.length) return;
+  const tmp = ADM_SONGS[i]; ADM_SONGS[i] = ADM_SONGS[j]; ADM_SONGS[j] = tmp;
+  try {
+    await Promise.all(ADM_SONGS.map((s, k) => updateDoc(doc(db, "songs", s.id), {order: k})));
+    ADM_SONGS.forEach((s, k) => { s.order = k; });
+    renderSongs(); fillRefSongs(); toast("曲の順番を変えました");
+  } catch (e) { toast("順番を変えられませんでした(運営アカウントでログインしているか確認してください)"); try { await loadAll(); } catch (e2) {} }
+}
+async function setDefaultSong(id) {
+  try {
+    await Promise.all(ADM_SONGS.map(s => updateDoc(doc(db, "songs", s.id), {isDefault: s.id === id})));
+    ADM_SONGS.forEach(s => { s.isDefault = s.id === id; });
+    renderSongs(); toast("最初に表示する曲を設定しました");
+  } catch (e) { toast("設定できませんでした(運営アカウントでログインしているか確認してください)"); }
+}
+async function delSongYes() {
+  const id = pendingSongDel; pendingSongDel = null;
+  try { await deleteDoc(doc(db, "songs", id)); ADM_SONGS = ADM_SONGS.filter(x => x.id !== id); renderSongs(); toast("曲を削除しました"); }
+  catch (e) { renderSongs(); toast("削除できませんでした(運営アカウントでログインしているか確認してください)"); }
+}
+
+const KIND = {"コール": "call", "シンガロン": "sing", "ココ好き": "koko"};
+const KLAB = {call: "コール", sing: "シンガロン", koko: "ココ好き!"};
+function fmtAt(ts) {
+  if (!ts || !ts.seconds) return "";
+  const d = new Date(ts.seconds * 1000);
+  return d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate() + " " + d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+function renderReqs() {
+  const el = $("reqList");
+  if (!el) return;
+  el.innerHTML = REQS.length ? REQS.map(r => '<div class="card"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><b>' + esc(r.nick || "") + '</b><span class="note">' + fmtAt(r.at) + '</span>' + (r.status === "approved" ? '<span class="badge pub">承認済み</span>' : "") + '<span style="flex:1"></span>' + (r.status === "approved" ? "" : '<button class="act" data-qok="' + r.id + '">承認する</button>') + '<button class="act" data-qmsg="' + r.id + '">メッセージ</button><button class="act danger" data-qdel="' + r.id + '">削除</button></div>' + (r.spName || r.spEmail ? '<div class="note" style="margin-top:6px">Spotify表示名: ' + esc(r.spName || "") + ' / メール: ' + esc(r.spEmail || "") + '</div>' : "") + '</div>').join("") : '<p class="note">申し込みはまだありません。</p>';
+  el.querySelectorAll("[data-qok]").forEach(b => b.addEventListener("click", async () => {
+    const r = REQS.find(x => x.id === b.dataset.qok); if (!r) return;
+    try {
+      await addDoc(collection(db, "messages"), {toUid: r.uid, text: "Spotify版の使用申請が承認されました。", at: serverTimestamp()});
+      await updateDoc(doc(db, "spRequests", r.id), {status: "approved"});
+      r.status = "approved"; renderReqs(); toast("承認して、メッセージを送りました");
+    } catch (e) { toast("承認できませんでした"); }
+  }));
+  el.querySelectorAll("[data-qmsg]").forEach(b => b.addEventListener("click", async () => {
+    const r = REQS.find(x => x.id === b.dataset.qmsg); if (!r) return;
+    const t = prompt((r.nick || "") + "さんへのメッセージを入力してください");
+    if (!t) return;
+    try { await addDoc(collection(db, "messages"), {toUid: r.uid, text: String(t).slice(0, 500), at: serverTimestamp()}); toast("メッセージを送りました"); }
+    catch (e) { toast("送れませんでした"); }
+  }));
+  el.querySelectorAll("[data-qdel]").forEach(b => b.addEventListener("click", async () => {
+    try { await deleteDoc(doc(db, "spRequests", b.dataset.qdel)); REQS = REQS.filter(x => x.id !== b.dataset.qdel); renderReqs(); toast("申し込みを削除しました"); }
+    catch (e) { toast("削除できませんでした"); }
+  }));
+}
+
+function renderRefs() {
+  $("refList").innerHTML = REFS.map(r => {
+    const lines = (r.scenes || []).map(s => fmt(s.t) + " " + (KLAB[s.k] || s.k) + " 「" + esc(s.x) + "」").join("<br>");
+    return '<div class="card"><div class="row"><div class="grow"><div class="title">♪ ' + esc(songName(r.videoId)) + (r.versionName ? ' 「' + esc(r.versionName) + '」' : "") + '</div>'
+      + '<div class="sub" style="line-height:1.7;margin-top:4px">' + lines + '</div></div>'
+      + (pendingRefDel === r.id
+        ? '<span class="num" style="color:#ff8fa0">削除しますか?</span><button class="act danger" data-rdel-yes>はい、削除</button><button class="act" data-rdel-no>やめる</button>'
+        : '<button class="act danger" data-rdel="' + r.id + '">削除</button>')
+      + '</div></div>';
+  }).join("") || '<div class="card">参考コールはまだありません。</div>';
+  $("refList").querySelectorAll("[data-rdel]").forEach(b => b.addEventListener("click", () => { pendingRefDel = b.dataset.rdel; renderRefs(); }));
+  $("refList").querySelectorAll("[data-rdel-yes]").forEach(b => b.addEventListener("click", delRefYes));
+  $("refList").querySelectorAll("[data-rdel-no]").forEach(b => b.addEventListener("click", () => { pendingRefDel = null; renderRefs(); }));
+}
+
+function renderRefScenes() {
+  $("refSceneList").innerHTML = refScenes.map((e, i) => '<div class="rrow"><span>' + fmt(e.t) + '</span><span>' + (KLAB[e.k] || e.k) + '</span><span style="flex:1">' + esc(e.x) + '</span><span class="sub">' + e.d + '秒</span><button class="act danger" data-rsdel="' + i + '">削除</button></div>').join("")
+    || '<div class="sub">動画を止めて、追加したい位置で「この位置に追加」を押します。</div>';
+  $("refSceneList").querySelectorAll("[data-rsdel]").forEach(b => b.addEventListener("click", () => { refScenes.splice(+b.dataset.rsdel, 1); renderRefScenes(); }));
+}
+async function addRef() {
+  const vid = $("refSong").value;
+  const ver = $("refVer").value.trim();
+  if (!refScenes.length) { toast("場面を追加してください"); return; }
+  const scenes = refScenes.map(e => ({...e})).sort((a, b) => a.t - b.t);
+  try {
+    const d = await addDoc(collection(db, "refs"), {videoId: vid, versionName: ver, scenes: scenes, createdAt: serverTimestamp()});
+    REFS.push({id: d.id, videoId: vid, versionName: ver, scenes: scenes});
+    $("refVer").value = ""; refScenes = []; renderRefScenes();
+    renderRefs();
+    toast("参考コールを登録しました");
+  } catch (e) { toast("登録できませんでした(運営アカウントでログインしているか、ルールの設定を確認してください)"); }
+}
+async function delRefYes() {
+  const id = pendingRefDel; pendingRefDel = null;
+  try { await deleteDoc(doc(db, "refs", id)); REFS = REFS.filter(r => r.id !== id); renderRefs(); toast("参考コールを削除しました"); }
+  catch (e) { renderRefs(); toast("削除できませんでした(運営アカウントでログインしているか確認してください)"); }
+}
+
+function showTab(t) {
+  ["Calls", "Users", "Songs", "Refs", "Reqs", "Pe"].forEach(k => {
+    $("pane" + k).classList.toggle("hidden", k.toLowerCase() !== t);
+    $("tab" + k).classList.toggle("sel", k.toLowerCase() === t);
+  });
+}
+$("tabCalls").addEventListener("click", () => showTab("calls"));
+$("tabUsers").addEventListener("click", () => showTab("users"));
+$("tabSongs").addEventListener("click", () => showTab("songs"));
+$("tabRefs").addEventListener("click", () => showTab("refs"));
+$("tabReqs").addEventListener("click", () => showTab("reqs"));
+$("tabPe").addEventListener("click", () => showTab("pe"));
+$("q").addEventListener("input", renderCalls);
+$("refAdd").addEventListener("click", addRef);
+$("refPlayBtn").addEventListener("click", () => { if (!refReady) return; if (refPlayer.getPlayerState() === 1) refPlayer.pauseVideo(); else refPlayer.playVideo(); });
+document.querySelectorAll("[data-rseek]").forEach(b => b.addEventListener("click", () => { if (refReady) refPlayer.seekTo(Math.max(0, Math.min(refPlayer.getDuration() || 0, (refPlayer.getCurrentTime() || 0) + +b.dataset.rseek)), true); }));
+$("refBar").addEventListener("input", () => { refDrag = true; });
+$("refBar").addEventListener("change", () => { refDrag = false; if (refReady) refPlayer.seekTo(+$("refBar").value, true); });
+document.querySelectorAll("[data-rtype]").forEach(b => b.addEventListener("click", () => {
+  refType = b.dataset.rtype;
+  document.querySelectorAll("[data-rtype]").forEach(x => x.classList.toggle("sel", x === b));
+  const dv = refType === "koko" ? 5 : 6; $("refDur").value = dv; $("refDurVal").textContent = dv + "秒";
+}));
+$("refDur").addEventListener("input", () => { $("refDurVal").textContent = $("refDur").value + "秒"; });
+document.querySelectorAll("[data-rdur]").forEach(b => b.addEventListener("click", () => {
+  const v = Math.max(1, Math.min(20, Math.round((parseFloat($("refDur").value) + parseFloat(b.dataset.rdur)) * 10) / 10));
+  $("refDur").value = v; $("refDurVal").textContent = v + "秒";
+}));
+$("refAddScene").addEventListener("click", () => {
+  if (!refReady) { toast("動画の準備ができていません"); return; }
+  refScenes.push({t: Math.round(refPlayer.getCurrentTime() || 0), d: parseFloat($("refDur").value) || 6, k: refType, x: $("refText").value.trim() || (KLAB[refType] || "コール")});
+  refScenes.sort((a, b) => a.t - b.t);
+  $("refText").value = "";
+  renderRefScenes();
+});
+renderRefScenes();
+$("songAdd").addEventListener("click", addSong);
+$("songYid").addEventListener("change", loadSongPreview);
+$("songStart").addEventListener("input", paintSongRange);
+$("songEnd").addEventListener("input", paintSongRange);
+$("songStartNow").addEventListener("click", () => { if (songPlayerReady) { $("songStart").value = Math.floor(songPlayer.getCurrentTime() || 0); paintSongRange(); } });
+$("songEndNow").addEventListener("click", () => { if (songPlayerReady) { $("songEnd").value = Math.ceil(songPlayer.getCurrentTime() || 0); paintSongRange(); } });
+$("songRangeOff").addEventListener("click", () => { $("songEnd").value = 0; paintSongRange(); });
+$("songEditCancel").addEventListener("click", resetSongForm);
+$("songPos").addEventListener("input", () => { songPosDrag = true; $("songPosVal").textContent = fmt(+$("songPos").value); });
+$("songPos").addEventListener("change", () => { songPosDrag = false; if (songPlayerReady) songPlayer.seekTo(+$("songPos").value, true); });
+paintSongRange();
+function fillRefSongs() {
+  const list = ADM_SONGS.length ? ADM_SONGS.map(s => ({title: s.title, vid: s.yid})) : SONGS;
+  const cur = $("refSong").value;
+  $("refSong").innerHTML = list.map(s => '<option value="' + s.vid + '">' + esc(s.title) + "</option>").join("");
+  if (cur) $("refSong").value = cur;
+  setRefYt();
+}
+function setRefYt() { const v = $("refSong").value; if (refReady && v) refPlayer.cueVideoById(v); }
+$("refSong").addEventListener("change", setRefYt);
+fillRefSongs();
+$("loginBtn").addEventListener("click", async () => {
+  if (me) { await signOut(auth); return; }
+  try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { toast("ログインできませんでした"); }
+});
+
+onAuthStateChanged(auth, async u => {
+  me = u;
+  $("loginBtn").textContent = u ? "ログアウト" : "Googleでログイン";
+  $("loginState").textContent = u ? " " + (u.email || "") + " でログイン中" : "";
+  $("main").classList.add("hidden"); $("deny").classList.add("hidden");
+  if (!u) return;
+  let allowed = false;
+  try { allowed = (await getDoc(doc(db, "admins", u.uid))).exists(); } catch (e) {}
+  if (!allowed) { $("deny").classList.remove("hidden"); return; }
+  $("main").classList.remove("hidden");
+  try { await loadAll(); } catch (e) { toast("読み込めませんでした。通信を確認してください"); }
+});
+</script>
+<script src="pe-config.js"></script>
+<script src="edit-admin.js?v=4"></script>
+</body>
+</html>
