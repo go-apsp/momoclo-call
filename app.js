@@ -7,6 +7,7 @@ for (const n of ["app", "auth", "firestore"]) {
 }
 const { initializeApp } = M.app;
 const { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } = M.auth;
+setPersistence(auth, browserLocalPersistence);
 const { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, increment, writeBatch, serverTimestamp } = M.firestore;
 
 window.__ok = true;
