@@ -1,21 +1,165 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ページ</title>
-<link rel="stylesheet" href="style.css?v=51">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ページ | ukkaを楽しむ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&family=Zen+Maru+Gothic:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0RF123WR73"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-0RF123WR73');
+</script>
 <script>
 window.PAGE_AREA = "page:" + (new URLSearchParams(location.search).get("p") || "");
 </script>
 </head>
 <body>
-<div style="max-width:860px;margin:0 auto;padding:16px 14px 40px">
-  <p><a href="./" style="color:#ff5d8f;font-weight:700">← ももクロコール共有 に戻る</a></p>
-  <h1 id="ptitle" style="font-size:22px">ページ</h1>
+<div class="wrap">
+  <p><a href="index.html">← ukkaを楽しむ に戻る</a></p>
+  <h1 id="ptitle" style="font-size:24px">ページ</h1>
+  <div id="presetarea"></div>
   <div id="freearea"></div>
+  <div class="foot"><a href="admin.html">管理画面</a></div>
 </div>
-<script src="pe-config.js"></script>
-<script src="edit.js?v=51"></script>
+<script>
+(function(){
+  var p = (new URLSearchParams(location.search).get("p") || "").toLowerCase();
+  if (p === "disco.html" || p === "disco" || p === "discography.html" || p === "discography") {
+    document.title = "ディスコグラフィー（簡易版） | ukkaを楽しむ";
+    var pt = document.getElementById("ptitle");
+    if (pt) pt.textContent = "ukka ディスコグラフィー（簡易版）";
+    var host = document.getElementById("presetarea");
+    if (host) {
+      host.innerHTML = "<div class=\"member\" id=\"discography\">\n    <p class=\"mname\">ukka \u30c7\u30a3\u30b9\u30b3\u30b0\u30e9\u30d5\u30a3\u30fc</p>\n    <p class=\"yomi\">UKKA DISCOGRAPHY \uff0f \u7c21\u6613\u7248\u30ea\u30ea\u30fc\u30b9\u4e00\u89a7</p>\n    <p class=\"lead\">ukka\uff08\u685c\u30a8\u30d3\u301c\u305a\u6642\u4ee3\u3092\u542b\u3080\uff09\u306e\u3053\u308c\u307e\u3067\u306e\u30b7\u30f3\u30b0\u30eb\u3001\u30a2\u30eb\u30d0\u30e0\u3001\u30df\u30cb\u30a2\u30eb\u30d0\u30e0\u3001\u914d\u4fe1\u4f5c\u54c1\u306e\u30ea\u30ea\u30fc\u30b9\u8a18\u9332\u3092\u307e\u3068\u3081\u305f\u7c21\u6613\u7248\u30c7\u30a3\u30b9\u30b3\u30b0\u30e9\u30d5\u30a3\u30fc\u3067\u3059\u3002\u78ba\u8a8d\u304c\u53d6\u308c\u3066\u3044\u308b\u516c\u5f0f\u60c5\u5831\u3092\u4e2d\u5fc3\u306b\u63b2\u8f09\u3057\u3066\u304a\u308a\u3001\u8a73\u7d30\u3084\u8ffd\u52a0\u60c5\u5831\u306f\u9806\u6b21\u300c\u6e96\u5099\u4e2d\u300d\u3068\u3057\u3066\u66f4\u65b0\u3092\u9032\u3081\u3066\u3044\u307e\u3059\u3002</p>\n    <div class=\"tags\">\n      <span class=\"tag\">\u30b7\u30f3\u30b0\u30eb\u30fb\u30a2\u30eb\u30d0\u30e0\u4e00\u89a7</span>\n      <span class=\"tag\">\u685c\u30a8\u30d3\u301c\u305a\u301cukka</span>\n      <span class=\"tag\">\u30e1\u30b8\u30e3\u30fc\uff06\u30a4\u30f3\u30c7\u30a3\u30fc\u30ba</span>\n      <span class=\"tag\">\u7c21\u6613\u7248\uff08\u6e96\u5099\u4e2d\u542b\u3080\uff09</span>\n    </div>\n\n    <h2>\u30b7\u30f3\u30b0\u30eb</h2>\n    <div class=\"actgrid\">\n      <div class=\"act\">\n        <span class=\"lab\">MAJOR 3RD SINGLE</span>\n        <h4>\u300eT\u300f</h4>\n        <p class=\"dt\" style=\"font-size:12.5px;color:var(--pink-d);font-weight:700\">2025\u5e743\u670826\u65e5 \u30ea\u30ea\u30fc\u30b9 \uff0f \u30a4\u30f3\u30da\u30ea\u30a2\u30eb\u30ec\u30b3\u30fc\u30c9</p>\n        <p>ukka\u306e\u65b0\u5883\u5730\u3068\u306a\u308b\u30e1\u30b8\u30e3\u30fc3rd\u30b7\u30f3\u30b0\u30eb\u3002<br><span class=\"note\">\u53ce\u9332\u66f2\uff1a\u6e96\u5099\u4e2d</span></p>\n      </div>\n\n      <div class=\"act\">\n        <span class=\"lab\">CONCEPT SINGLE</span>\n        <h4>\u300eyummy!!\u300f</h4>\n        <p class=\"dt\" style=\"font-size:12.5px;color:var(--pink-d);font-weight:700\">2024\u5e749\u670825\u65e5 \u30ea\u30ea\u30fc\u30b9 \uff0f \u30a4\u30f3\u30da\u30ea\u30a2\u30eb\u30ec\u30b3\u30fc\u30c9</p>\n        <p>\u300c\u30aa\u30e2\u30a4\u30aa\u30f3\u30ca\u30ce\u30b3\u300d\u3092\u30c6\u30fc\u30de\u306b\u3057\u305f\u30b3\u30f3\u30bb\u30d7\u30c8\u30fb\u30b7\u30f3\u30b0\u30eb\u3002<br>\u53ce\u9332\u66f2\uff1a\u300e\u63a8\u2252\u604b\u300f\u300e\u7d50\u3073\u76ee\u300f\u300e\u30de\u30ea\u30aa\u30cd\u30c3\u30c8\u30ac\u30fc\u30eb\u300f</p>\n      </div>\n\n      <div class=\"act\">\n        <span class=\"lab\">MAJOR 2ND SINGLE</span>\n        <h4>\u300eOvernight Rainbow\u300f</h4>\n        <p class=\"dt\" style=\"font-size:12.5px;color:var(--pink-d);font-weight:700\">2024\u5e743\u670820\u65e5 \u30ea\u30ea\u30fc\u30b9 \uff0f \u30a4\u30f3\u30da\u30ea\u30a2\u30eb\u30ec\u30b3\u30fc\u30c9</p>\n        <p>7\u4eba\u4f53\u5236\u521d\u306e\u30e1\u30b8\u30e3\u30fc2nd\u30b7\u30f3\u30b0\u30eb\u3002<br>\u53ce\u9332\u66f2\uff1a\u300eOvernight Rainbow\u300f\u300e\u900f\u660e\u300f</p>\n      </div>\n\n      <div class=\"act\">\n        <span class=\"lab\">MAJOR 1ST SINGLE</span>\n        <h4>\u300ewonder little love\u300f</h4>\n        <p class=\"dt\" style=\"font-size:12.5px;color:var(--pink-d);font-weight:700\">2023\u5e746\u670821\u65e5 \u30ea\u30ea\u30fc\u30b9 \uff0f \u30a4\u30f3\u30da\u30ea\u30a2\u30eb\u30ec\u30b3\u30fc\u30c9</p>\n        <p>\u30e1\u30b8\u30e3\u30fc1st\u30b7\u30f3\u30b0\u30eb\u3002<br>\u53ce\u9332\u66f2\uff1a\u300ewonder little love\u300f\u300eTAiLWiND\u300f\u300eGlow-up-Days\u300f</p>\n      </div>\n\n      <div class=\"act\">\n        <span class=\"lab\">1ST SINGLE</span>\n        <h4>\u300e\u604b\u3001\u3044\u3061\u3070\u3093\u3081\u300f</h4>\n        <p class=\"dt\" style=\"font-size:12.5px;color:var(--pink-d);font-weight:700\">2020\u5e746\u670824\u65e5 \u30ea\u30ea\u30fc\u30b9 \uff0f SDR</p>\n        <p>ukka\u6539\u540d\u5f8c\u521d\u306e\u5168\u56fd\u6d41\u901a\u30b7\u30f3\u30b0\u30eb\u3002<br>\u53ce\u9332\u66f2\uff1a\u300e\u604b\u3001\u3044\u3061\u3070\u3093\u3081\u300f\u300e\u30a6\u30ce-\u30a6\u30ce\u300f\u300e\u6642\u9593\u3002\u5149\u308a\u8f1d\u304f\u87ba\u65cb\u306e\u7403\u3002\u300f\u300ecan't go back summer\u300f</p>\n      </div>\n\n      <div class=\"act\">\n        <span class=\"lab\">\u685c\u30a8\u30d3\u301c\u305a \u4f1a\u5834\u30fb\u901a\u8ca9\u9650\u5b9a SINGLE</span>\n        <h4>\u300eWinter Sleep\u300f</h4>\n        <p class=\"dt\" style=\"font-size:12.5px;color:var(--pink-d);font-weight:700\">2019\u5e743\u670830\u65e5 \u8ca9\u58f2\u958b\u59cb \uff0f STARDUST MUSIC</p>\n        <p>12\u30f6\u6708\u9023\u7d9a\u30ea\u30ea\u30fc\u30b9\u4f01\u753b\uff0812\u30fb1\u30fb2\u6708\u914d\u4fe1\u66f2\u3092\u53ce\u9332\uff09\u3002<br>\u53ce\u9332\u66f2\uff1a\u300e\u306d\u3047\u3001\u30ed\u30fc\u30d5\u30a1\u30fc\u3002\u300f\u300e\u5e30\u308c\u306a\u3044!\u300f\u300e214\u300f</p>\n      </div>\n\n      <div class=\"act\">\n        <span class=\"lab\">\u685c\u30a8\u30d3\u301c\u305a \u4f1a\u5834\u30fb\u901a\u8ca9\u9650\u5b9a SINGLE</span>\n        <h4>\u300eAutumn Moon\u300f</h4>\n        <p class=\"dt\" style=\"font-size:12.5px;color:var(--pink-d);font-weight:700\">2018\u5e7412\u670828\u65e5 \u8ca9\u58f2\u958b\u59cb \uff0f STARDUST MUSIC</p>\n        <p>12\u30f6\u6708\u9023\u7d9a\u30ea\u30ea\u30fc\u30b9\u4f01\u753b\uff089\u30fb10\u30fb11\u6708\u914d\u4fe1\u66f2\u3092\u53ce\u9332\uff09\u3002<br>\u53ce\u9332\u66f2\uff1a\u300eMagik Melody\u300f\u300e\u304a\u306d\u304c\u3044\u3088\u300f\u300e\u30b0\u30e9\u30b8\u30a7\u30cd\u300f</p>\n      </div>\n\n      <div class=\"act\">\n        <span class=\"lab\">\u685c\u30a8\u30d3\u301c\u305a \u4f1a\u5834\u30fb\u901a\u8ca9\u9650\u5b9a SINGLE</span>\n        <h4>\u300eSummer Magic\u300f</h4>\n        <p class=\"dt\" style=\"font-size:12.5px;color:var(--pink-d);font-weight:700\">2018\u5e7410\u670814\u65e5 \u8ca9\u58f2\u958b\u59cb \uff0f STARDUST MUSIC</p>\n        <p>12\u30f6\u6708\u9023\u7d9a\u30ea\u30ea\u30fc\u30b9\u4f01\u753b\uff086\u30fb7\u30fb8\u6708\u914d\u4fe1\u66f2\u3092\u53ce\u9332\uff09\u3002<br>\u53ce\u9332\u66f2\uff1a\u300e\u30ea\u30f3\u30c9\u30d0\u30fc\u30b0\u300f\u300e\u707c\u71b1\u3068\u30a2\u30a4\u30b9\u30af\u30ea\u30fc\u30e0\u300f\u300e\u307e\u308f\u308b\u307e\u308f\u308b\u307e\u308f\u308b\u300f</p>\n      </div>\n\n      <div class=\"act\">\n        <span class=\"lab\">\u685c\u30a8\u30d3\u301c\u305a 1ST SINGLE</span>\n        <h4>\u300e\u308f\u305f\u3057\u30ed\u30de\u30f3\u30b9\u300f</h4>\n        <p class=\"dt\" style=\"font-size:12.5px;color:var(--pink-d);font-weight:700\">2017\u5e749\u67082\u65e5 \u30ea\u30ea\u30fc\u30b9 \uff0f STARDUST MUSIC</p>\n        <p>\u685c\u30a8\u30d3\u301c\u305a\u521d\u306e\u30b7\u30f3\u30b0\u30ebCD\u3002<br>\u53ce\u9332\u66f2\uff1a\u300e\u308f\u305f\u3057\u30ed\u30de\u30f3\u30b9\u300f\u300e\u30bf\u30ea\u30eb\u30ea\u30e9\u300f</p>\n      </div>\n\n      <div class=\"act\">\n        <span class=\"lab\">\u685c\u30a8\u30d3\u301c\u305a \u4f1a\u5834\u9650\u5b9a CD-R</span>\n        <h4>\u300e\u7b2c1\u5f3e\u301c\u7b2c3\u5f3e CD-R\u300f</h4>\n        <p class=\"dt\" style=\"font-size:12.5px;color:var(--pink-d);font-weight:700\">2016\u5e74\u301c2017\u5e74 \u8ca9\u58f2</p>\n        <p>\u30fb1st CD-R\uff082016\u5e747\u670830\u65e5\uff09\uff1a\u300e\u50d5\u3089\u306e\u30cf\u30b8\u30de\u30ea\u300f\u300e\u306f\u3063\u3074\u30fc\u30b9\u30ad\u30c3\u30d7\u2606\u30b8\u30e3\u30f3\u30d7\u300f<br>\n           \u30fb2nd CD-R\uff082016\u5e7410\u670830\u65e5\uff09\uff1a\u300e\u521d\u604b\u6a21\u69d8\u300f<br>\n           \u30fb3rd CD-R\uff082017\u5e744\u670815\u65e5\uff09\uff1a\u300e\u304a\u5e74\u9803distance\u300f\u300e\u30dc\u30af\u30a8\u30fc\u30eb\u300f\u300e\u5618\u3068\u30e9\u30a4\u30e9\u30c3\u30af\u300f</p>\n      </div>\n    </div>\n\n    <h2>\u30a2\u30eb\u30d0\u30e0 \uff06 \u30df\u30cb\u30a2\u30eb\u30d0\u30e0</h2>\n    <div class=\"actgrid\">\n      <div class=\"act\">\n        <span class=\"lab\">10TH ANNIVERSARY ALBUM</span>\n        <h4>\u300e\u9752\u6625\u5c0f\u7bc0\u301c\u7d04\u675f\u3068\u885d\u52d5\u301c\u300f</h4>\n        <p class=\"dt\" style=\"font-size:12.5px;color:var(--pink-d);font-weight:700\">2025\u5e7411\u670819\u65e5 \u30ea\u30ea\u30fc\u30b9 \uff0f \u30a4\u30f3\u30da\u30ea\u30a2\u30eb\u30ec\u30b3\u30fc\u30c9</p>\n        <p>ukka\u306e10\u5468\u5e74\u3092\u8a18\u5ff5\u3057\u305f\u30a2\u30cb\u30d0\u30fc\u30b5\u30ea\u30fc\u30a2\u30eb\u30d0\u30e0\u3002\u904e\u53bb\u3068\u672a\u6765\u3092\u7d50\u3076\u516811\u66f2\u3002<br>\n        \u4e3b\u306a\u53ce\u9332\u66f2\uff1a\u300e\u30e9\u30d6\u30d1\u30ec\u30fc\u30c9\uff5e10th ver.\uff5e\u300f\u300e\u30a2\u30d5\u30bf\u30cc\u30fc\u30f3\u30fb\u30b0\u30e9\u30d5\u30a3\u30c6\u30a3\uff5e10th ver.\uff5e\u300f\u300eWINGS\uff5e10th ver.\uff5e\u300f\u300e\u30ad\u30e9\u30ad\u30e9\uff5e10th ver.\uff5e\u300f\u300e\u305d\u308c\u306f\u6708\u66dc\u65e5\u306e9\u6642\u306e\u3088\u3046\u306b\uff5e10th ver.\uff5e\u300f\u307b\u304b</p>\n      </div>\n\n      <div class=\"act\">\n        <span class=\"lab\">MAJOR 1ST FULL ALBUM</span>\n        <h4>\u300e\u9752\u6625\u5c0f\u7bc0\u301c\u97f3\u697d\u7d00\u884c\u301c\u300f</h4>\n        <p class=\"dt\" style=\"font-size:12.5px;color:var(--pink-d);font-weight:700\">2023\u5e7412\u670820\u65e5 \u30ea\u30ea\u30fc\u30b9 \uff0f \u30a4\u30f3\u30da\u30ea\u30a2\u30eb\u30ec\u30b3\u30fc\u30c9</p>\n        <p>\u30e1\u30b8\u30e3\u30fc1st\u30d5\u30eb\u30a2\u30eb\u30d0\u30e0\u3002\u516811\u66f2\u53ce\u9332\u3002<br>\n        \u53ce\u9332\u66f2\uff1a\u300eWe are\u2026\u300f\u300eRising dream.\u300f\u300ewonder little love.\u300f\u300eTAiLWiND.\u300f\u300e\u30ab\u30ce\u30fc\u30d7\u30b9\u300f\u300edon't say Love.\u300f\u300e\u30c6\u30a3\u30fc\u30f3\u30b9\u30d4\u30ea\u30c3\u30c8\u300f\u300e\u3064\u306a\u3050\u300f\u300e\u30ac\u30fc\u30eb\u30ba\u30ca\u30a4\u30c8\u300f\u300e\u30d5\u30a1\u30f3\u30d5\u30a1\u30fc\u30ec\u300f\u300eShining City Lights.\u300f</p>\n      </div>\n\n      <div class=\"act\">\n        <span class=\"lab\">MAJOR 1ST MINI ALBUM</span>\n        <h4>\u300e\u9752\u6625\u5c0f\u7bc0\u300f</h4>\n        <p class=\"dt\" style=\"font-size:12.5px;color:var(--pink-d);font-weight:700\">2022\u5e7411\u670816\u65e5 \u30ea\u30ea\u30fc\u30b9 \uff0f \u30a4\u30f3\u30da\u30ea\u30a2\u30eb\u30ec\u30b3\u30fc\u30c9</p>\n        <p>\u30e1\u30b8\u30e3\u30fc\u30c7\u30d3\u30e5\u30fc\u30df\u30cb\u30a2\u30eb\u30d0\u30e0\u3002\u51686\u66f2\u53ce\u9332\u3002<br>\n        \u53ce\u9332\u66f2\uff1a\u300e\u30a2\u30d5\u30bf\u30cc\u30fc\u30f3\u30fb\u30b0\u30e9\u30d5\u30a3\u30c6\u30a3\u300f\u300e\u7a7a\u3082\u3042\u308b\u3057\u98a8\u3082\u5439\u3044\u3066\u308b\u300f\u300eKiller Lips\u300f\u300e\u30b3\u30ea\u30aa\u30ea\u300f\u300eViva La Vida\u300f\u300e\u30e9\u30d6\u30d1\u30ec\u30fc\u30c9\u300f</p>\n      </div>\n\n      <div class=\"act\">\n        <span class=\"lab\">1ST MINI ALBUM</span>\n        <h4>\u300eT.O.N.E\u300f</h4>\n        <p class=\"dt\" style=\"font-size:12.5px;color:var(--pink-d);font-weight:700\">2021\u5e747\u670828\u65e5 \u30ea\u30ea\u30fc\u30b9 \uff0f SDR</p>\n        <p>\u6539\u540d\u5f8c\u521d\u3068\u306a\u308b\u30df\u30cb\u30a2\u30eb\u30d0\u30e0\u3002\u51685\u66f2\uff0b\u65b0\u66f2\u53ce\u9332\u3002<br>\n        \u53ce\u9332\u66f2\uff1a\u300eWINGS\u300f\u300eParty goes on.\u300f\u300e\u604b\u3001\u3044\u3061\u3070\u3093\u3081\u300f\u300e\u30d5\u30a1\u30f3\u30d5\u30a1\u30fc\u30ec\u300f\u300e\u30b3\u30ea\u30aa\u30ea\u300f\u300eMORE!\u00d73\u300f\u300eShining City Lights\u300f</p>\n      </div>\n\n      <div class=\"act\">\n        <span class=\"lab\">\u685c\u30a8\u30d3\u301c\u305a 2ND ALBUM</span>\n        <h4>\u300eoctave\u300f</h4>\n        <p class=\"dt\" style=\"font-size:12.5px;color:var(--pink-d);font-weight:700\">2019\u5e748\u670821\u65e5 \u30ea\u30ea\u30fc\u30b9 \uff0f STARDUST MUSIC</p>\n        <p>\u7b2c8\u56de\u30a2\u30a4\u30c9\u30eb\u697d\u66f2\u5927\u8cde2019\u300c\u30a2\u30eb\u30d0\u30e0\u90e8\u9580\u300d\u7b2c1\u4f4d\u7372\u5f97\u3002\u516813\u66f2\u53ce\u9332\u3002<br>\n        \u53ce\u9332\u66f2\uff1a\u300e\u5e30\u308c\u306a\u3044!\u300f\u300e214\u300f\u300eMagik Melody\u300f\u300e\u707c\u71b1\u3068\u30a2\u30a4\u30b9\u30af\u30ea\u30fc\u30e0\u300f\u300e\u307e\u308f\u308b\u307e\u308f\u308b\u307e\u308f\u308b\u300f\u300e\u30ea\u30f3\u30c9\u30d0\u30fc\u30b0\u300f\u300e\u304a\u306d\u304c\u3044\u3088\u300f\u300e\u30b0\u30e9\u30b8\u30a7\u30cd\u300f\u300e\u306d\u3047\u3001\u30ed\u30fc\u30d5\u30a1\u30fc\u3002\u300f\u300e\u305d\u308c\u306f\u6708\u66dc\u65e5\u306e9\u6642\u306e\u3088\u3046\u306b\u300f\u300e\u30ad\u30e9\u30ad\u30e9\u300f\u300e\u3055\u3044\u3057\u3087\u306e\u3055\u3044\u3057\u3087\u300f\u300e\u305b\u3064\u306a\u3044\u3084\u300f</p>\n      </div>\n\n      <div class=\"act\">\n        <span class=\"lab\">\u685c\u30a8\u30d3\u301c\u305a 1ST ALBUM</span>\n        <h4>\u300esakuraebis\u300f</h4>\n        <p class=\"dt\" style=\"font-size:12.5px;color:var(--pink-d);font-weight:700\">2018\u5e743\u670821\u65e5 \u30ea\u30ea\u30fc\u30b9 \uff0f STARDUST MUSIC</p>\n        <p>\u521d\u306e\u5168\u56fd\u6d41\u901a\u30d5\u30eb\u30a2\u30eb\u30d0\u30e0\u3002\u516812\u66f2\u53ce\u9332\u3002<br>\n        \u53ce\u9332\u66f2\uff1a\u300e\u50d5\u3089\u306e\u30cf\u30b8\u30de\u30ea\u300f\u300e\u308f\u305f\u3057\u30ed\u30de\u30f3\u30b9\u300f\u300e\u6025\u306a\u30ed\u30de\u30f3\u30c6\u30a3\u30c3\u30af\u300f\u300e\u304a\u5e74\u9803distance\u300f\u300e\u30aa\u30b9\u30b0\u30c3\u30c9\u30fb\u30b3\u30df\u30e5\u30cb\u30b1\u30fc\u30b7\u30e7\u30f3\u300f\u300e\u307f\u3057\u3066\u304b\u3057\u3066\u3055\u308f\u3089\u3057\u3066\u300f\u300e\u3053\u3053\u308d\u4e88\u5831\u300f\u300e\u5618\u3068\u30e9\u30a4\u30e9\u30c3\u30af\u300f\u300e\u30dc\u30af\u30a8\u30fc\u30eb\u300f\u300e\u306f\u3063\u3074\u30fc\u30b9\u30ad\u30c3\u30d7\u2606\u30b8\u30e3\u30f3\u30d7\u300f\u300e\u521d\u604b\u6a21\u69d8\u300f\u300e\u30bf\u30ea\u30eb\u30ea\u30e9\u300f</p>\n      </div>\n    </div>\n\n    <h2>\u914d\u4fe1\u30fb\u4f01\u753b\u30fb\u30e6\u30cb\u30c3\u30c8</h2>\n    <div class=\"actgrid\">\n      <div class=\"act\">\n        <span class=\"lab\">DIGITAL RELEASES</span>\n        <h4>12\u30f6\u6708\u9023\u7d9a\u914d\u4fe1\u30ea\u30ea\u30fc\u30b9\uff082018\u5e74\u301c2019\u5e74\uff09</h4>\n        <p>2018\u5e746\u6708\u304b\u30892019\u5e745\u6708\u307e\u3067\u6bce\u6708\u65b0\u66f2\u3092\u9023\u7d9a\u914d\u4fe1\u30ea\u30ea\u30fc\u30b9\u3057\u305f\u8a18\u5ff5\u7891\u7684\u4f01\u753b\uff08\u516812\u66f2\u30022nd\u30a2\u30eb\u30d0\u30e0\u300eoctave\u300f\u3078\u53ce\u9332\uff09\u3002</p>\n      </div>\n\n      <div class=\"act\">\n        <span class=\"lab\">SPECIAL UNITS</span>\n        <h4>10\u5468\u5e74\u30b9\u30da\u30b7\u30e3\u30eb\u30e6\u30cb\u30c3\u30c8\u4f01\u753b</h4>\n        <p>\u30fbTEAM CUTE\uff08\u5bae\u6ca2\u53cb \uff06 \u82e5\u83dc\u3053\u306f\u308b\uff09<br>\n           \u30fbWarpiE\uff08\u6751\u661f\u308a\u3058\u3085 \uff06 \u82b9\u6fa4\u3082\u3042 \uff06 \u8475\u308b\u308a\uff09<br>\n           \u30fbMystiE\uff08\u831c\u7a7a \uff06 \u7d50\u57ce\u308a\u306a\uff09<br>\n           \u30fb\u308a\u306a\u306a\u306e\uff08\u7d50\u57ce\u308a\u306a \uff06 \u9752\u5c71\u83dc\u82b1 / \u30ae\u30bf\u30fc\u5f3e\u304d\u8a9e\u308a\u30fb\u30dc\u30fc\u30ab\u30eb\u30c7\u30e5\u30aa\uff09</p>\n      </div>\n\n      <div class=\"act\">\n        <span class=\"lab\">CREDITS & MORE</span>\n        <h4>\u697d\u66f2\u30af\u30ec\u30b8\u30c3\u30c8\u30fb\u8a73\u7d30\u60c5\u5831</h4>\n        <p>\u4f5c\u8a5e\u30fb\u4f5c\u66f2\u30fb\u7de8\u66f2\u30af\u30ec\u30b8\u30c3\u30c8\u3084\u5404\u697d\u66f2\u306e\u30bf\u30a4\u30a2\u30c3\u30d7\u60c5\u5831\u3001\u5148\u884c\u914d\u4fe1\u30b7\u30f3\u30b0\u30eb\u7b49\u306e\u8a73\u7d30\u30c7\u30fc\u30bf\u306f\u300c\u6e96\u5099\u4e2d\u300d\u3067\u3059\u3002\u9806\u6b21\u8ffd\u52a0\u3057\u3066\u307e\u3044\u308a\u307e\u3059\u3002</p>\n      </div>\n    </div>\n\n    </div>";
+    }
+  } else if (p === "rinanano.html" || p === "rinanano") {
+    document.title = "りななの（結城りな＆青山菜花） | ukkaを楽しむ";
+    var pt = document.getElementById("ptitle");
+    if (pt) pt.textContent = "ユニット「りななの」紹介";
+    var host = document.getElementById("presetarea");
+    if (host) {
+      host.innerHTML = "  <div class=\"member\" id=\"rinanano\">
+    <p class=\"mname\">りななの（結城りな ＆ 青山菜花）</p>
+    <p class=\"yomi\">YUKI RINA × AOYAMA NANOHA ／ スターダストプロモーション（STAR PLANET）ユニット</p>
+    <p class=\"lead\">スターダストプロモーション（STAR PLANET）所属の結城りなちゃんと青山菜花ちゃんによるユニット「りななの」。アコースティックギターの弾き語りデュオから、息ぴったりのボーカル＆ダンスステージ、朗読劇や配信イベントでの共演まで、2人の名前を合わせたユニット名の通り明るく温かいハーモニーを届けています。先輩・後輩の枠を超えた仲の良さと、見る人を笑顔にするまっすぐな歌声が魅力です。</p>
+    <div class=\"tags\">
+      <span class=\"tag\">結城りな × 青山菜花</span>
+      <span class=\"tag\">ギター弾き語り＆ボーカルデュオ</span>
+      <span class=\"tag\">POP GALAXY 2026 出演</span>
+      <span class=\"tag\">ながいきフェスタ in 桃神祭 出演</span>
+    </div>
+    <h3>りななの 動画</h3>
+    <div class=\"mvwrap\" style=\"margin:12px 0 16px\">
+      <div class=\"frame\">
+        <iframe src=\"https://www.youtube.com/embed/c38xhjLvVhg\" title=\"りななの 動画\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen style=\"border:0;width:100%;height:100%\"></iframe>
+      </div>
+    </div>
+    <h3>ユニット・メンバープロフィール</h3>
+    <p>「ukkaギター部」でもアコースティックギターの弾き語りに挑戦してきた結城りなと、透明感ある歌声とピアノ・童謡歌唱を得意とする青山菜花がタッグを組み、2026年夏から本格的にイベントやフェスへ出演しています。</p>
+    <table class=\"prof\">
+      <tr><th>ユニット名</th><td>りななの <span class=\"note\">結城りな（りな）＋青山菜花（なの）によるデュオ</span></td></tr>
+      <tr><th>結城 りな</th><td>2003年4月9日生まれ（東京都出身・AB型・157cm）<br><span class=\"note\">スターダストプロモーション（STAR PLANET）所属。ukka（ペンライトカラー: 赤）として活動し、『SASUKE』『KUNOICHI』にも挑む二刀流タレント</span></td></tr>
+      <tr><th>青山 菜花</th><td>2008年9月10日生まれ（東京都出身・A型・163.2cm）<br><span class=\"note\">スターダストプロモーション（STAR PLANET）所属。B.O.L.T、浪江女子発組合・LumiUnionを経てソロ・ユニットで活動中。趣味は童謡を歌うこと・ピアノ、資格は乗馬ライセンス5級</span></td></tr>
+      <tr><th>主なスタイル</th><td>アコースティックギター弾き語り ／ ボーカル＆ダンスパフォーマンス</td></tr>
+    </table>
+    <h3>りななのの主な活動・ステージ</h3>
+    <div class=\"actgrid\">
+      <div class=\"act\"><span class=\"lab\">FES STAGE — 2026.10.18</span><h4>「ももクロ秋の桃神祭2026」内『ながいきフェスタ in 桃神祭』出演</h4><p>千葉県長生村・尼ケ台総合公園で開催された『ながいきフェスタ in 桃神祭』（DAY2）に「りななの（結城りな＆青山菜花）」として出演。「またキミと。」など初めて歌って踊るステージも披露し、鈴木萌花さんとの合同特典会も開催されました。</p></div>
+      <div class=\"act\"><span class=\"lab\">ACOUSTIC DUO — 2026.08.15</span><h4>ガールズポップフェス『POP GALAXY 2026』にギター弾き語りデュオで出演</h4><p>お台場R地区で開催された『POP GALAXY 2026』（DAY1 NOVA STAGE）にギター弾き語りデュオとして登場。夏空の下で2人のアコースティックギターと歌声を響かせました。</p></div>
+      <div class=\"act\"><span class=\"lab\">ONLINE LIVE &amp; COOKING — 2026.07-08</span><h4>リミスタ合同オンラインフリーライブ＆『スタプラSPクッキング』</h4><p>2026年7月11日にリミスタで「結城りな＆青山菜花 オンラインフリーライブ＆トーク・サイン会」を開催。8月30日にはNATSLIVE『スタプラSPクッキング』でも村星りじゅ・嶋田莉奈とともに共演しました。</p></div>
+      <div class=\"act\"><span class=\"lab\">READING DRAMA &amp; LIVE — 2026.07-11</span><h4>朗読劇『コトバノコトバ』『アイディール・セミナー』＆『#スタダ顔 ライブ』</h4><p>7月の『アイディール・セミナー/Final session-Replay-』、9月の朗読劇『コトバノコトバ』（CBGKシブゲキ!!）に揃って出演。2026年11月24日開催の『#スタダ顔 ライブ 〜まじで頑張ろ！女のスタダ！〜』（恵比寿ザ・ガーデンホール）にもともに出演予定です。</p></div>
+    </div>
+    <div class=\"links\">
+      <a href=\"https://youtu.be/c38xhjLvVhg\" target=\"_blank\" rel=\"noopener\">▶ りななの 動画（YouTube） ↗</a>
+      <a href=\"https://stardust-web.com/yuukirina\" target=\"_blank\" rel=\"noopener\">結城りな「りなといっしょ」（STARDUST WEB） ↗</a>
+      <a href=\"https://www.stardust.co.jp/talent/starplanet/yuukirina/\" target=\"_blank\" rel=\"noopener\">結城りな 公式プロフィール ↗</a>
+      <a href=\"https://www.stardust.co.jp/talent/starplanet/aoyamananoha/\" target=\"_blank\" rel=\"noopener\">青山菜花 公式プロフィール ↗</a>
+      <a href=\"https://blog.stardust.co.jp/stardustplanet/archives/22625\" target=\"_blank\" rel=\"noopener\">スタプラブログ「菜花の時間」 ↗</a>
+      <a href=\"https://www.momoclo.net/tohjinsai2026/park.html\" target=\"_blank\" rel=\"noopener\">ながいきフェスタ in 桃神祭 特設ページ ↗</a>
+      <a href=\"https://limista.com/projects/7559\" target=\"_blank\" rel=\"noopener\">リミスタ オンラインフリーライブ詳細 ↗</a>
+      <a href=\"rina.html\">← 結城りなの紹介ページへ</a>
+    </div>
+    <h3>りななのの魅力</h3>
+    <p>ファン目線で挙げるなら、やっぱりこの3つ。2人だからこそ生まれる化学反応です。</p>
+    <ol class=\"charm\">
+      <li><b>アコースティックギター弾き語りと歌って踊るステージの二刀流</b><br>『POP GALAXY 2026』で見せた2人でのアコギ弾き語りから、『ながいきフェスタ in 桃神祭』で初披露してファンを驚かせた歌って踊るパフォーマンスまで、ステージごとに新鮮な表情を見せてくれます。</li>
+      <li><b>まっすぐで力強い歌声×透明感あふれる歌声のハーモニー</b><br>結城りなの芯のある明るいボーカルと、青山菜花の伸びやかで澄んだ歌声が重なることで、カバー曲でもオリジナル曲でも耳に残る心地よいハーモニーが生まれます。</li>
+      <li><b>舞台・朗読劇・配信でも息ぴったりの姉妹のような関係性</b><br>『アイディール・セミナー』や『コトバノコトバ』などの朗読劇、料理配信や特典会まで、どの現場でも自然体で笑い合う2人の温かい空気感がそのままステージの魅力につながっています。</li>
+    </ol>
+    <h3>歩み（2026年）</h3>
+    <p>オンラインライブから夏フェス、桃神祭の外周ステージまで広がる「りななの」の軌跡。</p>
+    <ul class=\"tl\">
+      <li><span class=\"dt\">2026 7.11</span> <span class=\"tt\">結城りな＆青山菜花 オンラインフリーライブ開催</span><p>リミスタにて2人のソロパフォーマンス生配信とコラボ、オンライントーク・サイン会を開催しました。</p></li>
+      <li><span class=\"dt\">2026 7.25〜8.1</span> <span class=\"tt\">『アイディール・セミナー/Final session-Replay-』共演</span><p>シアター1010での本公演および8月1日・渋谷音楽堂での後夜祭スペシャルセッションに出演しました。</p></li>
+      <li><span class=\"dt\">2026 8.15</span> <span class=\"tt\">『POP GALAXY 2026』にギター弾き語りデュオで出演</span><p>お台場R地区・NOVA STAGEに「りななの（結城りな＆青山菜花）」として出演し、アコギ弾き語りを披露しました。</p></li>
+      <li><span class=\"dt\">2026 8.30 / 9.2〜6</span> <span class=\"tt\">『スタプラSPクッキング』＆朗読劇『コトバノコトバ』</span><p>NATSLIVEでの料理配信や、CBGKシブゲキ!!での朗読劇『コトバノコトバ』に揃って出演しました。</p></li>
+      <li><span class=\"dt\">2026 10.18</span> <span class=\"tt\">『ながいきフェスタ in 桃神祭』出演</span><p>ももクロ秋の桃神祭2026の外周ステージに登場。「りななの」として初めて歌って踊るステージも披露しました。</p></li>
+      <li><span class=\"dt\">2026 11.24</span> <span class=\"tt\">『#スタダ顔 ライブ 〜まじで頑張ろ！女のスタダ！〜』出演予定</span><p>恵比寿ザ・ガーデンホールにて開催されるスタプラのライブイベントに揃って出演予定です。</p></li>
+    </ul>
+    <h3>りななのクイズ</h3>
+    <div class=\"quiz\" id=\"quiz\"></div>
+  </div>";
+      var QUIZ = [
+ {
+  "q": "ユニット「りななの」の2人のメンバーの組み合わせは？",
+  "opts": [
+   "結城りな ＆ 青山菜花",
+   "結城りな ＆ 茜空",
+   "結城りな ＆ 葵るり"
+  ],
+  "ans": 0,
+  "exp": "結城りなさんと青山菜花さんの2人によるユニットで、2人の名前から「りななの」と名付けられました。"
+ },
+ {
+  "q": "2026年8月15日にお台場R地区で開催され、「りななの」がギター弾き語りデュオとして出演したフェスは？",
+  "opts": [
+   "POP GALAXY 2026",
+   "TOKYO IDOL FESTIVAL",
+   "夏S 2026"
+  ],
+  "ans": 0,
+  "exp": "「POP GALAXY 2026」（DAY1 NOVA STAGE）。2人でのアコースティックギター弾き語りと特典会を行いました。"
+ },
+ {
+  "q": "2026年10月18日に「りななの」が出演し、初めて歌って踊るステージも披露したイベントは？",
+  "opts": [
+   "ながいきフェスタ in 桃神祭",
+   "スタプラフェス",
+   "ももいろ歌合戦"
+  ],
+  "ans": 0,
+  "exp": "千葉県長生村で開催された「ももクロ秋の桃神祭2026」内の「ながいきフェスタ in 桃神祭」です。"
+ }
+];
+      function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+      var qz = document.getElementById("quiz");
+      if (qz) {
+        qz.innerHTML = QUIZ.map(function(it,qi){
+          return '<div class="q"><b>Q'+(qi+1)+". "+esc(it.q)+'</b><div class="opts">'+
+            it.opts.map(function(o,oi){return '<button data-q="'+qi+'" data-o="'+oi+'">'+esc(o)+'</button>'}).join("")+
+            '</div><p class="exp" id="exp'+qi+'" style="display:none"></p></div>';
+        }).join("");
+        qz.addEventListener("click",function(ev){
+          var qb=ev.target.closest(".quiz .opts button");
+          if(qb){
+            var qi=+qb.getAttribute("data-q"),oi=+qb.getAttribute("data-o"),it2=QUIZ[qi];
+            var box=qb.parentElement;box.querySelectorAll("button").forEach(function(b){b.classList.remove("sel")});
+            qb.classList.add("sel");
+            var ex=document.getElementById("exp"+qi);ex.style.display="block";
+            ex.textContent=(oi===it2.ans?"正解！ ":"残念、正解は「"+it2.opts[it2.ans]+"」。 ")+it2.exp;
+          }
+        });
+      }
+    }
+  }
+})();
+</script>
+<script src="config.js"></script>
+<script src="edit.js"></script>
 </body>
 </html>
