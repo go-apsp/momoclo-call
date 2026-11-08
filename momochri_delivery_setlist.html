@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ももクリDelivery セットリスト速報＆コール予習特集 | ももクロコールアプリ</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            mcz: {
+              red: '#E60012',
+              yellow: '#FFD700',
+              pink: '#FF69B4',
+              purple: '#800080',
+              green: '#00A040',
+              navy: '#0F172A',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+    body {
+      font-family: 'Noto Sans JP', 'Inter', sans-serif;
+    }
+    .mcz-gradient {
+      background: linear-gradient(135deg, #e11d48 0%, #ec4899 35%, #eab308 70%, #9333ea 100%);
+    }
+    .tab-active {
+      background-color: #e11d48;
+      color: #ffffff;
+      box-shadow: 0 4px 6px -1px rgba(225, 29, 72, 0.3);
+    }
+  </style>
+</head>
+<body id="app-home" class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- App Header / Navigation -->
+  <header class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+      <!-- Return to Momoclo Call App Link -->
+      <a href="./" id="btn-back-app" class="inline-flex items-center gap-2 text-sm font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3.5 py-2 rounded-full transition-colors border border-rose-200">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        <span>ももクロコールアプリへ戻る</span>
+      </a>
+
+      <!-- App Title / Tour Badge -->
+      <div class="flex items-center gap-2">
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span class="text-xs sm:text-sm font-bold tracking-tight text-slate-700">ツアー特集：ももクリDelivery 2026</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="mcz-gradient text-white py-8 px-4 shadow-inner">
+    <div class="max-w-5xl mx-auto text-center">
+      <div class="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3.5 py-1 rounded-full text-xs sm:text-sm font-semibold mb-3">
+        <span>🎄 ももいろクローバーZ クリスマスツアー2026</span>
+      </div>
+      <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight mb-2 drop-shadow-sm">
+        「ももクリDelivery」各公演セットリスト＆コール予習速報
+      </h1>
+      <p class="text-white/90 text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed">
+        全国8都市・全11公演を駆け巡る「ももクリDelivery」の最新セトリを徹底集計！現地参加者の詳細レポートを最優先に掲載し、他速報サイトとの差異やコール要点をまとめています。
+      </p>
+    </div>
+  </section>
+
+  <!-- Main Content Container -->
+  <main class="max-w-5xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
+
+    <!-- REQUIRED TOP NOTICE: 未参加・信憑性に関する免責事項 -->
+    <div id="disclaimer-banner" class="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 sm:p-5 shadow-sm">
+      <div class="flex items-start gap-3 sm:gap-4">
+        <div class="p-2 bg-amber-100 text-amber-700 rounded-lg shrink-0 mt-0.5">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <div class="space-y-1 text-sm text-amber-900">
+          <h2 class="font-bold text-base text-amber-950 flex items-center gap-2">
+            <span>【重要なお知らせ】当特集ページのセットリスト情報について</span>
+          </h2>
+          <p class="leading-relaxed">
+            <strong>管理人は現在開催中のクリスマスツアー2026「ももクリDelivery」にまだ未参加のため、本ページに掲載しているセットリスト情報の信憑性・完全性を担保することはできません。</strong>
+          </p>
+          <p class="text-xs sm:text-sm text-amber-800 leading-relaxed">
+            本アプリでは<strong>「現地参加者による詳細レポート情報（note）」を最優先</strong>としてセットリストを構成しています。ただし、公演によっては他音楽メディアやセトリ速報サイトとの間で曲順の入替やカット曲等の差異が確認されています。各公演セットリストの直下に<strong>「他情報との差異・差異箇所」</strong>の解説と出典元リンクを掲載しておりますので、併せてご確認の上、コールの予習にご活用ください。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Official Links & Quick Info Banner -->
+    <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm">
+      <div class="flex items-center gap-2 text-slate-700">
+        <span class="font-bold text-slate-900">公式特設サイト：</span>
+        <a href="https://www.momoclo.net/momochri2026/" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:text-rose-700 hover:underline font-medium inline-flex items-center gap-1">
+          ももいろクローバーZ クリスマスツアー2026「ももクリDelivery」特設
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+        </a>
+      </div>
+      <div class="text-slate-500 shrink-0">
+        集計基準日：2026年11月8日（4公演消化済 / 全11公演）
+      </div>
+    </div>
+
+    <!-- Controls: Tab Selector & Song Filter -->
+    <div class="space-y-3">
+      <!-- Tabs -->
+      <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none" id="tour-tabs">
+        <button type="button" data-tab="all" class="tab-btn tab-active px-4 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all whitespace-nowrap">
+          全公演表示 (4)
+        </button>
+        <button type="button" data-tab="tokyo" class="tab-btn bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all whitespace-nowrap">
+          10/30 東京 (有明)
+        </button>
+        <button type="button" data-tab="hiroshima" class="tab-btn bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all whitespace-nowrap">
+          11/02 広島 (福山)
+        </button>
+        <button type="button" data-tab="hyogo" class="tab-btn bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all whitespace-nowrap">
+          11/06 兵庫 (神戸)
+        </button>
+        <button type="button" data-tab="kyoto" class="tab-btn bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all whitespace-nowrap">
+          11/07 京都
+        </button>
+        <button type="button" data-tab="schedule" class="tab-btn bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all whitespace-nowrap">
+          残りのツアースケジュール
+        </button>
+      </div>
+
+      <!-- Search Input -->
+      <div class="relative">
+        <input type="text" id="song-search" placeholder="披露された曲名やコール曲を検索（例: 怪盗少女, サンタさん, MONONOFU NIPPON）..." class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 shadow-sm transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-400 absolute left-3 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- PERFORMANCE 1: 東京 SGC HALL ARIAKE (10/30) -->
+    <article class="perf-card bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" data-city="tokyo">
+      <!-- Card Header -->
+      <div class="bg-gradient-to-r from-rose-500 to-pink-600 text-white p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="bg-white/20 text-white text-xs px-2.5 py-0.5 rounded-full font-bold">第1公演 / ツアー初日</span>
+            <span class="text-xs text-white/80">開場18:00 / 開演19:00</span>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-black">2026年10月30日（金）東京公演</h2>
+          <p class="text-xs sm:text-sm text-white/90">会場：SGC HALL ARIAKE（東京都江東区有明）</p>
+        </div>
+        <div class="bg-black/20 rounded-xl px-4 py-2 text-right self-start sm:self-auto">
+          <span class="text-xs text-white/80 block">披露曲数</span>
+          <span class="text-lg font-black tracking-tight">全22曲 <span class="text-xs font-normal">(本編19+EN3)</span></span>
+        </div>
+      </div>
+
+      <!-- Setlist Content -->
+      <div class="p-4 sm:p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">セットリスト（現地参加者情報最優先）</span>
+          <span class="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">各媒体で一致</span>
+        </div>
+
+        <ol class="divide-y divide-slate-100 text-sm song-list">
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">00</span><span class="font-bold flex-1">overture ～ももいろクローバーZ参上!!～</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール必須</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">01</span><span class="font-medium flex-1">Z伝説 ～ファンファーレは止まらない～ <span class="text-xs text-slate-500 font-normal">（デリバリーは止まらないver.）</span></span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">02</span><span class="font-medium flex-1">DNA狂詩曲</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">大コール</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">03</span><span class="font-medium flex-1">あんた飛ばしすぎ!!</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">ハイテンション</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">04</span><span class="font-medium flex-1">JUMP!!!!!</span><span class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">ジャンプ</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">05</span><span class="font-medium flex-1">サンタさん <span class="text-xs text-slate-500 font-normal">（客席へのサインボール投げ）</span></span><span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">ももクリ定番</span></li>
+          <li class="py-1.5 px-3 bg-slate-50 text-slate-500 text-xs rounded-lg font-medium">MC（自己紹介 / サンタ採用試験）</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">06</span><span class="font-medium flex-1">PUSH</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">07</span><span class="font-medium flex-1">ダンシングタンク♡ <span class="text-xs text-slate-500 font-normal">（ももクリデリバリーver.）</span></span><span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">フリコピ</span></li>
+          <li class="py-1.5 px-3 bg-slate-50 text-slate-500 text-xs rounded-lg font-medium">幕間映像（2nd衣装チェンジ）</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">08</span><span class="font-medium flex-1">きみゆき</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">冬のバラード</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">09</span><span class="font-medium flex-1">Majoram Therapie</span><span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">フリコピ</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">10</span><span class="font-medium flex-1">真冬のサンサンサマータイム</span><span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">タオル曲</span></li>
+          <li class="py-1.5 px-3 bg-slate-50 text-slate-500 text-xs rounded-lg font-medium">MC（東京ご当地トーク）</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">11</span><span class="font-medium flex-1">クリスマスタイム / ハッピーメリークリスマス <span class="text-xs text-emerald-600 font-normal">（ツアー新曲・無題曲）</span></span><span class="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">新曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">12</span><span class="font-medium flex-1">笑一笑 ～シャオイーシャオ！～</span><span class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">クラップ</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">13</span><span class="font-medium flex-1">Link Link</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール曲</span></li>
+          <li class="py-1.5 px-3 bg-slate-50 text-slate-500 text-xs rounded-lg font-medium">幕間映像（3rd衣装チェンジ）</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">14</span><span class="font-medium flex-1">今宵、ライブの下で</span><span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">ももクリ定番</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">15</span><span class="font-medium flex-1">SECRET LOVE STORY</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">冬のカバー曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">16</span><span class="font-medium flex-1">泣いちゃいそう冬</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">冬曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">17</span><span class="font-medium flex-1">僕等のセンチュリー</span><span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">ももクリ定番</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">18</span><span class="font-medium flex-1">Friends Friends Friends</span><span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">フリコピ</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">19</span><span class="font-medium flex-1">白い風</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">本編ラストバラード</span></li>
+          <li class="py-1.5 px-3 bg-rose-50 text-rose-700 text-xs rounded-lg font-bold">アンコール</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">20</span><span class="font-bold flex-1">行くぜっ！怪盗少女</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">最大コール</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">21</span><span class="font-medium flex-1">会心の一劇</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">22</span><span class="font-medium flex-1">L.O.V.E</span><span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">L.O.V.Eコール</span></li>
+        </ol>
+
+        <!-- DISCREPANCY & SOURCE ANNOTATION (直下の注釈) -->
+        <div class="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs sm:text-sm text-slate-700">
+          <div class="flex items-center gap-1.5 font-bold text-slate-900">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span>【東京公演】他情報との差異および出典元解説</span>
+          </div>
+          <p class="leading-relaxed">
+            当公演のセットリストは、現地参加者レポート（<a href="https://note.com/cute_lilac186/n/n63692e7af8a6" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:underline font-medium">note：KANAKOJI 有明レポ</a>）と各速報メディア（<a href="https://oshikatsu.co.jp/news/momoiro-clover-z-momochri-delivery-2026-setlist/" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:underline font-medium">オシカツニュース</a>、<a href="https://live-setlist.hatenablog.com/entry/momochri-ariake-2026-10" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:underline font-medium">ライブ-セットリスト</a>、<a href="https://muhoric.com/momoclo2026chirstmas-setlist/" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:underline font-medium">MU-HOLIC</a>）の間で全22曲の構成・曲順ともに食い違いがなく一致しています。
+          </p>
+          <div class="p-2.5 bg-white rounded border border-slate-200 text-xs text-slate-600">
+            <span class="font-bold text-slate-800">差異箇所（表記揺れ）：</span>11曲目のクリスマス新曲に関して、各速報サイトではファンの聞き取りから「ハッピーメリークリスマス」と表記されていますが、noteの現地レポではMCにて百田夏菜子さんが「まだ曲名がなくて『クリスマスタイム』と呼んでいる」と明かしたことが記載されています。当アプリでは両表記を併記しています。
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- PERFORMANCE 2: 広島 ふくやま芸術文化ホール (11/02) -->
+    <article class="perf-card bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" data-city="hiroshima">
+      <!-- Card Header -->
+      <div class="bg-gradient-to-r from-red-600 to-rose-700 text-white p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="bg-white/20 text-white text-xs px-2.5 py-0.5 rounded-full font-bold">第2公演</span>
+            <span class="text-xs text-white/80">開場18:00 / 開演19:00</span>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-black">2026年11月2日（月）広島公演</h2>
+          <p class="text-xs sm:text-sm text-white/90">会場：ふくやま芸術文化ホール リーデンローズ（広島県福山市）</p>
+        </div>
+        <div class="bg-black/20 rounded-xl px-4 py-2 text-right self-start sm:self-auto">
+          <span class="text-xs text-white/80 block">披露曲数（現地レポ準拠）</span>
+          <span class="text-lg font-black tracking-tight">全21曲 <span class="text-xs font-normal">(本編18+EN3)</span></span>
+        </div>
+      </div>
+
+      <!-- Setlist Content -->
+      <div class="p-4 sm:p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">セットリスト（現地参加者情報最優先）</span>
+          <span class="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">曲順入替＆カット曲あり</span>
+        </div>
+
+        <ol class="divide-y divide-slate-100 text-sm song-list">
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">00</span><span class="font-bold flex-1">overture ～ももいろクローバーZ参上!!～</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール必須</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">01</span><span class="font-medium flex-1">Z伝説 ～ファンファーレは止まらない～ <span class="text-xs text-slate-500 font-normal">（デリバリーver.）</span></span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">02</span><span class="font-medium flex-1">DNA狂詩曲</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">大コール</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">03</span><span class="font-medium flex-1">あんた飛ばしすぎ!!</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">ハイテンション</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">04</span><span class="font-medium flex-1">JUMP!!!!!</span><span class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">ジャンプ</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">05</span><span class="font-medium flex-1">サンタさん <span class="text-xs text-slate-500 font-normal">（ラケット打ちに変更）</span></span><span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">ももクリ定番</span></li>
+          <li class="py-1.5 px-3 bg-slate-50 text-slate-500 text-xs rounded-lg font-medium">MC（自己紹介 / 広島弁クイズサンタ試験）</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">06</span><span class="font-medium flex-1">PUSH</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">07</span><span class="font-medium flex-1">ダンシングタンク♡ <span class="text-xs text-slate-500 font-normal">（デリバリー編）</span></span><span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">フリコピ</span></li>
+          <li class="py-1.5 px-3 bg-slate-50 text-slate-500 text-xs rounded-lg font-medium">幕間映像（衣装チェンジ）</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item bg-amber-50/50"><span class="text-amber-600 font-mono w-6 text-xs font-bold">08</span><span class="font-bold text-amber-900 flex-1">真冬のサンサンサマータイム <span class="text-xs text-amber-700 font-normal">（★初日10曲目から入替）</span></span><span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">タオル曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">09</span><span class="font-medium flex-1">Majoram Therapie</span><span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">フリコピ</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item bg-amber-50/50"><span class="text-amber-600 font-mono w-6 text-xs font-bold">10</span><span class="font-bold text-amber-900 flex-1">きみゆき <span class="text-xs text-amber-700 font-normal">（★初日8曲目から入替）</span></span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">冬のバラード</span></li>
+          <li class="py-1.5 px-3 bg-slate-50 text-slate-500 text-xs rounded-lg font-medium">MC（ダンサー紹介）</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">11</span><span class="font-medium flex-1">クリスマスタイム / ハッピーメリークリスマス</span><span class="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">新曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">12</span><span class="font-medium flex-1">笑一笑 ～シャオイーシャオ！～</span><span class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">クラップ</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">13</span><span class="font-medium flex-1">Link Link</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール曲</span></li>
+          <li class="py-1.5 px-3 bg-slate-50 text-slate-500 text-xs rounded-lg font-medium">幕間映像</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">14</span><span class="font-medium flex-1">今宵、ライブの下で</span><span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">ももクリ定番</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">15</span><span class="font-medium flex-1">SECRET LOVE STORY</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">冬のカバー曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item bg-amber-50/50"><span class="text-amber-600 font-mono w-6 text-xs font-bold">16</span><span class="font-bold text-amber-900 flex-1">僕等のセンチュリー <span class="text-xs text-amber-700 font-normal">（★初日17曲目・FFFと入替）</span></span><span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">ももクリ定番</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item bg-amber-50/50"><span class="text-amber-600 font-mono w-6 text-xs font-bold">17</span><span class="font-bold text-amber-900 flex-1">Friends Friends Friends <span class="text-xs text-amber-700 font-normal">（★初日18曲目・入替）</span></span><span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">フリコピ</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">18</span><span class="font-medium flex-1">白い風</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">本編ラストバラード</span></li>
+          <li class="py-1.5 px-3 bg-rose-50 text-rose-700 text-xs rounded-lg font-bold">アンコール</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">19</span><span class="font-bold flex-1">行くぜっ！怪盗少女</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">最大コール</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">20</span><span class="font-medium flex-1">会心の一劇</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">21</span><span class="font-medium flex-1">L.O.V.E</span><span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">L.O.V.Eコール</span></li>
+        </ol>
+
+        <!-- DISCREPANCY & SOURCE ANNOTATION (直下の注釈) -->
+        <div class="mt-4 p-4 rounded-xl bg-amber-50/70 border border-amber-200 space-y-2 text-xs sm:text-sm text-slate-700">
+          <div class="flex items-center gap-1.5 font-bold text-amber-950">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            <span>【広島公演】他情報での差異および食い違い箇所の提示</span>
+          </div>
+          <p class="leading-relaxed">
+            複数のセトリ速報サイト（<a href="https://lignea.co.jp/mcz-setlist/" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:underline font-medium">LIGNEA</a>、<a href="https://live-setlist.hatenablog.com/entry/momochri-hiroshima-2026-11" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:underline font-medium">ライブ-セットリスト</a>、<a href="https://muhoric.com/momoclo2026chirstmas-setlist/" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:underline font-medium">MU-HOLIC</a>）では、<strong>「初日の有明公演と曲目・曲順が共通の全22曲」</strong>と記載されています。
+          </p>
+          <div class="p-2.5 bg-white rounded border border-amber-200 text-xs space-y-1.5">
+            <div class="font-bold text-amber-950">具体的な差異箇所（現地参加者レポ：<a href="https://note.com/cute_lilac186/n/n8d99ae5e4fe9" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:underline">note KANAKOJI 福山レポ</a>より）：</div>
+            <ul class="list-disc list-inside space-y-1 text-slate-700">
+              <li><strong>曲順の入れ替え：</strong>中盤ブロックが有明初日の「きみゆき → Majoram Therapie → サンサンサマー」から、福山では「サンサンサマー → Majoram Therapie → きみゆき」へと順序が変更されていました。</li>
+              <li><strong>曲のカット（曲数の不一致）：</strong>終盤の「SECRET LOVE STORY」の後に披露予定だった<strong>「泣いちゃいそう冬」がカット</strong>されており、全21曲（本編18曲＋アンコール3曲）だったと報告されています（終演時間押しに伴う調整と推測）。また「僕等のセンチュリー」と「Friends Friends Friends」の順序も入れ替わっています。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- PERFORMANCE 3: 兵庫 神戸国際会館 (11/06) -->
+    <article class="perf-card bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" data-city="hyogo">
+      <!-- Card Header -->
+      <div class="bg-gradient-to-r from-purple-700 to-indigo-800 text-white p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="bg-white/20 text-white text-xs px-2.5 py-0.5 rounded-full font-bold">第3公演</span>
+            <span class="text-xs text-white/80">開場18:00 / 開演19:00</span>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-black">2026年11月6日（金）兵庫（神戸）公演</h2>
+          <p class="text-xs sm:text-sm text-white/90">会場：神戸国際会館 こくさいホール（兵庫県神戸市中央区）</p>
+        </div>
+        <div class="bg-black/20 rounded-xl px-4 py-2 text-right self-start sm:self-auto">
+          <span class="text-xs text-white/80 block">披露曲数（現地レポ準拠）</span>
+          <span class="text-lg font-black tracking-tight">全21曲 <span class="text-xs font-normal">(本編18+EN3)</span></span>
+        </div>
+      </div>
+
+      <!-- Setlist Content -->
+      <div class="p-4 sm:p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">セットリスト（現地参加者情報最優先）</span>
+          <span class="text-xs font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded">「MONONOFU NIPPON」ツアー初登場</span>
+        </div>
+
+        <ol class="divide-y divide-slate-100 text-sm song-list">
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">00</span><span class="font-bold flex-1">overture ～ももいろクローバーZ参上!!～</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール必須</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">01</span><span class="font-medium flex-1">Z伝説 ～ファンファーレは止まらない～</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">02</span><span class="font-medium flex-1">DNA狂詩曲</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">大コール</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">03</span><span class="font-medium flex-1">あんた飛ばしすぎ!!</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">ハイテンション</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">04</span><span class="font-medium flex-1">JUMP!!!!!</span><span class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">ジャンプ</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item bg-purple-50/50"><span class="text-purple-600 font-mono w-6 text-xs font-bold">05</span><span class="font-bold text-purple-950 flex-1">真冬のサンサンサマータイム <span class="text-xs text-purple-700 font-normal">（★自己紹介前に大幅繰り上げ）</span></span><span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">タオル曲</span></li>
+          <li class="py-1.5 px-3 bg-slate-50 text-slate-500 text-xs rounded-lg font-medium">MC（自己紹介 / 兵庫・神戸クイズサンタ試験）</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">06</span><span class="font-medium flex-1">PUSH</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">07</span><span class="font-medium flex-1">ダンシングタンク♡ <span class="text-xs text-slate-500 font-normal">（デリバリー編）</span></span><span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">フリコピ</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">08</span><span class="font-medium flex-1">サンタさん <span class="text-xs text-slate-500 font-normal">（ラケット打ち）</span></span><span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">ももクリ定番</span></li>
+          <li class="py-1.5 px-3 bg-slate-50 text-slate-500 text-xs rounded-lg font-medium">幕間映像</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">09</span><span class="font-medium flex-1">きみゆき</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">冬のバラード</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">10</span><span class="font-medium flex-1">Majoram Therapie</span><span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">フリコピ</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item bg-purple-100/60"><span class="text-purple-700 font-mono w-6 text-xs font-bold">11</span><span class="font-bold text-purple-950 flex-1">MONONOFU NIPPON feat. 布袋寅泰 <span class="text-xs text-rose-600 font-bold">（★ツアー初披露！）</span></span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">激アツコール</span></li>
+          <li class="py-1.5 px-3 bg-slate-50 text-slate-500 text-xs rounded-lg font-medium">MC（曲名のない新曲トーク）</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">12</span><span class="font-medium flex-1">クリスマスタイム（ハッピーメリークリスマス）</span><span class="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">新曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">13</span><span class="font-medium flex-1">笑一笑 ～シャオイーシャオ！～</span><span class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">クラップ</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">14</span><span class="font-medium flex-1">Link Link</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール曲</span></li>
+          <li class="py-1.5 px-3 bg-slate-50 text-slate-500 text-xs rounded-lg font-medium">幕間映像</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">15</span><span class="font-medium flex-1">今宵、ライブの下で</span><span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">ももクリ定番</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item bg-purple-50/50"><span class="text-purple-600 font-mono w-6 text-xs font-bold">16</span><span class="font-bold text-purple-950 flex-1">泣いちゃいそう冬 <span class="text-xs text-purple-700 font-normal">（★福山カットから復帰）</span></span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">冬曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">17</span><span class="font-medium flex-1">僕等のセンチュリー</span><span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">ももクリ定番</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">18</span><span class="font-medium flex-1">白い風</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">本編ラストバラード</span></li>
+          <li class="py-1.5 px-3 bg-rose-50 text-rose-700 text-xs rounded-lg font-bold">アンコール</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">19</span><span class="font-bold flex-1">行くぜっ！怪盗少女</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">最大コール</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">20</span><span class="font-medium flex-1">会心の一劇</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">21</span><span class="font-medium flex-1">L.O.V.E</span><span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">L.O.V.Eコール</span></li>
+        </ol>
+
+        <!-- DISCREPANCY & SOURCE ANNOTATION (直下の注釈) -->
+        <div class="mt-4 p-4 rounded-xl bg-purple-50/70 border border-purple-200 space-y-2 text-xs sm:text-sm text-slate-700">
+          <div class="flex items-center gap-1.5 font-bold text-purple-950">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            <span>【兵庫公演】他情報での差異および暫定掲載との乖離</span>
+          </div>
+          <p class="leading-relaxed">
+            ブログメディアの<a href="https://live-setlist.hatenablog.com/entry/momochri-kobe-2026-11" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:underline font-medium">ライブ-セットリスト</a>（「※わかるまで、今ツアーの選曲です」と注記）および<a href="https://muhoric.com/momoclo2026chirstmas-setlist/" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:underline font-medium">MU-HOLIC</a>（「最新のセトリが判明するまでは前回公演の内容を掲載」と注記）では、情報更新が間に合わず<strong>初日と同じ全22曲がそのまま暫定掲載</strong>されています。
+          </p>
+          <div class="p-2.5 bg-white rounded border border-purple-200 text-xs space-y-1.5">
+            <div class="font-bold text-purple-950">具体的な差異箇所（現地参加者レポ：<a href="https://note.com/cute_lilac186/n/nc7e9bd4359a3" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:underline">note KANAKOJI 神戸レポ</a>より）：</div>
+            <ul class="list-disc list-inside space-y-1 text-slate-700">
+              <li><strong>MONONOFU NIPPONの追加：</strong>11曲目にツアー初となる「MONONOFU NIPPON」が投入され、会場が沸騰しました（暫定サイトには未記載）。</li>
+              <li><strong>曲順の大幅な組み替え：</strong>10曲目だった「真冬のサンサンサマータイム」が自己紹介MC前の5曲目へと前倒しされ、ダンシングタンクの後にサンタさんが入る構成へ変更。</li>
+              <li><strong>SECRET LOVE STORY等のカット：</strong>初日にあった「SECRET LOVE STORY」および「Friends Friends Friends」が外れ、福山でカットされていた「泣いちゃいそう冬」が復帰しています。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- PERFORMANCE 4: 京都 ロームシアター京都 (11/07) -->
+    <article class="perf-card bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" data-city="kyoto">
+      <!-- Card Header -->
+      <div class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="bg-white/20 text-white text-xs px-2.5 py-0.5 rounded-full font-bold">第4公演</span>
+            <span class="text-xs text-white/80">開場16:30 / 開演17:30</span>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-black">2026年11月7日（土）京都公演</h2>
+          <p class="text-xs sm:text-sm text-white/90">会場：ロームシアター京都 メインホール（京都府京都市左京区）</p>
+        </div>
+        <div class="bg-black/20 rounded-xl px-4 py-2 text-right self-start sm:self-auto">
+          <span class="text-xs text-white/80 block">披露曲数（現地レポ準拠）</span>
+          <span class="text-lg font-black tracking-tight">全21曲 <span class="text-xs font-normal">(本編18+EN3)</span></span>
+        </div>
+      </div>
+
+      <!-- Setlist Content -->
+      <div class="p-4 sm:p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">セットリスト（現地参加者情報最優先）</span>
+          <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">「SECRET LOVE STORY」復活</span>
+        </div>
+
+        <ol class="divide-y divide-slate-100 text-sm song-list">
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">00</span><span class="font-bold flex-1">overture ～ももいろクローバーZ参上!!～</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール必須</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">01</span><span class="font-medium flex-1">Z伝説 ～ファンファーレは止まらない～</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">02</span><span class="font-medium flex-1">DNA狂詩曲</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">大コール</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">03</span><span class="font-medium flex-1">あんた飛ばしすぎ!!</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">ハイテンション</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">04</span><span class="font-medium flex-1">JUMP!!!!!</span><span class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">ジャンプ</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">05</span><span class="font-medium flex-1">真冬のサンサンサマータイム</span><span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">タオル曲</span></li>
+          <li class="py-1.5 px-3 bg-slate-50 text-slate-500 text-xs rounded-lg font-medium">MC（自己紹介 / サンタ試験）</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">06</span><span class="font-medium flex-1">PUSH</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">07</span><span class="font-medium flex-1">ダンシングタンク♡</span><span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">フリコピ</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">08</span><span class="font-medium flex-1">サンタさん</span><span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">ももクリ定番</span></li>
+          <li class="py-1.5 px-3 bg-slate-50 text-slate-500 text-xs rounded-lg font-medium">幕間映像</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">09</span><span class="font-medium flex-1">きみゆき</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">冬のバラード</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">10</span><span class="font-medium flex-1">Majoram Therapie</span><span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">フリコピ</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">11</span><span class="font-bold text-rose-600 flex-1">MONONOFU NIPPON feat. 布袋寅泰</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">激アツコール</span></li>
+          <li class="py-1.5 px-3 bg-slate-50 text-slate-500 text-xs rounded-lg font-medium">MC</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">12</span><span class="font-medium flex-1">クリスマスタイム（ハッピーメリークリスマス）</span><span class="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">新曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">13</span><span class="font-medium flex-1">笑一笑 ～シャオイーシャオ！～</span><span class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">クラップ</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">14</span><span class="font-medium flex-1">Link Link</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール曲</span></li>
+          <li class="py-1.5 px-3 bg-slate-50 text-slate-500 text-xs rounded-lg font-medium">幕間映像</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">15</span><span class="font-medium flex-1">今宵、ライブの下で</span><span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">ももクリ定番</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item bg-emerald-50/50"><span class="text-emerald-600 font-mono w-6 text-xs font-bold">16</span><span class="font-bold text-emerald-950 flex-1">SECRET LOVE STORY <span class="text-xs text-emerald-700 font-normal">（★福山公演以来の復活！）</span></span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">冬のカバー曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">17</span><span class="font-medium flex-1">僕等のセンチュリー</span><span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">ももクリ定番</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">18</span><span class="font-medium flex-1">白い風</span><span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">本編ラストバラード</span></li>
+          <li class="py-1.5 px-3 bg-rose-50 text-rose-700 text-xs rounded-lg font-bold">アンコール</li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">19</span><span class="font-bold flex-1">行くぜっ！怪盗少女</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">最大コール</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">20</span><span class="font-medium flex-1">会心の一劇</span><span class="text-xs text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded-full">コール曲</span></li>
+          <li class="py-2 flex items-center justify-between gap-2 song-item"><span class="text-slate-400 font-mono w-6 text-xs">21</span><span class="font-medium flex-1">L.O.V.E</span><span class="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">L.O.V.Eコール</span></li>
+        </ol>
+
+        <!-- DISCREPANCY & SOURCE ANNOTATION (直下の注釈) -->
+        <div class="mt-4 p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-2 text-xs sm:text-sm text-slate-700">
+          <div class="flex items-center gap-1.5 font-bold text-emerald-950">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            <span>【京都公演】他情報での差異および終盤ブロックの選曲食い違い</span>
+          </div>
+          <p class="leading-relaxed">
+            速報ブログの<a href="https://live-setlist.hatenablog.com/entry/momochri-kyoto-2026-11" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:underline font-medium">ライブ-セットリスト 京都公演</a>では、前半〜中盤（MONONOFU NIPPONの披露など）は現地情報と一致しているものの、終盤16曲目以降のリストに食い違いがあります（なお<a href="https://muhoric.com/momoclo2026chirstmas-setlist/" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:underline font-medium">MU-HOLIC</a>は京都公演のセトリ未更新）。
+          </p>
+          <div class="p-2.5 bg-white rounded border border-emerald-200 text-xs space-y-1.5">
+            <div class="font-bold text-emerald-950">具体的な差異箇所：</div>
+            <ul class="list-disc list-inside space-y-1 text-slate-700">
+              <li><strong>「ライブ-セットリスト」側の記載：</strong>16. 泣いちゃいそう冬 → 17. 僕等のセンチュリー → 18. Friends Friends Friends → 19. 白い風（全22曲構成）</li>
+              <li><strong>現地参加者レポ（<a href="https://note.com/cute_lilac186/n/n00fff4b256bb" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:underline">note KANAKOJI 京都レポ</a>）の記載：</strong>神戸でカットされていた<strong>「SECRET LOVE STORY」が16曲目に復活</strong>し、そのまま「僕等のセンチュリー」→「白い風」へ続く全21曲構成。「泣いちゃいそう冬」および「Friends Friends Friends」の披露は記録されていません。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- SCHEDULE SECTION: 今後の公演日程 -->
+    <div id="schedule-section" class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3" data-city="schedule">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h2 class="font-extrabold text-base sm:text-lg text-slate-800 flex items-center gap-2">
+          <span>🎄 今後の「ももクリDelivery」開催ツアースケジュール</span>
+        </h2>
+        <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">全公演 SOLD OUT</span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
+        <div class="p-3 rounded-lg border border-slate-100 bg-slate-50 flex justify-between items-center">
+          <div><div class="font-bold text-slate-900">11月22日（日）新潟</div><div class="text-slate-500 text-xs">新潟テルサ (16:00開演)</div></div>
+          <span class="text-xs font-semibold text-rose-600 bg-rose-50 px-2 py-1 rounded">次回公演</span>
+        </div>
+        <div class="p-3 rounded-lg border border-slate-100 bg-slate-50 flex justify-between items-center">
+          <div><div class="font-bold text-slate-900">11月23日（月・祝）愛知</div><div class="text-slate-500 text-xs">一宮市民会館 (17:30開演)</div></div>
+          <span class="text-xs text-slate-400">予定</span>
+        </div>
+        <div class="p-3 rounded-lg border border-slate-100 bg-slate-50 flex justify-between items-center">
+          <div><div class="font-bold text-slate-900">11月27日（金）福岡</div><div class="text-slate-500 text-xs">福岡市民ホール 大ホール (19:00開演)</div></div>
+          <span class="text-xs text-slate-400">予定</span>
+        </div>
+        <div class="p-3 rounded-lg border border-slate-100 bg-slate-50 flex justify-between items-center">
+          <div><div class="font-bold text-slate-900">12月3日（木）北海道</div><div class="text-slate-500 text-xs">Zepp Sapporo (19:00開演・GIG番外編)</div></div>
+          <span class="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded">番外編GIG</span>
+        </div>
+        <div class="p-3 rounded-lg border border-slate-100 bg-slate-50 flex justify-between items-center sm:col-span-2">
+          <div><div class="font-bold text-slate-900">12月11日（金）・12日（土）・13日（日）東京ファイナル 3DAYS</div><div class="text-slate-500 text-xs">SGC HALL ARIAKE (千秋楽)</div></div>
+          <span class="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">ツアーファイナル</span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Bottom App Return Floating Bar -->
+  <aside aria-label="ページフッター操作" class="bg-white border-t border-slate-200 py-4 px-4 shadow-lg sticky bottom-0 z-40">
+    <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="text-xs text-slate-500 text-center sm:text-left">
+        ももクロコールアプリ特集編集部 | 現地情報提供：モノノフ有志レポ
+      </div>
+      <a href="./" id="btn-back-app-bottom" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 px-6 py-2.5 rounded-full shadow-md transition-all">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        <span>ももクロコールアプリへ戻る</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- In-Page App Return Toast Modal -->
+  <div id="app-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4 animate-scale-up">
+      <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+      </div>
+      <div class="space-y-1">
+        <h3 class="text-base font-bold text-slate-900">ももクロコールアプリへ戻ります</h3>
+        <p class="text-xs text-slate-600">アプリのメインコールメニューへ遷移します（ブラウザでは元のタブ・画面へ戻ります）。</p>
+      </div>
+      <div class="flex gap-2">
+        <button type="button" id="btn-close-modal" class="flex-1 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition">
+          この特集にとどまる
+        </button>
+        <button type="button" id="btn-confirm-return" class="flex-1 py-2 px-3 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg shadow transition">
+          トップへ戻る
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive JavaScript Logic -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const tabs = document.querySelectorAll('.tab-btn');
+      const cards = document.querySelectorAll('.perf-card');
+      const scheduleSection = document.getElementById('schedule-section');
+      const searchInput = document.getElementById('song-search');
+      const backAppBtn = document.getElementById('btn-back-app');
+      const backAppBottomBtn = document.getElementById('btn-back-app-bottom');
+      const modal = document.getElementById('app-modal');
+      const closeModalBtn = document.getElementById('btn-close-modal');
+      const confirmReturnBtn = document.getElementById('btn-confirm-return');
+
+      // Tab filtering
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(t => {
+            t.classList.remove('tab-active');
+            t.classList.add('bg-white', 'text-slate-700', 'border', 'border-slate-200');
+          });
+          tab.classList.add('tab-active');
+          tab.classList.remove('bg-white', 'text-slate-700', 'border', 'border-slate-200');
+
+          const target = tab.getAttribute('data-tab');
+          if (target === 'all') {
+            cards.forEach(c => c.classList.remove('hidden'));
+            scheduleSection.classList.remove('hidden');
+          } else if (target === 'schedule') {
+            cards.forEach(c => c.classList.add('hidden'));
+            scheduleSection.classList.remove('hidden');
+          } else {
+            cards.forEach(c => {
+              if (c.getAttribute('data-city') === target) {
+                c.classList.remove('hidden');
+              } else {
+                c.classList.add('hidden');
+              }
+            });
+            scheduleSection.classList.add('hidden');
+          }
+        });
+      });
+
+      // Search filtering across all song lists
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim().toLowerCase();
+        const songItems = document.querySelectorAll('.song-item');
+
+        if (!query) {
+          songItems.forEach(item => {
+            item.classList.remove('hidden');
+            item.style.backgroundColor = '';
+          });
+          return;
+        }
+
+        songItems.forEach(item => {
+          const text = item.textContent.toLowerCase();
+          if (text.includes(query)) {
+            item.classList.remove('hidden');
+            item.style.backgroundColor = '#fef2f2';
+          } else {
+            item.classList.add('hidden');
+            item.style.backgroundColor = '';
+          }
+        });
+      });
+
+      // Modal trigger for "Return to app"
+      const handleReturnClick = (e) => {
+        e.preventDefault();
+        modal.classList.remove('hidden');
+      };
+
+      backAppBtn.addEventListener('click', handleReturnClick);
+      backAppBottomBtn.addEventListener('click', handleReturnClick);
+
+      closeModalBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+      });
+
+      confirmReturnBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+        window.location.href = './';
+      });
+
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.add('hidden');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

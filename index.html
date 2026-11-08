@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ももクロコール共有(テスト中)</title>
-<link rel="stylesheet" href="style.css?v=51">
+<link rel="stylesheet" href="style.css?v=56">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
 <script>
@@ -63,9 +63,19 @@ gtag('config', 'G-00QSZME258');
   <div id="songbox"></div>
   <div id="tot"></div>
   <div id="who"></div>
+  <div id="modebar">
+    <button id="spModeBtn" class="modebtn spbtn" data-a="spMode">🎵 Spotifyモード</button>
+    <button id="bigCallBtn" class="modebtn" data-a="bigCall">コール大きく</button>
+    <button id="tlFsBtn" class="modebtn" data-a="tlNow">タイムライン全画面</button>
+  </div>
+  <div id="spPrevWarn" style="display:none">Spotifyのプレビュー再生になっています。フル再生できない環境のようです</div>
   <div id="mvwrap">
   <div id="mv">
     <div id="yt"></div>
+    <div id="spWrap" style="display:none">
+      <div id="spEmbedBox"><div id="spEmbed"></div></div>
+      <div id="spNoTrack" style="display:none">この曲はSpotifyでは再生できません</div>
+    </div>
     <div id="kokos"></div>
     <div class="crowd">🙌🙌🙌🙌🙌🙌🙌🙌</div>
     <div id="pen" style="color:#fff"></div>
@@ -119,7 +129,7 @@ gtag('config', 'G-00QSZME258');
   <div id="info"></div>
   <button id="mkvBtn" data-a="mkv">ももクリDelivery特集<span class="newStamp">NEW</span></button>
   <div id="freearea"></div>
-  <div style="text-align:center;font-size:10px;color:#8e91b8">build 51</div>
+  <div style="text-align:center;font-size:10px;color:#8e91b8">build 56</div>
 
   <section id="mk">
     <h2>推しコールを作る</h2>
@@ -206,17 +216,204 @@ gtag('config', 'G-00QSZME258');
 </div>
 
 <div id="mkvPage" class="ovl">
-  <div class="obar"><button data-a="closeMkv">戻る</button><b>ももクリ Delivery特集</b></div>
-  <div class="mkvBody">特集ページの内容は準備中です。
-    <p style="margin:14px 0 4px"><a class="bbsGo" href="bbs.html">ももクリDelivery掲示板（ネタバレあり）</a></p>
+  <div class="obar"><button data-a="closeMkv" class="mkvBackBtn">← ももクロコールアプリへ戻る</button><b>ももクリ Delivery特集</b></div>
+  <div class="mkvBody">
+    <div class="mkvNotice">
+      <b>【掲載情報に関するおことわり（免責事項）】</b><br>
+      私がまだこの「ももクリDelivery」ツアーに未参加につき、このセットリスト情報の信憑性を担保することはできません。<br>
+      本ページでは<b>現地参加者による詳細レポート情報（note）を最優先</b>して掲載しています。他サイトのセットリスト情報と同公演で差異がある場合は、各公演セットリストの直下に注釈で他情報での差異があることを説明し、その差異箇所と出典元リンクを提示しています。
+    </div>
+
+    <p style="margin:14px 0 10px"><a class="bbsGo" href="bbs.html">ももクリDelivery掲示板（ネタバレあり）</a></p>
+    <p style="margin:0 0 16px;text-align:center;font-size:12px"><a href="momochri_delivery.html" style="color:#ffd23f;font-weight:700;text-decoration:underline">▶ 特集ページを単独画面（検索・タブ切替つき）で開く</a> | <a href="https://www.momoclo.net/momochri2026/" target="_blank" rel="noopener" style="color:#ff7ab8;text-decoration:underline">公式特設サイト</a></p>
+
+    <!-- 第1公演：東京 -->
+    <div class="mkvPerf">
+      <div class="mkvPerfHd">
+        <span class="mkvBadge">第1公演・初日</span>
+        <h3>2026年10月30日（金）東京・SGC HALL ARIAKE</h3>
+        <small>開場18:00 / 開演19:00｜全22曲（本編19曲＋アンコール3曲）</small>
+      </div>
+      <ol class="mkvSetlist">
+        <li><span class="n">00.</span> overture ～ももいろクローバーZ参上!!～</li>
+        <li><span class="n">01.</span> Z伝説 ～ファンファーレは止まらない～ <small>（Z伝説〜デリバリーは止まらないver.）</small></li>
+        <li><span class="n">02.</span> DNA狂詩曲</li>
+        <li><span class="n">03.</span> あんた飛ばしすぎ!!</li>
+        <li><span class="n">04.</span> JUMP!!!!!</li>
+        <li><span class="n">05.</span> サンタさん <small>（客席へサインボール投げ）</small></li>
+        <li class="mc">― MC（自己紹介・サンタ採用試験） ―</li>
+        <li><span class="n">06.</span> PUSH</li>
+        <li><span class="n">07.</span> ダンシングタンク♡ <small>（ももクリデリバリーver.）</small></li>
+        <li class="mc">― 幕間映像（2nd衣装） ―</li>
+        <li><span class="n">08.</span> きみゆき</li>
+        <li><span class="n">09.</span> Majoram Therapie</li>
+        <li><span class="n">10.</span> 真冬のサンサンサマータイム</li>
+        <li class="mc">― MC（ご当地トーク） ―</li>
+        <li><span class="n">11.</span> クリスマスタイム（ハッピーメリークリスマス） <small>（ツアー用オリジナル新曲）</small></li>
+        <li><span class="n">12.</span> 笑一笑 ～シャオイーシャオ！～</li>
+        <li><span class="n">13.</span> Link Link</li>
+        <li class="mc">― 幕間映像（3rd衣装） ―</li>
+        <li><span class="n">14.</span> 今宵、ライブの下で</li>
+        <li><span class="n">15.</span> SECRET LOVE STORY</li>
+        <li><span class="n">16.</span> 泣いちゃいそう冬</li>
+        <li><span class="n">17.</span> 僕等のセンチュリー</li>
+        <li><span class="n">18.</span> Friends Friends Friends</li>
+        <li><span class="n">19.</span> 白い風</li>
+        <li class="en">【アンコール】</li>
+        <li><span class="n">20.</span> 行くぜっ！怪盗少女</li>
+        <li><span class="n">21.</span> 会心の一劇</li>
+        <li><span class="n">22.</span> L.O.V.E</li>
+      </ol>
+      <div class="mkvDiff">
+        <b>※他情報との差異・注釈（東京公演）：</b><br>
+        現地参加者レポ（<a href="https://note.com/cute_lilac186/n/n63692e7af8a6" target="_blank" rel="noopener">note: KANAKOJI</a>）と各セトリ速報サイト（<a href="https://oshikatsu.co.jp/news/momoiro-clover-z-momochri-delivery-2026-setlist/" target="_blank" rel="noopener">オシカツ</a>、<a href="https://live-setlist.hatenablog.com/entry/momochri-ariake-2026-10" target="_blank" rel="noopener">ライブ-セットリスト</a>、<a href="https://muhoric.com/momoclo2026chirstmas-setlist/" target="_blank" rel="noopener">MU-HOLIC</a>）の間で、披露された全22曲の曲目・曲順に差異はありません。<br>
+        ・<b>差異箇所（曲名表記）：</b>11曲目のクリスマス新曲について、速報サイト側では「ハッピーメリークリスマス」と表記されていますが、現地レポではMCにて百田夏菜子さんが「まだ曲名がなくて『クリスマスタイム』と呼んでいる」と発言した旨が記録されているため両表記を併記しています。
+      </div>
+    </div>
+
+    <!-- 第2公演：広島 -->
+    <div class="mkvPerf">
+      <div class="mkvPerfHd">
+        <span class="mkvBadge">第2公演</span>
+        <h3>2026年11月2日（月）広島・ふくやま芸術文化ホール リーデンローズ</h3>
+        <small>開場18:00 / 開演19:00｜全21曲（本編18曲＋アンコール3曲 ※現地レポ準拠）</small>
+      </div>
+      <ol class="mkvSetlist">
+        <li><span class="n">00.</span> overture ～ももいろクローバーZ参上!!～</li>
+        <li><span class="n">01.</span> Z伝説 ～ファンファーレは止まらない～ <small>（デリバリーver.）</small></li>
+        <li><span class="n">02.</span> DNA狂詩曲</li>
+        <li><span class="n">03.</span> あんた飛ばしすぎ!!</li>
+        <li><span class="n">04.</span> JUMP!!!!!</li>
+        <li><span class="n">05.</span> サンタさん <small>（サインボール・ラケット打ちに変更）</small></li>
+        <li class="mc">― MC（自己紹介・広島ご当地クイズサンタ試験） ―</li>
+        <li><span class="n">06.</span> PUSH</li>
+        <li><span class="n">07.</span> ダンシングタンク♡ <small>（デリバリー編）</small></li>
+        <li class="mc">― 幕間映像 ―</li>
+        <li class="chg"><span class="n">08.</span> 真冬のサンサンサマータイム <small>（★初日10曲目から入替）</small></li>
+        <li><span class="n">09.</span> Majoram Therapie</li>
+        <li class="chg"><span class="n">10.</span> きみゆき <small>（★初日8曲目から入替）</small></li>
+        <li class="mc">― MC ―</li>
+        <li><span class="n">11.</span> クリスマスタイム（ハッピーメリークリスマス）</li>
+        <li><span class="n">12.</span> 笑一笑 ～シャオイーシャオ！～</li>
+        <li><span class="n">13.</span> Link Link</li>
+        <li class="mc">― 幕間映像 ―</li>
+        <li><span class="n">14.</span> 今宵、ライブの下で</li>
+        <li><span class="n">15.</span> SECRET LOVE STORY</li>
+        <li class="chg"><span class="n">16.</span> 僕等のセンチュリー <small>（★泣いちゃいそう冬カット・FFFと入替）</small></li>
+        <li class="chg"><span class="n">17.</span> Friends Friends Friends <small>（★僕センと順序入替）</small></li>
+        <li><span class="n">18.</span> 白い風</li>
+        <li class="en">【アンコール】</li>
+        <li><span class="n">19.</span> 行くぜっ！怪盗少女</li>
+        <li><span class="n">20.</span> 会心の一劇</li>
+        <li><span class="n">21.</span> L.O.V.E</li>
+      </ol>
+      <div class="mkvDiff">
+        <b>※他情報との差異・注釈（広島公演）：</b><br>
+        他サイトのセトリまとめ（<a href="https://lignea.co.jp/mcz-setlist/" target="_blank" rel="noopener">LIGNEA</a>、<a href="https://live-setlist.hatenablog.com/entry/momochri-hiroshima-2026-11" target="_blank" rel="noopener">ライブ-セットリスト</a>、<a href="https://muhoric.com/momoclo2026chirstmas-setlist/" target="_blank" rel="noopener">MU-HOLIC</a>）では「初日の有明公演と曲目・曲順がすべて同じ全22曲」として掲載されていますが、現地参加者レポ（<a href="https://note.com/cute_lilac186/n/n8d99ae5e4fe9" target="_blank" rel="noopener">note: KANAKOJI 福山レポ</a>）では以下の差異が報告されています。<br>
+        ・<b>差異箇所①（中盤の曲順入替）：</b>8〜10曲目が初日の「きみゆき→Majoram Therapie→サンサンサマー」から「サンサンサマー→Majoram Therapie→きみゆき」へ変更。<br>
+        ・<b>差異箇所②（曲カットと終盤の入替）：</b>15曲目「SECRET LOVE STORY」の直後にあった<b>「泣いちゃいそう冬」がカット</b>され、「僕等のセンチュリー→Friends Friends Friends」の順で披露（計21曲）。
+      </div>
+    </div>
+
+    <!-- 第3公演：兵庫 -->
+    <div class="mkvPerf">
+      <div class="mkvPerfHd">
+        <span class="mkvBadge">第3公演</span>
+        <h3>2026年11月6日（金）兵庫・神戸国際会館 こくさいホール</h3>
+        <small>開場18:00 / 開演19:00｜全21曲（本編18曲＋アンコール3曲 ※現地レポ準拠）</small>
+      </div>
+      <ol class="mkvSetlist">
+        <li><span class="n">00.</span> overture ～ももいろクローバーZ参上!!～</li>
+        <li><span class="n">01.</span> Z伝説 ～ファンファーレは止まらない～</li>
+        <li><span class="n">02.</span> DNA狂詩曲</li>
+        <li><span class="n">03.</span> あんた飛ばしすぎ!!</li>
+        <li><span class="n">04.</span> JUMP!!!!!</li>
+        <li class="chg"><span class="n">05.</span> 真冬のサンサンサマータイム <small>（★自己紹介MC前に繰り上げ）</small></li>
+        <li class="mc">― MC（自己紹介・兵庫ご当地クイズサンタ試験） ―</li>
+        <li><span class="n">06.</span> PUSH</li>
+        <li><span class="n">07.</span> ダンシングタンク♡ <small>（デリバリー編）</small></li>
+        <li class="chg"><span class="n">08.</span> サンタさん <small>（★5曲目から移動・ラケット打ち）</small></li>
+        <li class="mc">― 幕間映像 ―</li>
+        <li><span class="n">09.</span> きみゆき</li>
+        <li><span class="n">10.</span> Majoram Therapie</li>
+        <li class="chg"><span class="n">11.</span> MONONOFU NIPPON feat. 布袋寅泰 <small>（★今ツアー初披露！）</small></li>
+        <li class="mc">― MC ―</li>
+        <li><span class="n">12.</span> クリスマスタイム（ハッピーメリークリスマス）</li>
+        <li><span class="n">13.</span> 笑一笑 ～シャオイーシャオ！～</li>
+        <li><span class="n">14.</span> Link Link</li>
+        <li class="mc">― 幕間映像 ―</li>
+        <li><span class="n">15.</span> 今宵、ライブの下で</li>
+        <li class="chg"><span class="n">16.</span> 泣いちゃいそう冬 <small>（★福山カットから復帰 / SLSカット）</small></li>
+        <li><span class="n">17.</span> 僕等のセンチュリー</li>
+        <li><span class="n">18.</span> 白い風</li>
+        <li class="en">【アンコール】</li>
+        <li><span class="n">19.</span> 行くぜっ！怪盗少女</li>
+        <li><span class="n">20.</span> 会心の一劇</li>
+        <li><span class="n">21.</span> L.O.V.E</li>
+      </ol>
+      <div class="mkvDiff">
+        <b>※他情報との差異・注釈（兵庫・神戸公演）：</b><br>
+        速報サイトの<a href="https://live-setlist.hatenablog.com/entry/momochri-kobe-2026-11" target="_blank" rel="noopener">ライブ-セットリスト</a>（「※わかるまで、今ツアーの選曲です」）および<a href="https://muhoric.com/momoclo2026chirstmas-setlist/" target="_blank" rel="noopener">MU-HOLIC</a>（「最新のセトリが判明するまでは前回公演の内容を掲載」）では、初日公演と同一の全22曲が暫定掲載されたままになっていますが、現地参加者レポ（<a href="https://note.com/cute_lilac186/n/nc7e9bd4359a3" target="_blank" rel="noopener">note: KANAKOJI 神戸レポ</a>）では大幅な変更が記録されています。<br>
+        ・<b>差異箇所①（新投入曲）：</b>11曲目にツアー初披露となる<b>「MONONOFU NIPPON」</b>が追加。<br>
+        ・<b>差異箇所②（前半構成の入替）：</b>「真冬のサンサンサマータイム」がMC前の5曲目に繰り上げられ、「サンタさん」が8曲目へ移動。<br>
+        ・<b>差異箇所③（終盤曲の入替）：</b>「SECRET LOVE STORY」と「Friends Friends Friends」が外れ、「泣いちゃいそう冬」が復帰。
+      </div>
+    </div>
+
+    <!-- 第4公演：京都 -->
+    <div class="mkvPerf">
+      <div class="mkvPerfHd">
+        <span class="mkvBadge">第4公演</span>
+        <h3>2026年11月7日（土）京都・ロームシアター京都 メインホール</h3>
+        <small>開場16:30 / 開演17:30｜全21曲（本編18曲＋アンコール3曲 ※現地レポ準拠）</small>
+      </div>
+      <ol class="mkvSetlist">
+        <li><span class="n">00.</span> overture ～ももいろクローバーZ参上!!～</li>
+        <li><span class="n">01.</span> Z伝説 ～ファンファーレは止まらない～</li>
+        <li><span class="n">02.</span> DNA狂詩曲</li>
+        <li><span class="n">03.</span> あんた飛ばしすぎ!!</li>
+        <li><span class="n">04.</span> JUMP!!!!!</li>
+        <li><span class="n">05.</span> 真冬のサンサンサマータイム</li>
+        <li class="mc">― MC（自己紹介・サンタ試験） ―</li>
+        <li><span class="n">06.</span> PUSH</li>
+        <li><span class="n">07.</span> ダンシングタンク♡ <small>（デリバリー編）</small></li>
+        <li><span class="n">08.</span> サンタさん</li>
+        <li class="mc">― 幕間映像 ―</li>
+        <li><span class="n">09.</span> きみゆき</li>
+        <li><span class="n">10.</span> Majoram Therapie</li>
+        <li><span class="n">11.</span> MONONOFU NIPPON feat. 布袋寅泰</li>
+        <li class="mc">― MC ―</li>
+        <li><span class="n">12.</span> クリスマスタイム（ハッピーメリークリスマス）</li>
+        <li><span class="n">13.</span> 笑一笑 ～シャオイーシャオ！～</li>
+        <li><span class="n">14.</span> Link Link</li>
+        <li class="mc">― 幕間映像 ―</li>
+        <li><span class="n">15.</span> 今宵、ライブの下で</li>
+        <li class="chg"><span class="n">16.</span> SECRET LOVE STORY <small>（★福山公演以来の復活！）</small></li>
+        <li><span class="n">17.</span> 僕等のセンチュリー</li>
+        <li><span class="n">18.</span> 白い風</li>
+        <li class="en">【アンコール】</li>
+        <li><span class="n">19.</span> 行くぜっ！怪盗少女</li>
+        <li><span class="n">20.</span> 会心の一劇</li>
+        <li><span class="n">21.</span> L.O.V.E</li>
+      </ol>
+      <div class="mkvDiff">
+        <b>※他情報との差異・注釈（京都公演）：</b><br>
+        現地参加者レポ（<a href="https://note.com/cute_lilac186/n/n00fff4b256bb" target="_blank" rel="noopener">note: KANAKOJI 京都レポ</a>）と速報ブログ（<a href="https://live-setlist.hatenablog.com/entry/momochri-kyoto-2026-11" target="_blank" rel="noopener">ライブ-セットリスト 京都公演</a>）を比較すると、15曲目「今宵、ライブの下で」までの曲順（5曲目のサンサンサマー、11曲目のMONONOFU NIPPON含む）は一致していますが、終盤バラード〜本編ラストにかけて差異があります。<br>
+        ・<b>差異箇所（終盤16曲目以降）：</b>現地レポでは神戸で外れていた<b>「SECRET LOVE STORY」が16曲目に復活</b>し、「僕等のセンチュリー→白い風」へ繋がる全21曲構成ですが、「ライブ-セットリスト」側では「16.泣いちゃいそう冬 → 17.僕等のセンチュリー → 18.Friends Friends Friends → 19.白い風」（全22曲）と記載されており、「SECRET LOVE STORY」の有無と「泣いちゃいそう冬」「FFF」の有無が食い違っています（なお<a href="https://muhoric.com/momoclo2026chirstmas-setlist/" target="_blank" rel="noopener">MU-HOLIC</a>は京都公演セトリ未反映）。
+      </div>
+    </div>
+
+    <div style="margin-top:18px;text-align:center">
+      <button data-a="closeMkv" class="mkvBackBtn" style="width:100%;padding:12px;font-size:15px">← ももクロコールアプリへ戻る</button>
+    </div>
   </div>
 </div>
 
 <div id="toast"></div>
 
 <script src="ui.js?v=48" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="app.js?v=51" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
+<script src="app.js?v=56" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
-<script src="edit.js?v=51"></script>
+<script src="edit.js?v=56"></script>
 </body>
 </html>
