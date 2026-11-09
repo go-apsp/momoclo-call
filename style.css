@@ -55,7 +55,8 @@ body.nofs #nexts{position:fixed;top:0;left:0;right:0;z-index:34}
 .dots .sel i{outline:3px solid #fff;outline-offset:2px}
 input[type=range]{width:100%;accent-color:var(--pink);height:28px;margin:0}
 .times{display:flex;justify-content:space-between;font-size:11px;color:var(--mut)}
-#play{height:56px;border-radius:28px;background:var(--pink);color:#2a0c1c;font-weight:900;font-size:16px}
+#play{width:88px;height:88px;flex:none;border-radius:50%;background:var(--pink);color:#2a0c1c;font-weight:900;font-size:16px}
+#play.meas{font-size:12px;line-height:1.4;padding:8px}
 #info{font-size:12px;color:var(--mut);text-align:center}
 #ov{position:fixed;inset:0;background:rgba(14,15,34,.92);display:none;z-index:35;overflow:auto}
 #ov .in{max-width:480px;margin:0 auto;padding:16px}
@@ -139,8 +140,8 @@ body.nofs{overflow:hidden}
 .durrow input[type=range]{flex:1}
 .durrow b{color:#ffd23f;min-width:40px;text-align:right}
 .mkrow .dursl{flex:1 1 120px;width:auto;min-width:120px;height:24px}
-.playrow{display:flex;gap:8px;align-items:stretch}
-.playrow #play{flex:1}
+.playrow{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.playrow .skb{height:48px}
 .skb{padding:0 10px;border-radius:20px;border:2px solid #8e91b8;font-weight:900;font-size:13px;color:#f4f4fb;background:#262a4a}
 #randcall{width:100%;min-height:48px;border-radius:24px;border:2px solid #a66bff;color:#c9a7ff;font-weight:900;margin-bottom:12px;background:transparent}
 .adjb{width:34px;height:34px;border-radius:50%;border:2px solid #ffd23f;color:#ffd23f;font-weight:900;font-size:16px;flex:none;background:transparent;line-height:1}
@@ -296,3 +297,23 @@ body.nofs #impact{position:fixed;left:50%;bottom:8px;top:auto;z-index:60}
 .pdlg-btns{display:flex;gap:10px;justify-content:flex-end}
 .pdlg-ok{background:#ff5d8f;color:#fff;font-weight:900;border:0;border-radius:999px;padding:9px 22px;cursor:pointer}
 .pdlg-c{background:#262a4d;color:#cfd2f2;font-weight:700;border:1px solid #2c2f57;border-radius:999px;padding:9px 22px;cursor:pointer}
+/* build 58: モード方式(制作モード/シェアポイント作成モード) */
+.mkmode{font-size:11px;color:#ffd23f;border:1.5px solid #ffd23f;border-radius:10px;padding:2px 8px;vertical-align:2px}
+#mkCreate{width:100%;height:56px;border-radius:28px;background:#ffd23f;color:#2a2410;font-weight:900;font-size:16px}
+#mkCreate.go{background:#4dc9ff;color:#0b2233}
+#mkCreate.edit{background:#a66bff;color:#fff}
+#mkHint{font-size:12px;color:var(--mut);line-height:1.6}
+#mkList{height:208px;overflow-y:auto;overscroll-behavior:contain;border:1px solid #2c2f57;border-radius:12px;padding:6px;background:#14152b}
+.mkcard{display:flex;align-items:stretch;gap:6px;border-bottom:1px solid #2c2f57;padding:3px 0}
+.mkcard:last-child{border-bottom:0}
+.mkcard .mkpick{flex:1;display:flex;align-items:center;gap:8px;min-height:44px;text-align:left;font-size:13px;padding:4px 8px;border-radius:10px;color:var(--ink)}
+.mkcard .mkt{font-weight:900;color:#cfd2f2;flex:none}
+.mkcard .mkk{flex:none;font-size:11px;font-weight:900;border:1.5px solid #8e91b8;border-radius:9px;padding:2px 7px}
+.mkcard .mkx{flex:1;overflow-wrap:anywhere}
+.mkcard .mkd{flex:none;color:#ffd23f;font-weight:700;font-size:12px}
+.mkcard .mkdel{width:40px;flex:none;font-size:16px;color:var(--mut)}
+.mkcard.sel{background:rgba(166,107,255,.16);border-radius:10px}
+.mkcard.sel .mkpick{outline:2px solid #a66bff}
+.mkcard.pend{background:rgba(77,201,255,.12);border-radius:10px}
+.mkcard.pend .mkpick{outline:2px dashed #4dc9ff}
+#spStep{width:100%;height:52px;border-radius:26px;background:#ff7ab8;color:#fff;font-weight:900;font-size:15px}

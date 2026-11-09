@@ -65,6 +65,10 @@ let mk = {scenes: [], type: "call", from: null, base: ""};
 let tlId = null, tlZoom = false, tlD = 1, mkPv = null, refCalls = [], refPlay = false, randPlay = false, mkMeas = null;
 let cmts = {}, pendAll = [], pendKnown = new Set();
 let spRange = null, spEdit = null, mySps = [], spRef = null, curRef = null;
+let uiMode = "play";            // build 58: 画面遷移なしのモード切替 "play"(通常) | "mk"(制作) | "sp"(シェアポイント作成)
+let mkSel = -1, mkPend = -1;    // 制作モード: 編集中の場面インデックス / 長さ決め待ちの場面インデックス
+let mkMeas2 = null;             // 再編集の長さ測り直し {i, phase:"ready"|"run"}(旧 mkMeas とは別)
+let spStep = 0;                 // シェアポイント作成の段階 0=始点を決める 1=終点を決める 2=作成する
 
 /* ---------- MV(YouTube) & Spotify埋め込みプレイヤー(Iframe API) ---------- */
 let yt = null, ytReady = false, last = 0, drag = false;
@@ -214,7 +218,10 @@ bar.addEventListener("change", () => { drag = false; if (playerReady()) playerSe
 function loop(ts) {
   last = ts;
   const t = now(), st = playerState(), pl = st === 1;
-  $("play").textContent = $("fsplay").textContent = pl ? "一時停止" : "再生";
+  $("fsplay").textContent = pl ? "一時停止" : "再生";
+  const pb = $("play");   // build 58: 大きな丸ボタンは、再編集の長さ測り直し中は表示名と働きが変わる
+  if (uiMode === "mk" && mkMeas2) { pb.textContent = mkMeas2.phase === "run" ? "ここで長さを決める" : "再生して長さを測る"; pb.classList.add("meas"); }
+  else { pb.textContent = pl ? "一時停止" : "再生"; pb.classList.remove("meas"); }
   if (st === 0 && sess) { sess = null; paintApply(); }   // 曲が終わったら、次回の再生でリセット
   if (mkPv && t >= mkPv.until) { mkPv = null; playerPause(); toast("プレビューが終わりました"); }   // プレビューは表示終了+3秒で止める
   const R = curRange(); if (R && pl && !mkPv && t >= R.e) playerPause();   // 再生範囲の終わりで止める
@@ -398,8 +405,65 @@ function renderReview() {
 setInterval(() => { if (me && prof) checkPending(true); }, 60000);
 
 
-/* ---------- 作成 ---------- */
-function renderMk() { $("mkList").innerHTML = UI.mkList(mk.scenes); }
+/* ---------- 作成(build 58: 再生画面のまま切り替える制作モード) ---------- */
+function renderMk() { $("mkList").innerHTML = UI.mkCards(mk.scenes, mkSel, mkPend); paintMkBtn(); }
+/* 作成ボタンの表示名と働きは状態で変わる: コールカード作成 → 長さを決める / 再編集 */
+function paintMkBtn() {
+  const b = $("mkCreate"); if (!b) return;
+  const hint = $("mkHint");
+  b.classList.remove("go", "edit");
+  if (mkPend >= 0 && mk.scenes[mkPend]) {
+    b.textContent = "長さを決める"; b.classList.add("go");
+    if (hint) hint.textContent = fmt(mk.scenes[mkPend].t) + " にカードができました。表示を終わらせたい位置で、もう一度押してください。";
+  } else if (mkMeas2) {
+    b.textContent = "再編集"; b.classList.add("edit");
+    if (hint) hint.textContent = mkMeas2.phase === "ready"
+      ? "大きな再生ボタンを押すと、カードの位置から再生して長さを測り直せます。"
+      : "再生中です。表示を終わらせたい位置で、大きなボタン(ここで長さを決める)を押してください。";
+  } else if (mkSel >= 0 && mk.scenes[mkSel]) {
+    const sc = mk.scenes[mkSel];
+    b.textContent = "再編集"; b.classList.add("edit");
+    if (hint) hint.textContent = fmt(sc.t) + " の「" + sc.x + "」を編集中です。種類と内容はそのまま反映されます。「再編集」を押すと長さを測り直せます。もう一度カードを押すと編集を終わります。";
+  } else {
+    b.textContent = "コールカード作成";
+    if (hint) hint.textContent = "再生しながら押すと、その位置にカードができます。止まっている時は今の位置(最初は0秒)にできます。できたカードをタップすると中身を編集できます。";
+  }
+}
+/* 制作モードに入る/出る(画面遷移はしない。#mk は再生コントロールの直下にある) */
+function enterMk() {
+  A.spClose();
+  uiMode = "mk";
+  $("mk").style.display = "flex";
+  renderMk();
+  $("mvwrap").scrollIntoView({behavior: "smooth"});
+}
+function exitMk() {
+  if (uiMode === "mk") uiMode = "play";
+  $("mk").style.display = "none";
+  mkSel = -1; mkPend = -1; mkMeas2 = null;
+  if (mkMeas !== null) { mkMeas = null; const b = $("mkMeas"); if (b) b.textContent = "▶ 再生して表示時間を測る"; }
+  const pb = $("play"); if (pb) pb.classList.remove("meas");
+}
+/* 再編集の長さ測り直し: 大きな再生ボタンで進める(phase ready → run → 決定) */
+function mkMeasureStep() {
+  const m = mkMeas2; if (!m) return;
+  const sc = mk.scenes[m.i];
+  if (!sc) { mkMeas2 = null; renderMk(); return; }
+  if (m.phase === "ready") {
+    m.phase = "run";
+    playerSeek(sc.t);
+    playerPlay();
+    renderMk();
+    toast("長さを測っています。終わりの位置で大きなボタンを押してください");
+  } else {
+    const d = Math.round((now() - sc.t) * 10) / 10;
+    sc.d = Math.max(1, Math.min(20, d));
+    mkMeas2 = null;
+    playerPause();
+    renderMk();
+    toast("表示時間を " + sc.d + " 秒にしました");
+  }
+}
 
 /* ---------- build 50: 湧きリアクション演出(画面の振動・再生中コール連動のはみ出しバッジ・紙吹雪) ---------- */
 let impactTm = null;
@@ -486,6 +550,8 @@ function spLink(id, a, b) { return SPBASE + "#sp=" + id + "&a=" + (+a).toFixed(1
 function srLink(id, a, b) { return SPBASE + "#sr=" + id + "&a=" + (+a).toFixed(1) + "&b=" + (+b).toFixed(1); }
 function spLinkFor(s) { return String(s.callId || "").indexOf("ref:") === 0 ? srLink(s.callId.slice(4), s.a, s.b) : spLink(s.callId, s.a, s.b); }
 function spVals() { return {a: +$("spA").value, b: +$("spB").value}; }
+/* build 58: シェアポイント作成モードの細長いボタンの段階表示(始点 → 終点 → 作成) */
+function paintSpStep() { const b = $("spStep"); if (b) b.textContent = ["ここを始点にする", "ここを終点にする", "シェアポイントを作成"][spStep] || "ここを始点にする"; }
 function paintSpVals() { const v = spVals(); $("spAv").textContent = fmt(v.a); $("spBv").textContent = fmt(v.b); }
 function openSpPanel(id) {
   spRef = null;
@@ -501,6 +567,7 @@ function openSpPanel(id) {
   paintSpVals();
   $("spResult").innerHTML = (me && prof) ? "" : '<div class="spLink">ログインしていないため、このシェアポイントは保存されません（リンクのコピーとシェアはできます）</div>';
   $("spPanel").style.display = "flex";
+  exitMk(); uiMode = "sp"; spStep = 0; paintSpStep();
   $("spPanel").scrollIntoView({behavior: "smooth", block: "center"});
 }
 function openSpPanelRef(id) {
@@ -517,6 +584,7 @@ function openSpPanelRef(id) {
   paintSpVals();
   $("spResult").innerHTML = (me && prof) ? "" : '<div class="spLink">ログインしていないため、このシェアポイントは保存されません（リンクのコピーとシェアはできます）</div>';
   $("spPanel").style.display = "flex";
+  exitMk(); uiMode = "sp"; spStep = 0; paintSpStep();
   $("spPanel").scrollIntoView({behavior: "smooth", block: "center"});
 }
 async function createSp() {
@@ -704,7 +772,7 @@ const A = {
     try { localStorage.setItem("momo_song", String(si)); } catch (e) {}
     cueCurrentSong();
     mkPv = null; refPlay = false; randPlay = false; spRange = null;
-    mk = {scenes: [], type: "call", from: null, base: ""}; renderMk(); UI.songSel(si); sess = null; paintApply(); applyAct(); loadCalls();
+    mk = {scenes: [], type: "call", from: null, base: ""}; mkSel = -1; mkPend = -1; mkMeas2 = null; renderMk(); UI.songSel(si); sess = null; paintApply(); applyAct(); loadCalls();
   },
   menu: () => { const m = $("menu"); m.style.display = m.style.display === "block" ? "none" : "block"; },
   openOv: () => { $("menu").style.display = "none"; $("ov").style.display = "block"; render(); },
@@ -712,6 +780,7 @@ const A = {
   play: () => {
     if (spMode && !spHasTrack()) return toast("この曲はSpotifyでは再生できません");
     if (!playerReady()) return toast(spMode ? "Spotifyプレイヤーの準備中です" : "動画の準備中です");
+    if (uiMode === "mk" && mkMeas2) { mkMeasureStep(); return; }   // build 58: 再編集の長さ測り直し中は、大きなボタンが長さ決め専用になる
     if (sess && sess.t0 && Date.now() - sess.t0 > LIMIT) { sess = null; paintApply(); }
     if ($("intro").style.display === "block") { skipIntro(); return; }
     if (playerState() === 1) { playerPause(); return; }
@@ -777,9 +846,23 @@ const A = {
   mkvOk: () => { $("mkvWarn").style.display = "none"; $("mkvPage").style.display = "block"; },
   closeMkv: () => { $("mkvPage").style.display = "none"; },
   spOpen: id => openSpPanel(id),
-  spClose: () => { $("spPanel").style.display = "none"; },
-  spSetA: () => { $("spA").value = Math.floor(now()); paintSpVals(); },
-  spSetB: () => { $("spB").value = Math.ceil(now()); paintSpVals(); },
+  spClose: () => { $("spPanel").style.display = "none"; if (uiMode === "sp") uiMode = "play"; spStep = 0; paintSpStep(); },
+  spSetA: () => { $("spA").value = Math.floor(now()); paintSpVals(); if (spStep === 0) { spStep = 1; paintSpStep(); } },
+  spSetB: () => { $("spB").value = Math.ceil(now()); paintSpVals(); if (spStep === 1) { spStep = 2; paintSpStep(); } },
+  /* build 58: 細長いボタン1つで 始点 → 終点 → 作成 と進める */
+  spStep: () => {
+    if (spStep === 0) { A.spSetA(); toast("始点を " + fmt(spVals().a) + " にしました"); return; }
+    if (spStep === 1) {
+      A.spSetB();
+      if (!(spVals().b > spVals().a + 0.4)) { spStep = 1; paintSpStep(); return toast("終点は始点より後にしてください"); }
+      toast("終点を " + fmt(spVals().b) + " にしました");
+      return;
+    }
+    const v = spVals();
+    if (!(v.b > v.a + 0.4)) { spStep = 1; paintSpStep(); return toast("終点は始点より後にしてください"); }
+    createSp();
+    spStep = 0; paintSpStep();
+  },
   spPreview: () => { const v = spVals(); if (!(v.b > v.a + 0.4)) return toast("終点は始点より後にしてください"); spRange = {a: v.a, b: v.b}; if (playerReady()) { playerSeek(v.a); playerPlay(); } },
   spCreate: () => createSp(),
   spCopy: async url => {
@@ -825,8 +908,9 @@ const A = {
     const c = calls.find(x => x.id === id); if (!c) return;
     if (!confirm("編集はできますが、今までのスコア(♥と湧き)はリセットされ、付いた感想も削除されます。よろしいですか?")) return;
     mk = {scenes: c.scenes.map(x => ({...x})), type: "call", from: null, base: "", editId: id};
+    mkSel = -1; mkPend = -1; mkMeas2 = null;
     $("mkVer").value = c.versionName || ""; $("mkNote").value = c.note || ""; $("mkRef").checked = !!c.allowRef;
-    A.closeOv(); $("mk").style.display = "flex"; renderMk(); $("mk").scrollIntoView({behavior: "smooth"});
+    A.closeOv(); enterMk();
     toast("編集モード: 保存するとスコアと感想はリセットされます");
   },
   closeReview: () => { $("cmov").style.display = "none"; },
@@ -858,23 +942,65 @@ const A = {
   },
   editProf: () => { A.menu(); $("mypage").style.display = "none"; openSheet(true); },
   closeSheet: () => { $("sheet").style.display = "none"; },
-  startMk: () => { if (!guard()) return; mk.editId = null; A.menu(); $("mk").style.display = "flex"; renderMk(); $("mk").scrollIntoView({behavior: "smooth"}); },
-  endMk: () => { $("mk").style.display = "none"; if (mkMeas !== null) { mkMeas = null; const b = $("mkMeas"); if (b) b.textContent = "▶ 再生して表示時間を測る"; } },
+  startMk: () => { if (!guard()) return; mk.editId = null; mkSel = -1; mkPend = -1; mkMeas2 = null; A.menu(); enterMk(); },
+  endMk: () => exitMk(),
+  /* build 58: 作成ボタン。状態で働きが変わる(カード作成 → 長さを決める / 再編集=長さ測り直しの開始) */
+  mkMain: () => {
+    if (mkPend >= 0) {   // 長さを決める: 今の再生位置で、作ったばかりのカードの長さが決まる
+      const sc = mk.scenes[mkPend];
+      if (!sc) { mkPend = -1; renderMk(); return; }
+      const d = Math.round((now() - sc.t) * 10) / 10;
+      sc.d = Math.max(1, Math.min(20, d));
+      mkPend = -1;
+      renderMk();
+      toast(fmt(sc.t) + " のカードの長さを " + sc.d + " 秒にしました");
+      return;
+    }
+    if (mkSel >= 0 && mk.scenes[mkSel]) {   // 再編集: 長さの測り直しを用意する(実行は大きな再生ボタン)
+      if (mkMeas2) { mkMeas2 = null; renderMk(); return; }   // もう一度押すと取り消し
+      mkMeas2 = {i: mkSel, phase: "ready"};
+      renderMk();
+      toast("大きな再生ボタン(再生して長さを測る)を押すと測り直せます");
+      return;
+    }
+    // コールカード作成: 再生中はその位置、止まっている時は今の位置(最初は0秒)に1枚作る
+    const t = Math.round(clampT(now()));
+    const sc = {t: t, d: mk.type === "koko" ? 5 : 6, k: mk.type, x: $("mkText").value.trim() || LAB[mk.type]};
+    mk.scenes.push(sc);
+    mk.scenes.sort((a, b) => a.t - b.t);
+    mkPend = mk.scenes.indexOf(sc);
+    $("mkText").value = "";
+    renderMk();
+    const L = $("mkList"); if (L) L.scrollTop = L.scrollHeight;
+    toast(fmt(t) + " にカードを作りました");
+  },
+  /* build 58: 埋め込みパネルのカードをタップ → そのカードの中身を編集(もう一度タップで終了) */
+  mkPick: i => {
+    i = +i;
+    if (mkSel === i) { mkSel = -1; mkMeas2 = null; renderMk(); return; }
+    const sc = mk.scenes[i]; if (!sc) return;
+    mkSel = i; mkMeas2 = null;
+    mk.type = sc.k;
+    document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === sc.k));
+    $("mkText").value = sc.x;
+    renderMk();
+  },
   seek: (d) => { if (playerReady()) playerSeek(clampT(now() + +d)); },
   pseek: (d) => { if (playerReady()) playerSeek(clampT(now() + +d)); },
-  type: (k) => { mk.type = k; document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === k)); const dv = k === "koko" ? 5 : 6; $("mkDur").value = dv; $("mkDurVal").textContent = dv + "秒"; },
-  durAdj: d => {
-    const c = Math.max(1, Math.min(20, Math.round((parseFloat($("mkDur").value) + parseFloat(d)) * 10) / 10));
-    $("mkDur").value = c; $("mkDurVal").textContent = c + "秒";
+  type: (k) => { mk.type = k; document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === k)); if (mkSel >= 0 && mk.scenes[mkSel]) { mk.scenes[mkSel].k = k; renderMk(); } },
+  durAdj: d => {   // 旧UIの表示時間スライダー用(build 58で要素は廃止。互換のため残す)
+    const el = $("mkDur"); if (!el) return;
+    const c = Math.max(1, Math.min(20, Math.round((parseFloat(el.value) + parseFloat(d)) * 10) / 10));
+    el.value = c; const v = $("mkDurVal"); if (v) v.textContent = c + "秒";
   },
   durAdjRow: key => {
     const p = String(key).split("|"), sc = mk.scenes[+p[0]]; if (!sc) return;
     sc.d = Math.max(1, Math.min(20, Math.round((sc.d + parseFloat(p[1])) * 10) / 10));
     renderMk();
   },
-  durMeas: () => {
+  durMeas: () => {   // 旧UIの計測ボタン用(build 58で要素は廃止。再編集の測り直しは mkMeas2 が担当。互換のため残す)
     if (!playerReady()) return toast(spMode ? "Spotifyプレイヤーの準備ができていません" : "動画の準備ができていません");
-    const b = $("mkMeas");
+    const b = $("mkMeas"); if (!b) return;
     if (mkMeas === null) {
       mkMeas = now();
       if (playerState() !== 1) playerPlay();
@@ -890,8 +1016,9 @@ const A = {
       toast("表示時間を " + c + " 秒にしました");
     }
   },
-  addScene: () => {
-    mk.scenes.push({t: Math.round(clampT(now())), d: parseFloat($("mkDur").value) || 6, k: mk.type, x: $("mkText").value.trim() || LAB[mk.type]});
+  addScene: () => {   // 旧UIの「この位置に追加」用(build 58で要素は廃止。新方式は mkMain。互換のため残す)
+    const durEl = $("mkDur");
+    mk.scenes.push({t: Math.round(clampT(now())), d: (durEl ? parseFloat(durEl.value) : NaN) || 6, k: mk.type, x: $("mkText").value.trim() || LAB[mk.type]});
     mk.scenes.sort((a, b) => a.t - b.t); $("mkText").value = ""; renderMk();
   },
   pvScene: i => {
@@ -911,7 +1038,7 @@ const A = {
     $("mv").scrollIntoView({behavior: "smooth"});
     toast("作成中の推しコールをプレビュー中");
   },
-  delScene: i => { mk.scenes.splice(+i, 1); renderMk(); },
+  delScene: i => { i = +i; mk.scenes.splice(i, 1); if (mkSel === i) { mkSel = -1; mkMeas2 = null; $("mkText").value = ""; } else if (mkSel > i) mkSel--; if (mkPend === i) mkPend = -1; else if (mkPend > i) mkPend--; if (mkMeas2 && mkMeas2.i === i) mkMeas2 = null; else if (mkMeas2 && mkMeas2.i > i) mkMeas2.i--; renderMk(); },
   save: async pub => {
     if (!guard()) return;
     if (!mk.scenes.length) return toast("場面を追加してください");
@@ -927,13 +1054,14 @@ const A = {
       }
     } catch (e) { return toast("保存できませんでした"); }
     toast(+pub ? "公開しました" : "下書きを保存しました");
-    mk = {scenes: [], type: "call", from: null, base: ""}; $("mkVer").value = $("mkNote").value = ""; renderMk(); loadCalls();
+    mk = {scenes: [], type: "call", from: null, base: ""}; mkSel = -1; mkPend = -1; mkMeas2 = null; $("mkVer").value = $("mkNote").value = ""; $("mkText").value = ""; renderMk(); loadCalls();
   },
   ref: id => {
     if (!guard()) return;
     const c = calls.find(x => x.id === id);
     mk = {scenes: c.scenes.map(x => ({...x})), type: "call", from: id, base: JSON.stringify(c.scenes)};
-    A.closeOv(); $("mk").style.display = "flex"; renderMk(); $("mk").scrollIntoView({behavior: "smooth"});
+    mkSel = -1; mkPend = -1; mkMeas2 = null;
+    A.closeOv(); enterMk();
     toast("中身を読み込みました。自分用に変えてください");
   },
   pub: async id => { const c = calls.find(x => x.id === id); try { await updateDoc(doc(db, "calls", id), {public: !c.public}); loadCalls(); } catch (e) { toast("変更できませんでした"); } },
@@ -946,7 +1074,15 @@ document.addEventListener("click", e => {
 document.addEventListener("change", e => { const b = e.target.closest("[data-c]"); if (b && A[b.dataset.c]) A[b.dataset.c](b.value, b); });
 $("intro").addEventListener("click", () => { if ($("intro").style.display === "block") skipIntro(); });
 $("cpos").addEventListener("input", e => { $("cards").style.bottom = 10 + +e.target.value + "px"; });
-$("mkDur").addEventListener("input", e => { $("mkDurVal").textContent = e.target.value + "秒"; });
+const mkDurEl = $("mkDur");   // build 58: 旧UIの表示時間スライダーは廃止したので、要素がある時だけ(互換)
+if (mkDurEl) mkDurEl.addEventListener("input", e => { const v = $("mkDurVal"); if (v) v.textContent = e.target.value + "秒"; });
+$("mkText").addEventListener("input", e => {   // build 58: カード編集中は、内容の入力がその場面へそのまま反映される
+  if (mkSel >= 0 && mk.scenes[mkSel]) {
+    mk.scenes[mkSel].x = e.target.value;
+    const rows = $("mkList").querySelectorAll(".mkcard .mkx");
+    if (rows[mkSel]) rows[mkSel].textContent = e.target.value;
+  }
+});
 document.addEventListener("input", e => {
   const sl = e.target.closest("[data-dur]");
   if (sl) { const sc = mk.scenes[+sl.dataset.dur]; if (sc) { sc.d = parseFloat(sl.value); const v = sl.closest(".mkrow").querySelector(".durval"); if (v) v.textContent = sl.value + "秒"; } }

@@ -88,6 +88,15 @@
       return scenes.map(function (e, i) { return '<div class="mkrow"><span>' + fmt(e.t) + "</span><span>" + LAB[e.k] + '</span><span class="sp">' + esc(e.x) + '</span><input type="range" class="dursl" min="1" max="20" step="0.1" value="' + e.d + '" data-dur="' + i + '" aria-label="表示時間"><span class="durval">' + e.d + '秒</span><button class="adjb" data-a="durAdjRow" data-i="' + i + '|-0.1" aria-label="0.1秒短く">−</button><button class="adjb" data-a="durAdjRow" data-i="' + i + '|0.1" aria-label="0.1秒長く">＋</button><button class="pvb" data-a="pvScene" data-i="' + i + '">プレビュー</button><button aria-label="削除" data-a="delScene" data-i="' + i + '">×</button></div>'; }).join("")
         || '<div style="font-size:12px;color:var(--mut)">動画を止めて、追加したい位置で「この位置に追加」を押します。</div>';
     },
+    /* build 58: 制作モードの場面カード一覧(埋め込みパネル内)。sel=編集中、pend=長さ決め待ち */
+    mkCards: function (scenes, sel, pend) {
+      if (!scenes.length) return '<div style="font-size:12px;color:var(--mut);padding:8px 2px">まだカードがありません。「コールカード作成」を押すと、その再生位置にカードができます。</div>';
+      return scenes.map(function (e, i) {
+        return '<div class="mkcard' + (i === sel ? " sel" : "") + (i === pend ? " pend" : "") + '">'
+          + '<button class="mkpick" data-a="mkPick" data-i="' + i + '"><span class="mkt">' + fmt(e.t) + '</span><span class="mkk">' + LAB[e.k] + '</span><span class="mkx">' + esc(e.x) + '</span><span class="mkd">' + e.d + '秒</span></button>'
+          + '<button class="mkdel" aria-label="削除" data-a="delScene" data-i="' + i + '">×</button></div>';
+      }).join("");
+    },
     list: function (calls, x) {
       return calls.map(function (c) {
         var own = x.me && c.ownerUid === x.me.uid, col = colorOf(c.oshi), tc = col === "#000000" ? "#fff" : col;
