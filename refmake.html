@@ -73,6 +73,20 @@
   #saveBtn{height:52px;border-radius:26px;background:#ff5c8a;color:#fff;font-weight:900;font-size:16px}
   #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:90vw;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:20px;font-weight:700;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:30;text-align:center}
   #toast.on{opacity:1}
+  /* build 60: 作成画面下部の引き出しとプリセットコール(本体アプリとまったく同じ見た目・動き) */
+  #maker{padding-bottom:60px}
+  #mkDrawer{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:26}
+  #mkDrawerBar{width:100%;height:42px;background:#262a4a;border:0;border-top:2px solid #3a3f6b;color:var(--ink);font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font:inherit}
+  #mkDrawerBar .drwHint{font-size:11px;color:var(--mut);font-weight:700}
+  #mkDrawerBody{max-height:0;overflow:hidden;transition:max-height .3s ease;background:#1c1e38}
+  #mkDrawer.open #mkDrawerBody{max-height:25vh;overflow-y:auto;padding:10px}
+  .drwBtns{display:flex;gap:8px;flex-wrap:wrap}
+  .drwBtn{flex:1;min-width:140px;height:44px;border-radius:12px;background:#ff5c8a;color:#fff;font-weight:900;font-size:14px;border:0;cursor:pointer;font:inherit}
+  #psList{flex-direction:column;gap:6px;margin-top:10px}
+  .psChip{display:flex;align-items:center;gap:8px;min-height:44px;text-align:left;font-size:13px;padding:4px 8px;border-radius:10px;background:#14152b;border:1px solid #2c2f57;color:var(--ink);cursor:pointer;width:100%;font:inherit}
+  .psChip .psk{flex:none;font-size:11px;font-weight:900;border:1.5px solid #8e91b8;border-radius:9px;padding:2px 7px}
+  .psChip .psx{flex:1;overflow-wrap:anywhere}
+  .psNone{font-size:12px;color:var(--mut);padding:6px 2px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -124,6 +138,14 @@
       <button id="saveBtn">この内容で保存</button>
     </section>
     <p class="note">保存すると、アプリの「参考コール」にすぐ表示されます。</p>
+
+    <div id="mkDrawer">
+      <div id="mkDrawerBody">
+        <div class="drwBtns"><button class="drwBtn" id="psOpenBtn">プリセットコール</button></div>
+        <div id="psList" style="display:none"></div>
+      </div>
+      <button id="mkDrawerBar" aria-expanded="false">ツール<span class="drwHint">タップで開く</span></button>
+    </div>
   </div>
 </div>
 <div id="toast"></div>
@@ -388,6 +410,45 @@ setInterval(() => {
   } catch (e) {}
 }, 200);
 
+/* ---------- プリセットコール(build 60。本体アプリと同じ引き出し・同じ presets コレクション) ---------- */
+let PRESETS = [], psLoaded = false, psListShown = false;
+async function loadPresets() {
+  try {
+    const snap = await getDocs(collection(db, "presets"));
+    PRESETS = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    PRESETS.sort((a, b) => ((a.order == null ? 1e9 : a.order) - (b.order == null ? 1e9 : b.order)) || (((a.at && a.at.seconds) || 0) - ((b.at && b.at.seconds) || 0)));
+  } catch (e) { PRESETS = []; }
+  psLoaded = true;
+  paintPsList();
+}
+function paintPsList() {
+  const el = $("psList");
+  if (!PRESETS.length) { el.innerHTML = '<div class="psNone">プリセットはまだ登録されていません（管理画面で登録できます）</div>'; return; }
+  el.innerHTML = PRESETS.map((p, i) => '<button class="psChip" data-ps="' + i + '"><span class="psk">' + LAB[p.k] + '</span><span class="psx">' + esc(p.x) + "</span></button>").join("");
+}
+$("mkDrawerBar").addEventListener("click", () => {
+  const d = $("mkDrawer");
+  d.classList.toggle("open");
+  $("mkDrawerBar").setAttribute("aria-expanded", d.classList.contains("open") ? "true" : "false");
+});
+$("psOpenBtn").addEventListener("click", () => {
+  psListShown = !psListShown;
+  $("psList").style.display = psListShown ? "flex" : "none";
+  if (psListShown && !psLoaded) loadPresets();
+});
+$("psList").addEventListener("click", e => {
+  const b = e.target.closest("[data-ps]"); if (!b) return;
+  const p = PRESETS[+b.dataset.ps]; if (!p) return;
+  if (!(sel >= 0 && scenes[sel])) { toast("先にカードを選んでください"); return; }
+  scenes[sel].k = p.k;
+  scenes[sel].x = p.x;
+  document.querySelectorAll("#mkTypes button").forEach(x => x.classList.toggle("sel", x.dataset.i === p.k));
+  $("mkText").value = p.x;
+  renderList();
+  $("mkDrawer").classList.remove("open");
+  toast("プリセットを適用しました");
+});
+
 /* ---------- 保存(admin.htmlの参考コール作成と完全に同じ形式) ---------- */
 $("saveBtn").addEventListener("click", async () => {
   if (!scenes.length) { toast("場面を追加してください"); return; }
@@ -412,6 +473,7 @@ function enterMaker() {
   $("maker").style.display = "flex";
   renderList();
   loadSongs();
+  loadPresets();
 }
 initGate();
 </script>

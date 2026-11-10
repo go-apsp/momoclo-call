@@ -71,6 +71,7 @@ let mkLenPhase = null;          // 作成画面: 長さ指定の計測中は "ru
 let spStep = 0;                 // シェアポイント作成の段階 0=始点を決める 1=終点を決める 2=作成する
 let mkPub = true;               // 作成画面: 保存先(公開=true / 下書き=false)。確定は「保存して戻る」
 let mkRate = 1;                 // 作成画面・シェアポイント作成画面: 再生速度(1 → 0.5 → 0.25)
+let PRESETS = [], psLoaded = false, psListShown = false;   // build 60: プリセットコール(presetsコレクション。管理画面で登録)
 
 /* ---------- MV(YouTube) & Spotify埋め込みプレイヤー(Iframe API) ---------- */
 let yt = null, ytReady = false, last = 0, drag = false;
@@ -458,10 +459,12 @@ function enterMk() {
   setScreen("mk");
   applyRate();
   renderMk();
+  loadPresets();
   $("mvwrap").scrollIntoView({behavior: "smooth"});
 }
 function exitMk() {
   setScreen("play");
+  const drw = $("mkDrawer"); if (drw) drw.classList.remove("open");
   mkSel = -1; mkLenPhase = null;
   if (mkMeas !== null) { mkMeas = null; const b = $("mkMeas"); if (b) b.textContent = "▶ 再生して表示時間を測る"; }
   const pb = $("play"); if (pb) pb.classList.remove("meas");
@@ -475,6 +478,18 @@ function enterSp() {
 /* 再生速度(1 → 0.5 → 0.25)を YouTube プレイヤーへ実際に効かせる */
 function applyRate() { try { if (yt && yt.setPlaybackRate) yt.setPlaybackRate(mkRate); } catch (e) {} paintRate(); }
 function paintRate() { document.querySelectorAll(".ratebtn").forEach(b => b.textContent = "速度 " + mkRate + "倍"); }
+
+/* ---------- build 60: プリセットコール(作成画面下部の引き出しから、選択中カードへ種類+文言を適用) ---------- */
+async function loadPresets() {
+  try {
+    const snap = await getDocs(collection(db, "presets"));
+    PRESETS = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    PRESETS.sort((a, b) => ((a.order == null ? 1e9 : a.order) - (b.order == null ? 1e9 : b.order)) || (((a.at && a.at.seconds) || 0) - ((b.at && b.at.seconds) || 0)));
+  } catch (e) { PRESETS = []; }
+  psLoaded = true;
+  paintPsList();
+}
+function paintPsList() { const el = $("psList"); if (el) el.innerHTML = UI.psChips(PRESETS); }
 
 /* ---------- build 50: 湧きリアクション演出(画面の振動・再生中コール連動のはみ出しバッジ・紙吹雪) ---------- */
 let impactTm = null;
@@ -1017,6 +1032,25 @@ const A = {
   mkPubTgl: () => { mkPub = !mkPub; paintMkPub(); },
   mkSaveBack: async () => { const ok = await A.save(mkPub ? "1" : "0"); if (ok) exitMk(); },
   mkDelSel: () => { if (mkSel >= 0 && mk.scenes[mkSel]) A.delScene(mkSel); },
+  /* build 60: 作成画面下部の引き出し(バーで開閉 / プリセット一覧の表示 / 選択中カードへ適用) */
+  psDrawer: (i, b) => { const d = $("mkDrawer"); if (!d) return; d.classList.toggle("open"); if (b) b.setAttribute("aria-expanded", d.classList.contains("open") ? "true" : "false"); },
+  psOpen: () => {
+    const el = $("psList"); if (!el) return;
+    psListShown = !psListShown;
+    el.style.display = psListShown ? "flex" : "none";
+    if (psListShown && !psLoaded) loadPresets();
+  },
+  psApply: (i) => {
+    const p = PRESETS[+i]; if (!p) return;
+    if (!(mkSel >= 0 && mk.scenes[mkSel])) { toast("先にカードを選んでください"); return; }
+    const sc = mk.scenes[mkSel];
+    sc.k = p.k; sc.x = p.x; mk.type = p.k;
+    document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === p.k));
+    $("mkText").value = p.x;
+    renderMk();
+    const d = $("mkDrawer"); if (d) d.classList.remove("open");
+    toast("プリセットを適用しました");
+  },
 
   /* build 58: 埋め込みパネルのカードをタップ → そのカードの中身を編集(もう一度タップで終了) */
   mkPick: i => {

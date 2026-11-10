@@ -94,6 +94,7 @@ gtag('config', 'G-00QSZME258');
       <button id="tabUsers">ユーザー管理</button>
       <button id="tabSongs">曲一覧</button>
       <button id="tabRefs">参考コール</button>
+      <button id="tabPresets">プリセット</button>
       <button id="tabReqs">申込</button>
       <button id="tabPe">ページ編集</button>
     </div>
@@ -183,6 +184,25 @@ gtag('config', 'G-00QSZME258');
       </div>
       <div id="refList"></div>
     </div>
+
+    <div id="panePresets" class="hidden">
+      <p class="note">ライブでよく打つコールを、種類と文言のセットで登録しておくプリセットです。アプリの推しコール作成画面と、参考コール作成ページの両方で、画面下の引き出しから選んで使えます。</p>
+      <div class="card">
+        <div class="title" style="margin-bottom:10px">プリセットを追加</div>
+        <label class="flab">種類</label>
+        <select id="psKind" class="fin">
+          <option value="call">コール</option>
+          <option value="sing">シンガロン</option>
+          <option value="koko">ココ好き!</option>
+        </select>
+        <label class="flab">文言</label>
+        <input id="psText" class="fin" type="text" placeholder="例: ハイ!ハイ!" maxlength="30">
+        <div style="margin-top:12px">
+          <button class="act" id="psAdd" style="background:#ff5d8f;border-color:#ff5d8f;color:#fff;font-weight:900">追加</button>
+        </div>
+      </div>
+      <div id="psList"></div>
+    </div>
   </div>
 </div>
 <div id="toast"></div>
@@ -219,7 +239,7 @@ let toastTimer = null;
 function toast(s) { const t = $("toast"); t.textContent = s; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 2800); }
 const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
 
-let me = null, USERS = [], CALLS = [], REFS = [], REQS = [], ADM_SONGS = [], ADMINS = {}, pendingDel = null, pendingRefDel = null, pendingSongDel = null;
+let me = null, USERS = [], CALLS = [], REFS = [], REQS = [], ADM_SONGS = [], ADMINS = {}, PRESETS = [], pendingDel = null, pendingRefDel = null, pendingSongDel = null, pendingPsDel = null;
 let songPlayer = null, songPlayerReady = false, songEditId = null, songPosDrag = false;
 let refPlayer = null, refReady = false, refDrag = false, refScenes = [], refType = "call";
 
@@ -232,12 +252,16 @@ async function loadAll() {
   if (me) (await getDocs(query(collection(db, "calls"), where("ownerUid", "==", me.uid)))).forEach(d => cm.set(d.id, {id: d.id, ...d.data()}));
   CALLS = [...cm.values()];
   REFS = (await getDocs(collection(db, "refs"))).docs.map(d => ({id: d.id, ...d.data()}));
+  try {
+    PRESETS = (await getDocs(collection(db, "presets"))).docs.map(d => ({id: d.id, ...d.data()}));
+    PRESETS.sort((a, b) => ((a.order == null ? 1e9 : a.order) - (b.order == null ? 1e9 : b.order)) || (((a.at && a.at.seconds) || 0) - ((b.at && b.at.seconds) || 0)));
+  } catch (e) { PRESETS = []; }
   try { REQS = (await getDocs(query(collection(db, "spRequests"), orderBy("at", "desc")))).docs.map(d => ({id: d.id, ...d.data()})); } catch (e) { REQS = []; }
   try { ADM_SONGS = (await getDocs(query(collection(db, "songs"), orderBy("order")))).docs.map(d => ({id: d.id, ...d.data()})); } catch (e) { ADM_SONGS = []; }
   ADMINS = {};
   try { (await getDocs(collection(db, "admins"))).forEach(d => { ADMINS[d.id] = d.data(); }); } catch (e) {}
   fillRefSongs();
-  renderCalls(); renderUsers(); renderSongs(); renderRefs(); renderReqs();
+  renderCalls(); renderUsers(); renderSongs(); renderRefs(); renderReqs(); renderPresets();
   loadRefGate();
 }
 
@@ -514,6 +538,38 @@ async function delRefYes() {
   catch (e) { renderRefs(); toast("削除できませんでした(運営アカウントでログインしているか確認してください)"); }
 }
 
+/* プリセットコール(presets): 種類+文言のセット。作成画面(本体・参考コール作成ページ)の引き出しから使う */
+function renderPresets() {
+  $("psList").innerHTML = PRESETS.map(p => '<div class="card"><div class="row">'
+    + '<span class="badge draft">' + esc(KLAB[p.k] || p.k) + '</span>'
+    + '<div class="grow"><div class="title">「' + esc(p.x || "") + '」</div></div>'
+    + (pendingPsDel === p.id
+      ? '<span class="num" style="color:#ff8fa0">削除しますか?</span><button class="act danger" data-psdel-yes>はい、削除</button><button class="act" data-psdel-no>やめる</button>'
+      : '<button class="act danger" data-psdel="' + p.id + '">削除</button>')
+    + '</div></div>').join("") || '<div class="card">プリセットはまだありません。</div>';
+  $("psList").querySelectorAll("[data-psdel]").forEach(b => b.addEventListener("click", () => { pendingPsDel = b.dataset.psdel; renderPresets(); }));
+  $("psList").querySelectorAll("[data-psdel-yes]").forEach(b => b.addEventListener("click", delPresetYes));
+  $("psList").querySelectorAll("[data-psdel-no]").forEach(b => b.addEventListener("click", () => { pendingPsDel = null; renderPresets(); }));
+}
+async function addPreset() {
+  const k = $("psKind").value;
+  const x = $("psText").value.trim();
+  if (!x) { toast("文言を入力してください"); return; }
+  const ord = PRESETS.length ? Math.max(...PRESETS.map(p => (p.order == null ? -1 : p.order))) + 1 : 0;
+  try {
+    const d = await addDoc(collection(db, "presets"), {k: k, x: x, order: ord, at: serverTimestamp()});
+    PRESETS.push({id: d.id, k: k, x: x, order: ord});
+    $("psText").value = "";
+    renderPresets();
+    toast("プリセットを追加しました");
+  } catch (e) { toast("追加できませんでした(運営アカウントでログインしているか、ルールの設定を確認してください)"); }
+}
+async function delPresetYes() {
+  const id = pendingPsDel; pendingPsDel = null;
+  try { await deleteDoc(doc(db, "presets", id)); PRESETS = PRESETS.filter(p => p.id !== id); renderPresets(); toast("プリセットを削除しました"); }
+  catch (e) { renderPresets(); toast("削除できませんでした(運営アカウントでログインしているか確認してください)"); }
+}
+
 /* 参考コール作成専用ページ(refmake.html)の入場パスワード: SHA-256ハッシュだけを siteMeta/refgate に保存する(平文は保存しない) */
 async function sha256hex(s) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -540,7 +596,7 @@ async function setRefGate() {
 }
 
 function showTab(t) {
-  ["Calls", "Users", "Songs", "Refs", "Reqs", "Pe"].forEach(k => {
+  ["Calls", "Users", "Songs", "Refs", "Presets", "Reqs", "Pe"].forEach(k => {
     $("pane" + k).classList.toggle("hidden", k.toLowerCase() !== t);
     $("tab" + k).classList.toggle("sel", k.toLowerCase() === t);
   });
@@ -549,8 +605,10 @@ $("tabCalls").addEventListener("click", () => showTab("calls"));
 $("tabUsers").addEventListener("click", () => showTab("users"));
 $("tabSongs").addEventListener("click", () => showTab("songs"));
 $("tabRefs").addEventListener("click", () => showTab("refs"));
+$("tabPresets").addEventListener("click", () => showTab("presets"));
 $("tabReqs").addEventListener("click", () => showTab("reqs"));
 $("tabPe").addEventListener("click", () => showTab("pe"));
+$("psAdd").addEventListener("click", addPreset);
 $("q").addEventListener("input", renderCalls);
 $("refAdd").addEventListener("click", addRef);
 $("refGateSet").addEventListener("click", setRefGate);

@@ -97,6 +97,13 @@
           + '<button class="mkdel" aria-label="削除" data-a="delScene" data-i="' + i + '">×</button></div>';
       }).join("");
     },
+    /* build 60: プリセットコールの一覧チップ(作成画面の引き出し内)。タップで選択中カードへ適用される */
+    psChips: function (list) {
+      if (!list.length) return '<div class="psNone">プリセットはまだ登録されていません（管理画面で登録できます）</div>';
+      return list.map(function (p, i) {
+        return '<button class="psChip" data-a="psApply" data-i="' + i + '"><span class="psk">' + LAB[p.k] + '</span><span class="psx">' + esc(p.x) + "</span></button>";
+      }).join("");
+    },
     list: function (calls, x) {
       return calls.map(function (c) {
         var own = x.me && c.ownerUid === x.me.uid, col = colorOf(c.oshi), tc = col === "#000000" ? "#fff" : col;
