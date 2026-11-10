@@ -89,10 +89,10 @@
         || '<div style="font-size:12px;color:var(--mut)">動画を止めて、追加したい位置で「この位置に追加」を押します。</div>';
     },
     /* build 58: 制作モードの場面カード一覧(埋め込みパネル内)。sel=編集中、pend=長さ決め待ち */
-    mkCards: function (scenes, sel, pend) {
-      if (!scenes.length) return '<div style="font-size:12px;color:var(--mut);padding:8px 2px">まだカードがありません。「コールカード作成」を押すと、その再生位置にカードができます。</div>';
+    mkCards: function (scenes, sel) {
+      if (!scenes.length) return '<div style="font-size:12px;color:var(--mut);padding:8px 2px">まだカードがありません。「カード作成」を押すと、その再生位置にカードができます(長さは仮の5秒)。</div>';
       return scenes.map(function (e, i) {
-        return '<div class="mkcard' + (i === sel ? " sel" : "") + (i === pend ? " pend" : "") + '">'
+        return '<div class="mkcard' + (i === sel ? " sel" : "") + '">'
           + '<button class="mkpick" data-a="mkPick" data-i="' + i + '"><span class="mkt">' + fmt(e.t) + '</span><span class="mkk">' + LAB[e.k] + '</span><span class="mkx">' + esc(e.x) + '</span><span class="mkd">' + e.d + '秒</span></button>'
           + '<button class="mkdel" aria-label="削除" data-a="delScene" data-i="' + i + '">×</button></div>';
       }).join("");

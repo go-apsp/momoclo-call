@@ -252,6 +252,16 @@ body.nofs{overflow:hidden}
 @keyframes impactPop{0%{opacity:0;transform:translateX(-50%) translateY(16px) scale(.5) rotate(-3deg)}30%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.05) rotate(1deg)}55%{opacity:1;transform:translateX(-50%) translateY(2px) scale(1)}100%{opacity:0;transform:translateX(-50%) translateY(10px) scale(1.08) rotate(2deg)}}
 #wfx{position:fixed;inset:0;pointer-events:none;z-index:45;overflow:hidden}
 .cfetti{position:absolute;top:-4vh;pointer-events:none;animation:confettiFall 2.2s cubic-bezier(.25,1,.5,1) forwards}
+/* build 59: 激湧きモード(トグルボタンと画面全体の放射光オーバーレイ) */
+#gekibtn{border:2px solid #b18cff;background:#1d1433;color:#cdb4ff;font-size:13px}
+#gekibtn .gkstate{font-size:15px}
+#gekibtn.on{background:linear-gradient(140deg,#ffd23f,#ff7ab8);color:#2a0c1c;border-color:#fff;box-shadow:0 0 26px rgba(255,210,63,.9)}
+#geki{position:fixed;inset:0;pointer-events:none;z-index:46;overflow:hidden;opacity:0;background:repeating-conic-gradient(from 0deg at var(--gx,50%) var(--gy,40%),rgba(255,214,80,.5) 0deg 9deg,rgba(255,214,80,0) 9deg 22deg),radial-gradient(circle at var(--gx,50%) var(--gy,40%),rgba(255,240,180,.85),rgba(255,210,63,.25) 34%,transparent 68%)}
+#geki.on{animation:gekiBurst 1.4s ease-out forwards}
+@keyframes gekiBurst{0%{opacity:0;transform:scale(.92)}18%{opacity:1}55%{opacity:.95}100%{opacity:0;transform:scale(1.06)}}
+#geki .gspk{position:absolute;pointer-events:none;animation:gekiSpark 1.3s ease-out forwards}
+@keyframes gekiSpark{0%{opacity:0;transform:scale(.4) rotate(0deg)}25%{opacity:1}100%{opacity:0;transform:scale(1.5) rotate(50deg)}}
+@media (prefers-reduced-motion:reduce){#geki.on{animation:none}}
 @keyframes confettiFall{0%{opacity:1;transform:translateY(0) rotate(0) scale(1)}80%{opacity:.9}100%{opacity:0;transform:translateY(105vh) rotate(680deg) scale(.35)}}
 body.nofs #impact{position:fixed;left:50%;bottom:8px;top:auto;z-index:60}
 
@@ -317,3 +327,25 @@ body.nofs #impact{position:fixed;left:50%;bottom:8px;top:auto;z-index:60}
 .mkcard.pend{background:rgba(77,201,255,.12);border-radius:10px}
 .mkcard.pend .mkpick{outline:2px dashed #4dc9ff}
 #spStep{width:100%;height:52px;border-radius:26px;background:#ff7ab8;color:#fff;font-weight:900;font-size:15px}
+
+/* ===== build 59: 作成画面・シェアポイント作成画面(画面切替。プレイヤーは移動しない) ===== */
+body.scr-mk #songbox,body.scr-sp #songbox,body.scr-mk #tot,body.scr-sp #tot,body.scr-mk #who,body.scr-sp #who,body.scr-mk #modebar,body.scr-sp #modebar,body.scr-mk #applybtn,body.scr-sp #applybtn,body.scr-mk #dots,body.scr-sp #dots,body.scr-mk .pads,body.scr-sp .pads,body.scr-mk #pEv,body.scr-sp #pEv,body.scr-mk #ovbtn,body.scr-sp #ovbtn,body.scr-mk #info,body.scr-sp #info,body.scr-mk #mkvBtn,body.scr-sp #mkvBtn,body.scr-mk #freearea,body.scr-sp #freearea{display:none!important}
+body.scr-mk #play,body.scr-sp #play{width:56px;height:56px;font-size:12px}
+.subctl{display:flex;gap:8px}
+.subctl button{flex:1;height:44px;border-radius:22px;background:#262a4a;color:var(--ink);font-weight:700;border:1px solid #3a3f6b}
+#mkCreate{width:118px;height:118px;border-radius:50%;margin:2px auto;font-size:17px;display:block}
+#mkCreate.go{background:#4dc9ff;color:#0b2233}
+#mkCreate.edit{background:#ffd23f;color:#2a2410;border:4px solid #a66bff}
+#mkEdit{flex-direction:column;gap:10px;background:#14152b;border:1px solid #2c2f57;border-radius:12px;padding:10px}
+#mkDelBtn{height:40px;border-radius:20px;background:#3a2030;color:#ff8fa8;font-weight:700}
+#mkPubBtn{height:44px;border-radius:22px;background:#262a4a;color:var(--ink);font-weight:700;border:1px solid #3a3f6b}
+#mkSaveBtn{height:52px;border-radius:26px;background:#ff5c8a;color:#fff;font-weight:900;font-size:16px}
+.mkyameru{background:none;color:var(--mut);font-size:13px;min-height:36px}
+#barin{position:relative}
+#mkBand{position:absolute;left:0;top:50%;transform:translateY(-50%);height:12px;border-radius:6px;pointer-events:none;z-index:2}
+#mkKnob{position:absolute;top:50%;width:34px;height:34px;border-radius:50%;transform:translate(-50%,-50%);z-index:3;cursor:grab;touch-action:none;box-shadow:0 2px 8px rgba(0,0,0,.55);border:3px solid rgba(255,255,255,.35)}
+#mkBub{position:absolute;left:50%;bottom:42px;transform:translateX(-50%);background:#14152b;border:1px solid #8e91b8;color:#fff;font-size:12px;font-weight:700;padding:2px 8px;border-radius:8px;display:none;white-space:nowrap}
+#mkKnob.drag #mkBub{display:block}
+#spStep{width:118px;height:118px;border-radius:50%;margin:2px auto;display:block;background:#ffd23f;color:#2a2410;font-weight:900;font-size:16px;padding:10px}
+.spValsLine{text-align:center;font-size:14px}
+.switchbtn{height:48px;border-radius:24px;background:#262a4a;color:var(--ink);font-weight:700;border:1px solid #3a3f6b}
