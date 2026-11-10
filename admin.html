@@ -148,6 +148,17 @@ gtag('config', 'G-00QSZME258');
     <div id="paneRefs" class="hidden">
       <p class="note">ここで作った参考コールが、アプリの「参考コール」ボタンで表示されます。</p>
       <div class="card">
+        <div class="title" style="margin-bottom:6px">参考コール作成ページのパスワード</div>
+        <div class="sub" style="line-height:1.7">参考コールの作成だけができる専用ページ（ログイン不要・パスワード入場式）の入場パスワードです。パスワードを知っている人だけが、そのページから参考コールを作れます。ここで設定したパスワードはハッシュ化して保存され、平文では残りません。</div>
+        <div class="row" style="margin-top:8px"><span class="sub">現在の状態:</span><b id="refGateState">確認中…</b></div>
+        <label class="flab">新しいパスワード</label>
+        <input id="refGatePw" class="fin" type="password" placeholder="新しいパスワードを入力" autocomplete="new-password">
+        <div class="row" style="margin-top:10px">
+          <button class="act" id="refGateSet" style="background:#ff5d8f;border-color:#ff5d8f;color:#fff;font-weight:900">設定する</button>
+          <a class="act" href="refmake.html" target="_blank" rel="noopener">参考コール作成ページを開く</a>
+        </div>
+      </div>
+      <div class="card">
         <div class="title" style="margin-bottom:10px">参考コールを新規作成</div>
         <label class="flab">曲</label>
         <select id="refSong" class="fin"></select>
@@ -227,6 +238,7 @@ async function loadAll() {
   try { (await getDocs(collection(db, "admins"))).forEach(d => { ADMINS[d.id] = d.data(); }); } catch (e) {}
   fillRefSongs();
   renderCalls(); renderUsers(); renderSongs(); renderRefs(); renderReqs();
+  loadRefGate();
 }
 
 function stats() {
@@ -502,6 +514,31 @@ async function delRefYes() {
   catch (e) { renderRefs(); toast("削除できませんでした(運営アカウントでログインしているか確認してください)"); }
 }
 
+/* 参考コール作成専用ページ(refmake.html)の入場パスワード: SHA-256ハッシュだけを siteMeta/refgate に保存する(平文は保存しない) */
+async function sha256hex(s) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+async function loadRefGate() {
+  const el = $("refGateState"); if (!el) return;
+  try {
+    const d = await getDoc(doc(db, "siteMeta", "refgate"));
+    el.textContent = (d.exists() && d.data().hash) ? "設定済み" : "未設定";
+  } catch (e) { el.textContent = "確認できませんでした"; }
+}
+async function setRefGate() {
+  const pw = $("refGatePw").value;
+  if (!pw) { toast("パスワードを入力してください"); return; }
+  if (!window.crypto || !crypto.subtle) { toast("この環境ではパスワードを設定できません(HTTPSで開いてください)"); return; }
+  try {
+    const hash = await sha256hex(pw);
+    await setDoc(doc(db, "siteMeta", "refgate"), {hash: hash, updatedAt: serverTimestamp()}, {merge: true});
+    $("refGatePw").value = "";
+    $("refGateState").textContent = "設定済み";
+    toast("パスワードを設定しました");
+  } catch (e) { toast("設定できませんでした(運営アカウントでログインしているか、ルールの設定を確認してください)"); }
+}
+
 function showTab(t) {
   ["Calls", "Users", "Songs", "Refs", "Reqs", "Pe"].forEach(k => {
     $("pane" + k).classList.toggle("hidden", k.toLowerCase() !== t);
@@ -516,6 +553,7 @@ $("tabReqs").addEventListener("click", () => showTab("reqs"));
 $("tabPe").addEventListener("click", () => showTab("pe"));
 $("q").addEventListener("input", renderCalls);
 $("refAdd").addEventListener("click", addRef);
+$("refGateSet").addEventListener("click", setRefGate);
 $("refPlayBtn").addEventListener("click", () => { if (!refReady) return; if (refPlayer.getPlayerState() === 1) refPlayer.pauseVideo(); else refPlayer.playVideo(); });
 document.querySelectorAll("[data-rseek]").forEach(b => b.addEventListener("click", () => { if (refReady) refPlayer.seekTo(Math.max(0, Math.min(refPlayer.getDuration() || 0, (refPlayer.getCurrentTime() || 0) + +b.dataset.rseek)), true); }));
 $("refBar").addEventListener("input", () => { refDrag = true; });
