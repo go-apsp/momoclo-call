@@ -298,11 +298,13 @@ async function loadCalls() {
     try {
       const snap = await getDocs(query(collection(db, "refs"), where("videoId", "==", VID)));
       if (!snap.empty) {
-        const rs = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        const rs = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(r => r.draft !== true);
         rs.sort((a, b) => ((a.createdAt && a.createdAt.seconds) || 0) - ((b.createdAt && b.createdAt.seconds) || 0));
-        refCalls = rs;
-        applyRef(rs[0]);
-        refApplied = true;
+        if (rs.length) {
+          refCalls = rs;
+          applyRef(rs[0]);
+          refApplied = true;
+        }
       }
     } catch (e) {}
   }
@@ -861,7 +863,7 @@ const A = {
   tlMark: i => { const sc = mkPv ? mkPv.scenes : EV; const c = tlId === "__cur__" ? {scenes: sc} : calls.find(x => x.id === tlId); if (!c || !c.scenes) return; const s2 = c.scenes[+i]; if (s2) $("tlInfo").textContent = fmt(s2.t) + " " + LAB[s2.k] + " 「" + s2.x + "」"; },
   refcall: async () => {
     A.closeOv();
-    try { const snap = await getDocs(query(collection(db, "refs"), where("videoId", "==", VID))); refCalls = snap.docs.map(d => ({id: d.id, ...d.data()})); }
+    try { const snap = await getDocs(query(collection(db, "refs"), where("videoId", "==", VID))); refCalls = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(r => r.draft !== true); }
     catch (e) { refCalls = []; }
     $("refList").innerHTML = UI.refs(refCalls);
     $("refov").style.display = "block";

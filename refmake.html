@@ -87,6 +87,32 @@
   .psChip .psk{flex:none;font-size:11px;font-weight:900;border:1.5px solid #8e91b8;border-radius:9px;padding:2px 7px}
   .psChip .psx{flex:1;overflow-wrap:anywhere}
   .psNone{font-size:12px;color:var(--mut);padding:6px 2px;line-height:1.6}
+  /* build 61: 0.1秒微調整ボタン */
+  .fineRow{display:flex;gap:8px;align-items:center}
+  .fineRow span{font-size:12px;color:var(--mut);flex:none}
+  .fineRow button{flex:1;height:44px;border-radius:22px;border:2px solid #8e91b8;font-weight:700;font-size:13px;color:var(--ink);background:#262a4a}
+  /* build 61: 下書き保存 */
+  #draftBtn{height:48px;border-radius:24px;background:#262a4a;color:var(--ink);font-weight:900;font-size:15px;border:2px solid #8e91b8}
+  #draftState{font-size:12px;color:#ffd23f;line-height:1.6}
+  #draftBox{display:flex;padding:14px;border-radius:18px;background:var(--panel);flex-direction:column;gap:10px}
+  #draftBox h2{margin:0;font-size:16px}
+  #draftList{display:flex;flex-direction:column;gap:6px}
+  .draftItem{display:flex;flex-direction:column;gap:2px;min-height:44px;text-align:left;padding:8px 10px;border-radius:10px;background:#14152b;border:1px solid #2c2f57;color:var(--ink);cursor:pointer;width:100%;font:inherit}
+  .draftItem .dv{font-size:14px;font-weight:700;overflow-wrap:anywhere}
+  .draftItem .dm{font-size:11px;color:var(--mut)}
+  .draftItem.sel{outline:2px solid #a66bff}
+  #newBtn{height:44px;border-radius:22px;background:#262a4a;color:var(--ink);font-weight:700;border:1px solid #3a3f6b}
+  /* build 61: 制作ガイドモード */
+  #guideBtn{height:48px;border-radius:24px;background:linear-gradient(120deg,#e0408c,#7a45d8);color:#fff;font-weight:900;font-size:15px;box-shadow:0 4px 14px rgba(166,107,255,.45)}
+  #guideBar{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:40;background:#ffd23f;color:#2a2410;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top));box-shadow:0 4px 18px rgba(0,0,0,.5);border-radius:0 0 16px 16px}
+  #guideProg{font-size:11px;font-weight:900;opacity:.75}
+  #guideMsg{font-size:14px;font-weight:900;line-height:1.6;margin-top:2px}
+  #guideBtns{display:flex;gap:8px;margin-top:8px}
+  #guideBtns button{flex:1;height:46px;border-radius:23px;background:#2a2410;color:#ffd23f;font-weight:900;font-size:14px}
+  #gEndBtn{width:100%;height:46px;border-radius:23px;background:#2a2410;color:#ffd23f;font-weight:900;font-size:14px;margin-top:8px}
+  @keyframes gBlink{0%,100%{box-shadow:0 0 0 3px rgba(255,210,63,.95),0 0 18px 6px rgba(255,210,63,.55)}50%{box-shadow:0 0 0 3px rgba(255,210,63,.2),0 0 4px 1px rgba(255,210,63,.1)}}
+  .gtarget{animation:gBlink 1s ease-in-out infinite}
+  .glocked{opacity:.35 !important;pointer-events:none !important}
 </style>
 </head>
 <body>
@@ -103,7 +129,18 @@
     <button id="gateBtn">入る</button>
   </div>
 
+  <div id="guideBar" style="display:none">
+    <div id="guideProg"></div>
+    <div id="guideMsg"></div>
+    <div id="guideBtns" style="display:none">
+      <button id="gNextBtn">次のカードを作る</button>
+      <button id="gSaveBtn">保存に進む</button>
+    </div>
+    <button id="gEndBtn" style="display:none">ガイドをやめる</button>
+  </div>
+
   <div id="maker" style="display:none;flex-direction:column;gap:14px">
+    <button id="guideBtn">ガイドモードで作る</button>
     <div id="songbox"><select id="songsel" aria-label="曲を選ぶ"></select></div>
     <div id="mvwrap"><div id="mv"><div id="yt"></div></div></div>
     <div id="barwrap">
@@ -131,13 +168,23 @@
           <button data-i="call" class="sel">コール</button><button data-i="sing">シンガロン</button><button data-i="koko">ココ好き!</button>
         </div>
         <input type="text" id="mkText" placeholder="内容(例: ハイ!ハイ!)" maxlength="30">
+        <div class="fineRow"><span>位置</span><button id="fineM">−0.1秒</button><button id="fineP">＋0.1秒</button></div>
         <button id="mkDelBtn">このカードを削除</button>
       </div>
       <div id="mkList"></div>
       <input type="text" id="mkVer" placeholder="バージョン名(例: お手本コール)" maxlength="20">
+      <div id="draftState" style="display:none"></div>
       <button id="saveBtn">この内容で保存</button>
+      <button id="draftBtn">下書き保存</button>
     </section>
-    <p class="note">保存すると、アプリの「参考コール」にすぐ表示されます。</p>
+    <p class="note">保存すると、アプリの「参考コール」にすぐ表示されます。「下書き保存」を押すと、アプリには表示されずに下書きとして残り、次に来た時に続きが作れます。</p>
+
+    <section id="draftBox">
+      <h2>下書き</h2>
+      <div id="draftList"></div>
+      <button id="newBtn">新規作成</button>
+      <p class="note">下書きをタップすると、その内容が読み込まれて続きが作れます。「新規作成」を押すと、下書きを選ばずに新しく作り始められます。</p>
+    </section>
 
     <div id="mkDrawer">
       <div id="mkDrawerBody">
@@ -154,7 +201,7 @@
 const B = "https://www.gstatic.com/firebasejs/10.12.2/";
 const appM = await import(B + "firebase-app.js");
 const fsM = await import(B + "firebase-firestore.js");
-const { getFirestore, collection, doc, getDoc, getDocs, addDoc, query, orderBy, serverTimestamp } = fsM;
+const { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, query, where, orderBy, serverTimestamp } = fsM;
 
 const firebaseConfig = {
   apiKey: "AIzaSyBWmghjT5uh-awZEyvi53rYPe8Y8Gf2ICA",
@@ -227,7 +274,7 @@ async function loadSongs() {
   $("songsel").value = String(si);
   cueSong();
 }
-$("songsel").addEventListener("change", () => { si = +$("songsel").value; scenes = []; sel = -1; lenPhase = null; $("mkText").value = ""; renderList(); cueSong(); });
+$("songsel").addEventListener("change", () => { si = +$("songsel").value; scenes = []; sel = -1; lenPhase = null; curDraftId = null; $("mkText").value = ""; renderList(); paintDrafts(); paintDraftState(); cueSong(); });
 
 /* ---------- YouTubeプレイヤー ---------- */
 let yt = null, ytReady = false, drag = false;
@@ -267,6 +314,8 @@ $("bar").addEventListener("change", () => { drag = false; if (ytReady) yt.seekTo
 
 /* ---------- 作成(build 59の推しコール作成画面と同じ操作) ---------- */
 let scenes = [], sel = -1, lenPhase = null, rate = 1;
+/* build 61: 下書き保存の状態(編集中の下書きIDと下書き一覧) */
+let curDraftId = null, DRAFTS = [];
 const MK_KCOL = {call: "#ff5c8a", sing: "#2ec4b6", koko: "#ff9f1c"};
 
 function paintBtn() {
@@ -307,6 +356,7 @@ function renderList() {
     L.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => delScene(+b.dataset.del)));
   }
   paintBtn(); paintKnob();
+  applyGuide();
 }
 function pickCard(i) {
   if (sel === i) { sel = -1; lenPhase = null; renderList(); return; }
@@ -315,6 +365,7 @@ function pickCard(i) {
   document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === sc.k));
   $("mkText").value = sc.x;
   renderList();
+  guideEvent("picked");
 }
 function delScene(i) {
   scenes.splice(i, 1);
@@ -333,7 +384,22 @@ $("mkText").addEventListener("input", e => {
     const rows = $("mkList").querySelectorAll(".mkcard .mkx");
     if (rows[sel]) rows[sel].textContent = e.target.value;
   }
+  guideEvent("text");
 });
+/* build 61: 0.1秒微調整(つまみのドラッグと同じ更新処理: 位置を変えて並べ替え、一覧・つまみ・帯を同期) */
+function shiftScene(dt) {
+  const sc = scenes[sel]; if (!sc) return;
+  const D = Math.max(dur() || 0, 1);
+  let t = Math.round((sc.t + dt) * 10) / 10;
+  t = Math.max(0, Math.min(Math.max(0, D - sc.d), t));
+  if (t === sc.t) return;
+  sc.t = t;
+  scenes.sort((a, b) => a.t - b.t);
+  sel = scenes.indexOf(sc);
+  renderList();
+}
+$("fineM").addEventListener("click", () => { shiftScene(-0.1); guideEvent("fine"); });
+$("fineP").addEventListener("click", () => { shiftScene(0.1); guideEvent("fine"); });
 /* 大きな丸いボタン: カード作成 / 長さ指定 / ここで終わり(build 59と同じ状態機械) */
 $("mkCreate").addEventListener("click", () => {
   if (lenPhase === "run") {
@@ -344,6 +410,7 @@ $("mkCreate").addEventListener("click", () => {
     sc.d = Math.max(0.5, Math.min(20, d));
     renderList();
     toast(fmt(sc.t) + " のカードの長さを " + sc.d + " 秒にしました");
+    guideEvent("lenDone");
     return;
   }
   if (sel >= 0 && scenes[sel]) {
@@ -362,6 +429,7 @@ $("mkCreate").addEventListener("click", () => {
   renderList();
   const L = $("mkList"); L.scrollTop = L.scrollHeight;
   toast(fmt(t) + " にカードを作りました");
+  guideEvent("card");
 });
 /* 速度切替: 1倍 → 0.5倍 → 0.25倍 */
 $("rateBtn").addEventListener("click", () => {
@@ -390,16 +458,18 @@ $("rateBtn").addEventListener("click", () => {
   };
   kn.addEventListener("pointerdown", e => { if (sel < 0) return; dragK = true; try { kn.setPointerCapture(e.pointerId); } catch (err) {} kn.classList.add("drag"); e.preventDefault(); e.stopPropagation(); });
   kn.addEventListener("pointermove", move);
-  const end = () => { dragK = false; kn.classList.remove("drag"); };
+  const end = () => { const was = dragK; dragK = false; kn.classList.remove("drag"); if (was) guideEvent("knob"); };
   kn.addEventListener("pointerup", end);
   kn.addEventListener("pointercancel", end);
 })();
 
 /* 再生位置の同期(バー・時刻・再生ボタン・つまみ・再生範囲の終端) */
+let wasPlaying = false;
 setInterval(() => {
   if (!ytReady || $("maker").style.display === "none") return;
   try {
     const t = now(), pl = yt.getPlayerState() === 1;
+    if (pl !== wasPlaying) { wasPlaying = pl; guideEvent(pl ? "play" : "pause"); }
     $("play").textContent = pl ? "一時停止" : "再生";
     $("mkPlayBtn").textContent = pl ? "⏸ 一時停止" : "▶ 再生";
     if (!drag) { $("bar").max = dur(); $("bar").value = t; }
@@ -423,8 +493,9 @@ async function loadPresets() {
 }
 function paintPsList() {
   const el = $("psList");
-  if (!PRESETS.length) { el.innerHTML = '<div class="psNone">プリセットはまだ登録されていません（管理画面で登録できます）</div>'; return; }
+  if (!PRESETS.length) { el.innerHTML = '<div class="psNone">プリセットはまだ登録されていません（管理画面で登録できます）</div>'; applyGuide(); return; }
   el.innerHTML = PRESETS.map((p, i) => '<button class="psChip" data-ps="' + i + '"><span class="psk">' + LAB[p.k] + '</span><span class="psx">' + esc(p.x) + "</span></button>").join("");
+  applyGuide();
 }
 $("mkDrawerBar").addEventListener("click", () => {
   const d = $("mkDrawer");
@@ -447,32 +518,186 @@ $("psList").addEventListener("click", e => {
   renderList();
   $("mkDrawer").classList.remove("open");
   toast("プリセットを適用しました");
+  guideEvent("text");
 });
 
 /* ---------- 保存(admin.htmlの参考コール作成と完全に同じ形式) ---------- */
+function sortedScenes() { return scenes.map(e => ({t: e.t, d: e.d, k: e.k, x: e.x})).sort((a, b) => a.t - b.t); }
 $("saveBtn").addEventListener("click", async () => {
   if (!scenes.length) { toast("場面を追加してください"); return; }
+  const ver = $("mkVer").value.trim();
+  if (!ver) { toast("バージョン名を入力してください"); return; }
   const sg = SONGS[si]; if (!sg) return;
-  const data = {
-    videoId: sg.yid,
-    versionName: $("mkVer").value.trim(),
-    scenes: scenes.map(e => ({t: e.t, d: e.d, k: e.k, x: e.x})).sort((a, b) => a.t - b.t),
-    createdAt: serverTimestamp()
-  };
   try {
-    await addDoc(collection(db, "refs"), data);
+    if (curDraftId) {
+      /* 下書きを読み込み中: 同じドキュメントを完成(draft: false)に更新して公開する */
+      await updateDoc(doc(db, "refs", curDraftId), {videoId: sg.yid, versionName: ver, scenes: sortedScenes(), draft: false, updatedAt: serverTimestamp()});
+    } else {
+      await addDoc(collection(db, "refs"), {videoId: sg.yid, versionName: ver, scenes: sortedScenes(), createdAt: serverTimestamp()});
+    }
     toast("保存しました");
+    curDraftId = null;
     scenes = []; sel = -1; lenPhase = null;
     $("mkVer").value = ""; $("mkText").value = "";
-    renderList();
+    renderList(); paintDraftState();
+    loadDrafts();
+    guideEvent("saved");
   } catch (e) { toast("保存できませんでした(通信を確認してください)"); }
 });
+
+/* ---------- 下書き保存(build 61) ---------- */
+async function saveDraft() {
+  if (!scenes.length) { toast("カードを作ってから下書き保存してください"); return false; }
+  const sg = SONGS[si]; if (!sg) return false;
+  const data = {videoId: sg.yid, versionName: $("mkVer").value.trim(), scenes: sortedScenes(), draft: true, updatedAt: serverTimestamp()};
+  try {
+    if (curDraftId) {
+      await updateDoc(doc(db, "refs", curDraftId), data);
+    } else {
+      data.createdAt = serverTimestamp();
+      const d = await addDoc(collection(db, "refs"), data);
+      curDraftId = d.id;
+    }
+    toast("下書きを保存しました");
+    paintDraftState();
+    loadDrafts();
+    return true;
+  } catch (e) { toast("下書きを保存できませんでした(通信を確認してください)"); return false; }
+}
+$("draftBtn").addEventListener("click", async () => { if (await saveDraft()) guideEvent("saved"); });
+
+function paintDraftState() {
+  const el = $("draftState");
+  if (!curDraftId) { el.style.display = "none"; el.textContent = ""; return; }
+  const d = DRAFTS.find(x => x.id === curDraftId);
+  el.textContent = "下書き「" + ((d && d.versionName) || $("mkVer").value.trim() || "（名称未設定）") + "」を編集中です";
+  el.style.display = "block";
+}
+function paintDrafts() {
+  const el = $("draftList");
+  if (!DRAFTS.length) { el.innerHTML = '<div class="psNone">下書きはまだありません。</div>'; applyGuide(); return; }
+  el.innerHTML = DRAFTS.map((d, i) => {
+    const sg = SONGS.find(s => s.yid === d.videoId);
+    const sec = d.updatedAt && d.updatedAt.seconds;
+    const dt = sec ? new Date(sec * 1000) : null;
+    const ds = dt ? (dt.getMonth() + 1) + "/" + dt.getDate() + " " + String(dt.getHours()).padStart(2, "0") + ":" + String(dt.getMinutes()).padStart(2, "0") : "";
+    return '<button class="draftItem' + (d.id === curDraftId ? " sel" : "") + '" data-draft="' + i + '"><span class="dv">' + esc(d.versionName || "（名称未設定）") + '</span><span class="dm">' + esc(sg ? sg.title : "") + (ds ? " ・ " + ds + " 更新" : "") + "</span></button>";
+  }).join("");
+  applyGuide();
+}
+async function loadDrafts() {
+  try {
+    const snap = await getDocs(query(collection(db, "refs"), where("draft", "==", true)));
+    DRAFTS = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    DRAFTS.sort((a, b) => ((b.updatedAt && b.updatedAt.seconds) || 0) - ((a.updatedAt && a.updatedAt.seconds) || 0));
+  } catch (e) { DRAFTS = []; }
+  paintDrafts(); paintDraftState();
+}
+function loadDraft(d) {
+  const idx = SONGS.findIndex(s => s.yid === d.videoId);
+  if (idx >= 0 && idx !== si) { si = idx; $("songsel").value = String(si); cueSong(); }
+  curDraftId = d.id;
+  scenes = (d.scenes || []).map(e => ({t: e.t, d: e.d, k: e.k, x: e.x || ""})).sort((a, b) => a.t - b.t);
+  sel = -1; lenPhase = null;
+  $("mkVer").value = d.versionName || "";
+  $("mkText").value = "";
+  renderList(); paintDrafts(); paintDraftState();
+  toast("下書きを読み込みました");
+}
+$("draftList").addEventListener("click", e => {
+  const b = e.target.closest("[data-draft]"); if (!b) return;
+  const d = DRAFTS[+b.dataset.draft]; if (d) loadDraft(d);
+});
+$("newBtn").addEventListener("click", () => {
+  curDraftId = null;
+  scenes = []; sel = -1; lenPhase = null;
+  $("mkVer").value = ""; $("mkText").value = "";
+  renderList(); paintDrafts(); paintDraftState();
+  toast("新規作成の状態に戻しました");
+});
+
+/* ---------- 制作ガイドモード(build 61): 手順どおりにしか進めない誘導モード ---------- */
+let gStep = ""; /* "" = OFF。"s1"〜"s11" が手順("s9b" は手順9の「次のカード」変形) */
+const GMSG = {
+  s1: "曲を選んで、再生ボタンを押してください",
+  s2: "カードを作りたい場所で、大きな『カード作成』ボタンを押してください",
+  s3: "一時停止ボタンを押して、動画を止めてください",
+  s4: "できたカードをタップして選んでください",
+  s5: "つまみをドラッグして、カードの位置を大まかに動かしてください",
+  s6: "『−0.1秒』『＋0.1秒』ボタンで、位置を微調整してください",
+  s7: "長さを決めます。『長さ指定』ボタンを押すとカードの頭から再生されるので、終わりの場所でもう一度押してください",
+  s8: "カードの種類を選んで、文言を入れてください。下のバーからプリセットも使えます",
+  s9: "カードが1枚できました",
+  s9b: "再生ボタンを押して、次の場所で『カード作成』を押してください",
+  s10: "『保存する』を押すと完成です。途中でやめる時は『下書き保存』を押せば、次に来た時に下書きから続きが作れます",
+  s11: "できあがり！おつかれさまでした。ガイドモードは上のボタンでいつでもやめられます"
+};
+const GNUM = {s1: 1, s2: 2, s3: 3, s4: 4, s5: 5, s6: 6, s7: 7, s8: 8, s9: 9, s9b: 2, s10: 10, s11: 10};
+const GTARGETS = {
+  s1: ["#songsel", "#play", "#mkPlayBtn"],
+  s2: ["#mkCreate"],
+  s3: ["#play", "#mkPlayBtn"],
+  s4: ["#mkList .mkpick"],
+  s5: ["#mkKnob"],
+  s6: ["#fineM", "#fineP"],
+  s7: ["#mkCreate"],
+  s8: ["#mkTypes button", "#mkText", "#mkDrawerBar", "#psOpenBtn", ".psChip"],
+  s9: [],
+  s9b: ["#play", "#mkPlayBtn", "#mkCreate"],
+  s10: ["#saveBtn", "#draftBtn"],
+  s11: []
+};
+const GSCROLL = {s1: "#songsel", s2: "#mkCreate", s3: "#play", s4: "#mkList .mkcard", s5: "#barwrap", s6: "#mkEdit", s7: "#mkCreate", s8: "#mkEdit", s9b: "#mkCreate", s10: "#saveBtn"};
+const GLOCK_SEL = "#songsel,#bar,.skb,#play,#mkPlayBtn,#rateBtn,#mkCreate,#mkTypes button,#mkText,#fineM,#fineP,#mkDelBtn,#mkList .mkpick,#mkList .mkdel,#mkKnob,#saveBtn,#draftBtn,#mkDrawerBar,#psOpenBtn,.psChip,#draftList button,#newBtn";
+function applyGuide() {
+  const all = document.querySelectorAll(GLOCK_SEL);
+  if (!gStep) { all.forEach(el => el.classList.remove("glocked", "gtarget")); return; }
+  all.forEach(el => { el.classList.add("glocked"); el.classList.remove("gtarget"); });
+  (GTARGETS[gStep] || []).forEach(s => document.querySelectorAll(s).forEach(el => { el.classList.remove("glocked"); el.classList.add("gtarget"); }));
+}
+function setStep(s) {
+  gStep = s;
+  $("guideMsg").textContent = GMSG[s] || "";
+  $("guideProg").textContent = s === "s11" ? "完了しました" : "手順 " + (GNUM[s] || "") + " / 10";
+  $("guideBtns").style.display = s === "s9" ? "flex" : "none";
+  $("gEndBtn").style.display = s === "s11" ? "block" : "none";
+  applyGuide();
+  const sc = GSCROLL[s] ? document.querySelector(GSCROLL[s]) : null;
+  if (sc) setTimeout(() => { try { sc.scrollIntoView({behavior: "smooth", block: "center"}); } catch (e) {} }, 90);
+}
+function startGuide() {
+  $("guideBar").style.display = "block";
+  $("guideBtn").textContent = "ガイドをやめる";
+  setStep("s1");
+}
+function endGuide() {
+  gStep = "";
+  $("guideBar").style.display = "none";
+  $("guideBtn").textContent = "ガイドモードで作る";
+  applyGuide();
+}
+$("guideBtn").addEventListener("click", () => { if (gStep) endGuide(); else startGuide(); });
+$("gEndBtn").addEventListener("click", endGuide);
+$("gNextBtn").addEventListener("click", () => { if (gStep === "s9") setStep("s9b"); });
+$("gSaveBtn").addEventListener("click", () => { if (gStep === "s9") setStep("s10"); });
+function guideEvent(name) {
+  if (!gStep) return;
+  if (name === "play" && gStep === "s1") setStep("s2");
+  else if (name === "card" && (gStep === "s2" || gStep === "s9b")) setStep("s3");
+  else if (name === "pause" && gStep === "s3") setStep("s4");
+  else if (name === "picked" && gStep === "s4") setStep("s5");
+  else if (name === "knob" && gStep === "s5") setStep("s6");
+  else if (name === "fine" && gStep === "s6") setStep("s7");
+  else if (name === "lenDone" && gStep === "s7") setStep("s8");
+  else if (name === "text" && gStep === "s8" && $("mkText").value.trim()) setStep("s9");
+  else if (name === "saved" && gStep === "s10") setStep("s11");
+}
 
 function enterMaker() {
   $("gateBox").style.display = "none";
   $("maker").style.display = "flex";
   renderList();
-  loadSongs();
+  loadSongs().then(() => loadDrafts());
   loadPresets();
 }
 initGate();

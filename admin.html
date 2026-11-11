@@ -502,7 +502,7 @@ function renderReqs() {
 function renderRefs() {
   $("refList").innerHTML = REFS.map(r => {
     const lines = (r.scenes || []).map(s => fmt(s.t) + " " + (KLAB[s.k] || s.k) + " 「" + esc(s.x) + "」").join("<br>");
-    return '<div class="card"><div class="row"><div class="grow"><div class="title">♪ ' + esc(songName(r.videoId)) + (r.versionName ? ' 「' + esc(r.versionName) + '」' : "") + '</div>'
+    return '<div class="card"><div class="row"><div class="grow"><div class="title">♪ ' + esc(songName(r.videoId)) + (r.versionName ? ' 「' + esc(r.versionName) + '」' : "") + (r.draft === true ? ' <span class="badge draft">下書き</span>' : "") + '</div>'
       + '<div class="sub" style="line-height:1.7;margin-top:4px">' + lines + '</div></div>'
       + (pendingRefDel === r.id
         ? '<span class="num" style="color:#ff8fa0">削除しますか?</span><button class="act danger" data-rdel-yes>はい、削除</button><button class="act" data-rdel-no>やめる</button>'
