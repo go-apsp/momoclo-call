@@ -626,7 +626,7 @@ const GMSG = {
   s5: "つまみをドラッグして、カードの位置を大まかに動かしてください",
   s6: "『−0.1秒』『＋0.1秒』ボタンで、位置を微調整してください",
   s7: "長さを決めます。『長さ指定』ボタンを押すとカードの頭から再生されるので、終わりの場所でもう一度押してください",
-  s8: "カードの種類を選んで、文言を入れてください。下のバーからプリセットも使えます",
+  s8: "カードの種類を選んで、文言を入れてください。画面いちばん下のバーをタップすると引き出しが開いて、その中に『プリセットコール』があります。よく使うコールは、そこから選ぶだけでも入れられます",
   s9: "カードが1枚できました",
   s9b: "再生ボタンを押して、次の場所で『カード作成』を押してください",
   s10: "『保存する』を押すと完成です。途中でやめる時は『下書き保存』を押せば、次に来た時に下書きから続きが作れます",
@@ -678,7 +678,7 @@ function endGuide() {
 }
 $("guideBtn").addEventListener("click", () => { if (gStep) endGuide(); else startGuide(); });
 $("gEndBtn").addEventListener("click", endGuide);
-$("gNextBtn").addEventListener("click", () => { if (gStep === "s9") setStep("s9b"); });
+$("gNextBtn").addEventListener("click", () => { if (gStep === "s9") { sel = -1; lenPhase = null; $("mkText").value = ""; renderList(); setStep("s9b"); } });
 $("gSaveBtn").addEventListener("click", () => { if (gStep === "s9") setStep("s10"); });
 function guideEvent(name) {
   if (!gStep) return;
