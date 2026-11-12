@@ -112,7 +112,7 @@
           + '<button class="hd" data-a="toggle" data-i="' + c.id + '"><span class="uico" data-a="userPage" data-i="' + c.ownerUid + '">' + icon(c.ownerIcon, col) + '</span><span class="sp">' + esc(c.ownerName) + 'さんの<b style="color:' + tc + '">推し</b>コール'
           + (c.versionName ? '<span class="tag">' + esc(c.versionName) + "</span>" : "") + (c.public ? "" : '<span class="tag">下書き</span>') + nw + '</span><span style="color:' + tc + '">♥' + (c.hearts || 0) + "</span></button>"
           + '<div class="dt">' + (c.note ? "<div>備考:" + esc(c.note) + "</div>" : "") + '<div class="used">みんなが ' + (c.used || 0) + '回 一緒に湧きました</div><div class="act">'
-          + '<button class="hr" style="background:' + (x.liked.has(c.id) ? "#ff3b4f" : "#3a3f6b") + '" data-a="heart" data-i="' + c.id + '">♥ ' + (c.hearts || 0) + "</button>"
+          + '<button class="hr" style="background:' + (x.liked.has(c.id) ? "#ff3b4f" : "#3a3f6b") + ((x.mySession && x.mySession.has(c.id)) ? ";opacity:.45" : "") + '" data-a="heart" data-i="' + c.id + '">♥ ' + (c.hearts || 0) + "</button>"
           + '<button class="w" data-a="use" data-i="' + c.id + '">これで再生</button>'
           + '<button data-a="spOpen" data-i="' + c.id + '">シェアポイント</button>'
           + '<button data-a="tl" data-i="' + c.id + '">タイムライン</button>'
@@ -156,6 +156,8 @@
       }).join("") || '<div style="color:var(--mut);font-size:13px">この曲の参考コールはまだありません。</div>';
     },
     cmtHtml: function (c, x, pfx) {
+      /* build 62: 感想を受け付けないコールは、感想欄そのものを出さない(既存コールは allowComments 未設定=ON扱い) */
+      if (c.allowComments === false) return '<div class="cmts"><div class="cmtT">感想</div><div class="cmtNone">感想は受け付けていません</div></div>';
       var d = (x.cmts || {})[c.id];
       var ap = d ? d.approved : [];
       var list = ap.map(function (m) { return '<div class="cmt"><b>' + esc(m.name) + '</b><span>' + esc(m.text) + '</span></div>'; }).join("");
@@ -172,7 +174,7 @@
     evHtml: function (c, x) {
       var head = '<button class="evHead" data-a="evToggle"><span>評価・感想</span><span>' + (x.open ? "▲" : "▼") + "</span></button>";
       if (!x.open) return '<div class="evBox">' + head + "</div>";
-      var heart = '<button class="hr" style="background:' + (x.liked.has(c.id) ? "#ff3b4f" : "#3a3f6b") + '" data-a="heart" data-i="' + c.id + '">♥ ' + (c.hearts || 0) + "</button>";
+      var heart = '<button class="hr" style="background:' + (x.liked.has(c.id) ? "#ff3b4f" : "#3a3f6b") + ((x.mySession && x.mySession.has(c.id)) ? ";opacity:.45" : "") + '" data-a="heart" data-i="' + c.id + '">♥ ' + (c.hearts || 0) + "</button>";
       var meta = (c.versionName ? '<div class="evNote">バージョン: ' + esc(c.versionName) + "</div>" : "") + (c.note ? '<div class="evNote">備考: ' + esc(c.note) + "</div>" : "");
       return '<div class="evBox">' + head + '<div class="evBody">' + meta + '<div class="evRow">' + heart + "<span>湧き " + (c.used || 0) + '</span></div><button class="w" style="width:100%;height:44px;border-radius:12px;margin:4px 0 8px" data-a="spOpen" data-i="' + c.id + '">シェアポイントを作る</button>' + UI.cmtHtml(c, x, "p") + "</div></div>";
     },

@@ -28,6 +28,18 @@ service cloud.firestore {
         && request.resource.data.scenes is list
         && request.resource.data.scenes.size() <= 100;
 
+      // build 62: ゲスト(非ログイン)の作成。作者は保存時に入力した名前テキストで紐づけ、ownerUid は null。
+      // 感想の受付設定(allowComments)など追加フィールドは従来どおり制限しない
+      allow create: if request.auth == null
+        && request.resource.data.ownerUid == null
+        && request.resource.data.ownerName is string
+        && request.resource.data.ownerName.size() > 0
+        && request.resource.data.ownerName.size() <= 20
+        && request.resource.data.hearts == 0
+        && request.resource.data.used == 0
+        && request.resource.data.scenes is list
+        && request.resource.data.scenes.size() <= 100;
+
       // 本人の編集(持ち主・ハート数・湧きの合計は変えられない)
       allow update: if request.auth != null
         && resource.data.ownerUid == request.auth.uid
@@ -42,6 +54,13 @@ service cloud.firestore {
         && request.resource.data.hearts - resource.data.hearts <= 1
         && request.resource.data.used - resource.data.used >= -5000
         && request.resource.data.used - resource.data.used <= 5000;
+
+      // build 62: ゲスト(非ログイン)は、公開中の推しコールのハートを +1 だけできる。
+      // 誰が押したかの記録(hearts サブコレクション)は作らない。取り消しもできない
+      allow update: if request.auth == null
+        && resource.data.public == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hearts'])
+        && request.resource.data.hearts - resource.data.hearts == 1;
 
       allow delete: if request.auth != null && resource.data.ownerUid == request.auth.uid;
 
@@ -68,6 +87,11 @@ service cloud.firestore {
         allow update: if request.auth != null && request.auth.uid == resource.data.ownerUid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
           && request.resource.data.status == "approved";
+        // build 62: ゲストのコール(ownerUid == null)は承認者がいないため、感想を公開状態へ移す変更だけは誰でもできる。
+        // それ以外の変更と削除は従来どおり不可(この節には delete の開放は含めない)
+        allow update: if get(/databases/$(database)/documents/calls/$(id)).data.ownerUid == null
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          && request.resource.data.status == "approved";
         allow delete: if request.auth != null && request.auth.uid == resource.data.ownerUid;
       }
 
@@ -87,8 +111,21 @@ service cloud.firestore {
       allow create: if true;
     }
 
-    // 参考コール: 誰でも読める。作成・変更・削除は運営と許可リストの管理者だけ
+    // 参考コール: 誰でも読める。作成は誰でも(入場は作成専用ページ側のパスワードで守る。notifications と同じ方式)。下書き(draft==true)の更新は誰でも(下書き保存と完成への切り替え。入場はページ側のパスワードが担う)。完成済みの変更と削除は運営と許可リストの管理者だけ
     match /refs/{id} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if resource.data.draft == true;
+      allow update: if request.auth != null
+        && (request.auth.token.email == "syuji3.being@gmail.com"
+            || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+      allow delete: if request.auth != null
+        && (request.auth.token.email == "syuji3.being@gmail.com"
+            || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // プリセットコール: 誰でも読める。作成・変更・削除は運営と許可リストの管理者だけ(作成画面の引き出しで使う種類+文言のセット)
+    match /presets/{id} {
       allow read: if true;
       allow create, update, delete: if request.auth != null
         && (request.auth.token.email == "syuji3.being@gmail.com"

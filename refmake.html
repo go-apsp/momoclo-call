@@ -113,6 +113,11 @@
   @keyframes gBlink{0%,100%{box-shadow:0 0 0 3px rgba(255,210,63,.95),0 0 18px 6px rgba(255,210,63,.55)}50%{box-shadow:0 0 0 3px rgba(255,210,63,.2),0 0 4px 1px rgba(255,210,63,.1)}}
   .gtarget{animation:gBlink 1s ease-in-out infinite}
   .glocked{opacity:.35 !important;pointer-events:none !important}
+  /* build 62: プレビュー(作りかけのカードを動画に重ねて表示) */
+  #pvCards{position:absolute;left:0;right:0;bottom:8px;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;z-index:5;padding:0 8px}
+  .pvcd{background:rgba(20,21,43,.85);border:2px solid var(--pink);color:#fff;border-radius:12px;padding:6px 14px;font-weight:900;font-size:15px;text-align:center;max-width:100%}
+  .pvcd small{display:block;font-size:10px;color:var(--pink)}
+  #pvBtn{height:48px;border-radius:24px;background:#262a4a;color:var(--ink);font-weight:900;font-size:15px;border:2px solid #8e91b8}
 </style>
 </head>
 <body>
@@ -142,7 +147,7 @@
   <div id="maker" style="display:none;flex-direction:column;gap:14px">
     <button id="guideBtn">ガイドモードで作る</button>
     <div id="songbox"><select id="songsel" aria-label="曲を選ぶ"></select></div>
-    <div id="mvwrap"><div id="mv"><div id="yt"></div></div></div>
+    <div id="mvwrap"><div id="mv"><div id="yt"></div><div id="pvCards"></div></div></div>
     <div id="barwrap">
       <div id="barin"><input type="range" id="bar" min="0" max="240" step="0.1" value="0" aria-label="シークバー"><div id="mkBand" style="display:none"></div><div id="mkKnob" style="display:none" role="slider" aria-label="選択中カードの位置"><div id="mkBub"></div></div></div>
       <div class="times"><span id="tm">0:00</span><span id="dur">0:00</span></div>
@@ -176,6 +181,7 @@
       <div id="draftState" style="display:none"></div>
       <button id="saveBtn">この内容で保存</button>
       <button id="draftBtn">下書き保存</button>
+      <button id="pvBtn">プレビュー</button>
     </section>
     <p class="note">保存すると、アプリの「参考コール」にすぐ表示されます。「下書き保存」を押すと、アプリには表示されずに下書きとして残り、次に来た時に続きが作れます。</p>
 
@@ -477,8 +483,28 @@ setInterval(() => {
     paintKnob();
     const R = curRange();
     if (R && pl && t >= R.e) yt.pauseVideo();
+    if (pvOn) {   // build 62: プレビュー中は作りかけのカードを動画に重ねて表示する
+      if (t >= pvUntil) { pvOn = false; $("pvCards").innerHTML = ""; $("pvBtn").textContent = "プレビュー"; yt.pauseVideo(); toast("プレビューが終わりました"); }
+      else {
+        const on = scenes.filter(x => t >= x.t && t < x.t + x.d);
+        $("pvCards").innerHTML = on.map(x => '<div class="pvcd"><small>' + LAB[x.k] + "</small>" + esc(x.x) + "</div>").join("");
+      }
+    }
   } catch (e) {}
 }, 200);
+
+/* ---------- プレビュー(build 62。本体アプリと同じ: 作りかけのカード群を先頭から通し再生。止めても編集状態は保持) ---------- */
+let pvOn = false, pvUntil = 0;
+$("pvBtn").addEventListener("click", () => {
+  if (pvOn) { pvOn = false; $("pvCards").innerHTML = ""; $("pvBtn").textContent = "プレビュー"; if (ytReady) yt.pauseVideo(); toast("プレビューを止めました(編集内容はそのまま残っています)"); return; }
+  if (!scenes.length) { toast("場面を追加してください"); return; }
+  if (!ytReady) { toast("動画の準備ができていません"); return; }
+  const sorted = scenes.slice().sort((a, b) => a.t - b.t), first = sorted[0], lastS = sorted[sorted.length - 1];
+  pvUntil = lastS.t + lastS.d + 3;
+  pvOn = true; $("pvBtn").textContent = "プレビューを止める";
+  yt.seekTo(first.t, true); yt.playVideo();
+  toast("作成中の参考コールをプレビュー中");
+});
 
 /* ---------- プリセットコール(build 60。本体アプリと同じ引き出し・同じ presets コレクション) ---------- */
 let PRESETS = [], psLoaded = false, psListShown = false;
@@ -648,7 +674,7 @@ const GTARGETS = {
   s11: []
 };
 const GSCROLL = {s1: "#songsel", s2: "#mkCreate", s3: "#play", s4: "#mkList .mkcard", s5: "#barwrap", s6: "#mkEdit", s7: "#mkCreate", s8: "#mkEdit", s9b: "#mkCreate", s10: "#saveBtn"};
-const GLOCK_SEL = "#songsel,#bar,.skb,#play,#mkPlayBtn,#rateBtn,#mkCreate,#mkTypes button,#mkText,#fineM,#fineP,#mkDelBtn,#mkList .mkpick,#mkList .mkdel,#mkKnob,#saveBtn,#draftBtn,#mkDrawerBar,#psOpenBtn,.psChip,#draftList button,#newBtn";
+const GLOCK_SEL = "#songsel,#bar,.skb,#play,#mkPlayBtn,#rateBtn,#mkCreate,#mkTypes button,#mkText,#fineM,#fineP,#mkDelBtn,#mkList .mkpick,#mkList .mkdel,#mkKnob,#saveBtn,#draftBtn,#pvBtn,#mkDrawerBar,#psOpenBtn,.psChip,#draftList button,#newBtn";
 function applyGuide() {
   const all = document.querySelectorAll(GLOCK_SEL);
   if (!gStep) { all.forEach(el => el.classList.remove("glocked", "gtarget")); return; }

@@ -23,7 +23,7 @@ h1{font-size:17px;font-weight:900;margin:0;line-height:1.15}h1 b{color:var(--pin
 .cd strong{font-size:calc(21px*var(--s));font-weight:900;text-shadow:0 0 10px var(--pink);overflow-wrap:anywhere}
 .cd em{display:block;font-size:9px;font-style:normal;opacity:.75;margin-top:2px}
 @keyframes pop{from{transform:scale(.85);opacity:0}}
-#mvwrap{position:relative}
+#mvwrap{position:relative;z-index:2}
 #nexts{position:absolute;left:0;right:0;top:0;display:flex;flex-direction:row;justify-content:center;align-items:flex-start;gap:10px;pointer-events:none;z-index:30}
 body.nofs #nexts{position:fixed;top:0;left:0;right:0;z-index:34}
 .nx{min-width:148px;max-width:46vw;padding:7px 14px 15px;color:#fff;text-align:center;transform-origin:top center;transform:translateY(-75%);clip-path:polygon(0 0,100% 0,100% calc(100% - 13px),50% 100%,0 calc(100% - 13px));filter:drop-shadow(0 3px 5px rgba(0,0,0,.35))}
@@ -256,7 +256,7 @@ body.nofs{overflow:hidden}
 #gekibtn{border:2px solid #b18cff;background:#1d1433;color:#cdb4ff;font-size:13px}
 #gekibtn .gkstate{font-size:15px}
 #gekibtn.on{background:linear-gradient(140deg,#ffd23f,#ff7ab8);color:#2a0c1c;border-color:#fff;box-shadow:0 0 26px rgba(255,210,63,.9)}
-#geki{position:fixed;inset:0;pointer-events:none;z-index:46;overflow:hidden;opacity:0;background:repeating-conic-gradient(from 0deg at var(--gx,50%) var(--gy,40%),rgba(255,214,80,.5) 0deg 9deg,rgba(255,214,80,0) 9deg 22deg),radial-gradient(circle at var(--gx,50%) var(--gy,40%),rgba(255,240,180,.85),rgba(255,210,63,.25) 34%,transparent 68%)}
+#geki{position:fixed;inset:0;pointer-events:none;z-index:1;overflow:hidden;opacity:0;background:repeating-conic-gradient(from 0deg at var(--gx,50%) var(--gy,40%),rgba(255,214,80,.5) 0deg 9deg,rgba(255,214,80,0) 9deg 22deg),radial-gradient(circle at var(--gx,50%) var(--gy,40%),rgba(255,240,180,.85),rgba(255,210,63,.25) 34%,transparent 68%)}
 #geki.on{animation:gekiBurst 1.4s ease-out forwards}
 @keyframes gekiBurst{0%{opacity:0;transform:scale(.92)}18%{opacity:1}55%{opacity:.95}100%{opacity:0;transform:scale(1.06)}}
 #geki .gspk{position:absolute;pointer-events:none;animation:gekiSpark 1.3s ease-out forwards}
@@ -365,3 +365,37 @@ body.scr-mk #app{padding-bottom:64px}
 .psChip .psk{flex:none;font-size:11px;font-weight:900;border:1.5px solid #8e91b8;border-radius:9px;padding:2px 7px}
 .psChip .psx{flex:1;overflow-wrap:anywhere}
 .psNone{font-size:12px;color:var(--mut);padding:6px 2px;line-height:1.6}
+
+/* ===== build 62: ウェルカムカード / ゲスト作成 / ガイドモード / ±0.1秒 / 自押し制限 ===== */
+/* ウェルカムカード(トップを開いたとき最上レイヤーに表示。モック実装の確定スタイル) */
+#welcome{position:fixed;inset:0;background:rgba(10,10,24,.72);display:none;align-items:center;justify-content:center;z-index:70;padding:16px}
+#welcome.on{display:flex}
+.wcard{background:var(--panel);border:2px solid var(--pink);border-radius:20px;max-width:440px;width:100%;padding:16px;display:flex;flex-direction:column;gap:12px;max-height:92vh;overflow:auto}
+.wcard img{width:100%;border-radius:12px;display:block}
+.wcard h2{margin:0;font-size:19px;font-weight:900;text-align:center}
+.wcard p{margin:0;font-size:14px;line-height:1.8}
+.wchk{font-size:13px;display:flex;gap:8px;align-items:center;cursor:pointer}
+.wclose{height:52px;border-radius:26px;background:var(--pink);color:#14152b;font-weight:900;font-size:16px;border:0;cursor:pointer;font:inherit}
+/* ゲスト/初めての訪問者向けの点滅入口と、各作成画面のガイド開始ボタン */
+#trybtn{display:block;margin:10px auto 0;background:linear-gradient(90deg,#ff3b4f,#ff7ab8);color:#fff;border:none;border-radius:999px;padding:13px 24px;font-size:16px;font-weight:900;cursor:pointer;font:inherit;animation:gtPulse .8s ease-in-out infinite}
+body.scr-mk #trybtn,body.scr-sp #trybtn{display:none!important}
+.gstart{align-self:flex-start;background:#3a3f6b;color:var(--ink);border:1.5px solid var(--pink);border-radius:999px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;font:inherit}
+@keyframes gtPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,122,184,0)}50%{box-shadow:0 0 0 7px rgba(255,122,184,.4)}}
+/* 制作ガイドモード(refmake build 61のバナーが原型。「ガイドモードを解除」は常時表示) */
+#guideBar{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:40;background:#ffd23f;color:#2a2410;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top));box-shadow:0 4px 18px rgba(0,0,0,.5);border-radius:0 0 16px 16px}
+#guideProg{font-size:11px;font-weight:900;opacity:.75}
+#guideMsg{font-size:14px;font-weight:900;line-height:1.6;margin-top:2px}
+#guideBtns{display:flex;gap:8px;margin-top:8px}
+#guideBtns button{flex:1;height:46px;border-radius:23px;background:#2a2410;color:#ffd23f;font-weight:900;font-size:14px;border:0;cursor:pointer;font:inherit}
+#gOffBtn{width:100%;height:46px;border-radius:23px;background:#2a2410;color:#ffd23f;font-weight:900;font-size:14px;margin-top:8px;border:0;cursor:pointer;font:inherit}
+@keyframes gBlink{0%,100%{box-shadow:0 0 0 3px rgba(255,210,63,.95),0 0 18px 6px rgba(255,210,63,.55)}50%{box-shadow:0 0 0 3px rgba(255,210,63,.2),0 0 4px 1px rgba(255,210,63,.1)}}
+.gtarget{animation:gBlink 1s ease-in-out infinite}
+.glocked{opacity:.35!important;pointer-events:none!important}
+/* ±0.1秒の位置微調整(refmakeと同じ見た目) */
+.fineRow{display:flex;gap:8px;align-items:center}
+.fineRow span{font-size:12px;color:var(--mut);flex:none}
+.fineRow button{flex:1;height:44px;border-radius:22px;border:2px solid #8e91b8;font-weight:700;font-size:13px;color:var(--ink);background:#262a4a;cursor:pointer;font:inherit}
+/* プレビューボタン(保存先切替ボタンと同じ見た目) */
+#mkPvBtn{height:44px;border-radius:22px;background:#262a4a;color:var(--ink);font-weight:700;border:1px solid #3a3f6b;cursor:pointer;font:inherit}
+/* この訪問中に作ったコールは湧きボタンを少し透かす(自押し制限の目印) */
+.wk.off{opacity:.45}

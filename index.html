@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ももクロコール共有(テスト中)</title>
-<link rel="stylesheet" href="style.css?v=60">
+<link rel="stylesheet" href="style.css?v=62">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
 <script>
@@ -110,6 +110,7 @@ gtag('config', 'G-00QSZME258');
   <div id="pEv"></div>
   <div id="spPanel" style="display:none">
     <div class="spHead"><b>シェアポイント作成</b></div>
+    <button class="gstart" data-a="guideStartSp">ガイドモードで作成</button>
     <div class="spFor" id="spFor"></div>
     <div class="subctl">
       <button id="spPlayBtn" data-a="play">▶ 再生</button>
@@ -125,6 +126,7 @@ gtag('config', 'G-00QSZME258');
 
   <section id="mk">
     <h2>推しコールを作る <span class="mkmode">作成画面</span></h2>
+    <button class="gstart" data-a="guideStart">ガイドモードで作成</button>
     <div class="subctl">
       <button id="mkPlayBtn" data-a="play">▶ 再生</button>
       <button class="ratebtn" data-a="rate">速度 1倍</button>
@@ -136,22 +138,28 @@ gtag('config', 'G-00QSZME258');
         <button data-a="type" data-i="call" class="sel">コール</button><button data-a="type" data-i="sing">シンガロン</button><button data-a="type" data-i="koko">ココ好き!</button>
       </div>
       <input type="text" id="mkText" placeholder="内容(例: ハイ!ハイ!)" maxlength="30">
+      <div class="fineRow"><span>位置</span><button id="mkFineM" data-a="mkFine" data-i="-0.1">−0.1秒</button><button id="mkFineP" data-a="mkFine" data-i="0.1">＋0.1秒</button></div>
       <button id="mkDelBtn" data-a="mkDelSel">このカードを削除</button>
     </div>
     <div id="mkList"></div>
     <input type="text" id="mkVer" placeholder="バージョン名(2つ目以降は必須)" maxlength="20">
     <input type="text" id="mkNote" placeholder="備考(任意)" maxlength="100">
+    <input type="text" id="mkGuestName" placeholder="名前(ゲスト用: 作者として表示されます)" maxlength="20" style="display:none">
     <label><input type="checkbox" id="mkRef" checked> 参考にしてよい</label>
+    <label><input type="checkbox" id="mkCmt" checked> 感想(コメント)を受け付ける</label>
     <button id="mkPubBtn" data-a="mkPubTgl">公開で保存</button>
+    <button id="mkPvBtn" data-a="pvToggle">プレビュー</button>
     <button id="mkSaveBtn" data-a="mkSaveBack">保存して戻る</button>
     <button class="mkyameru" data-a="endMk">保存せずに戻る</button>
   </section>
 
   <button id="ovbtn" data-a="openOv">みんなの<span>推し</span>コール</button>
+  <button id="trybtn" data-a="guideStart" style="display:none">推しコールを作ってみる</button>
   <div id="info"></div>
   <button id="mkvBtn" data-a="mkv">ももクリDelivery特集<span class="newStamp">NEW</span></button>
   <div id="freearea"></div>
-  <div style="text-align:center;font-size:10px;color:#8e91b8">build 61</div>
+  <div style="text-align:center;font-size:10px;color:#8e91b8">build 62</div>
+  <div style="text-align:center"><button data-a="wcShow" style="font-size:10px;color:#8e91b8;text-decoration:underline;background:none;border:0;cursor:pointer">ようこそカードを再表示</button></div>
 
 </div>
 
@@ -415,10 +423,30 @@ gtag('config', 'G-00QSZME258');
   <button id="mkDrawerBar" data-a="psDrawer" aria-expanded="false">ツール<span class="drwHint">タップで開く</span></button>
 </div>
 
+<!-- build 62: ウェルカムカード(トップを開いたとき最上レイヤーに表示) -->
+<div id="welcome"><div class="wcard">
+  <img src="welcome.jpg" alt="ペンライトを掲げるファンのイラスト">
+  <h2>コールを楽しむウェブアプリです</h2>
+  <p>こちらは、ももいろクローバーZの楽曲に合わせて「推しコール」を作って楽しむ場所です。ライブで「こんなコール打ちたいな」と思った気持ちを、そのまま形にできます。実際にライブで打つかどうかは関係ありません。ここでは思いきり、コールを楽しんでください。</p>
+  <label class="wchk"><input type="checkbox" id="wcHide"> 今後はこのメッセージを表示しない</label>
+  <button class="wclose" data-a="wcClose">楽しむ！</button>
+</div></div>
+
+<!-- build 62: 制作ガイドモードのバナー(refmake build 61が原型) -->
+<div id="guideBar" style="display:none">
+  <div id="guideProg"></div>
+  <div id="guideMsg"></div>
+  <div id="guideBtns" style="display:none">
+    <button data-a="guideNext">次のカードを作る</button>
+    <button data-a="guideToSave">保存に進む</button>
+  </div>
+  <button id="gOffBtn" data-a="guideOff">ガイドモードを解除</button>
+</div>
+
 <div id="toast"></div>
 
-<script src="ui.js?v=60" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="app.js?v=61" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
+<script src="ui.js?v=62" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
+<script src="app.js?v=62" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
 </body>
