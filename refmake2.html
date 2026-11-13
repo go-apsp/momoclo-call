@@ -1,0 +1,1349 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>参考コール作成（新仕様版） | ももクロコール共有</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet">
+<style>
+  /* 本体アプリ(style.css)の作成画面まわりの見た目を、このページ内で再現したもの */
+  :root{--bg:#14152b;--panel:#262a4a;--ink:#f4f4fb;--pink:#ff7ab8;--mut:#a9acd0}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif}
+  #app{max-width:480px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:14px;min-height:100vh}
+  button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+  header{display:flex;justify-content:space-between;align-items:center;min-height:44px}
+  h1{font-size:17px;font-weight:900;margin:0;line-height:1.15}h1 b{color:var(--pink)}h1 small{display:block;font-size:10px;font-weight:700;color:var(--mut)}
+  .note{font-size:12px;color:var(--mut);line-height:1.7;margin:0}
+  /* 入場ゲート */
+  #gateBox{padding:18px 14px;border-radius:18px;background:var(--panel);display:flex;flex-direction:column;gap:12px}
+  #gateBox h2{margin:0;font-size:16px}
+  #gateMsg{font-size:13px;line-height:1.7;color:#ffd9e8}
+  .fin{height:44px;border-radius:12px;border:2px solid #8e91b8;background:var(--bg);color:var(--ink);padding:0 12px;font:inherit;width:100%}
+  #gateBtn{height:52px;border-radius:26px;background:#ff5c8a;color:#fff;font-weight:900;font-size:16px}
+  /* 曲選択 */
+  #songbox{position:relative}
+  #songsel{-webkit-appearance:none;appearance:none;width:100%;height:50px;border:0;border-radius:25px;padding:0 48px 0 20px;font-family:"Mochiy Pop One","Zen Maru Gothic",sans-serif;font-size:17px;color:#fff;background:linear-gradient(120deg,#e0408c,#7a45d8);box-shadow:0 4px 14px rgba(166,107,255,.45);text-shadow:0 1px 3px rgba(0,0,0,.35)}
+  #songbox::after{content:"";position:absolute;right:22px;top:50%;width:9px;height:9px;border-right:3px solid #fff;border-bottom:3px solid #fff;transform:translateY(-70%) rotate(45deg);pointer-events:none}
+  #songsel option{color:#14152b;font-family:"Zen Maru Gothic",sans-serif}
+  /* 動画 */
+  #mvwrap{position:relative}
+  #mv{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:linear-gradient(160deg,#3a1d5c,#1a2a5e 55%,#5c1d3f)}
+  #yt,#yt iframe{position:absolute;inset:0;width:100%;height:100%}
+  /* シークバーとつまみ */
+  input[type=range]{width:100%;accent-color:var(--pink);height:28px;margin:0}
+  .times{display:flex;justify-content:space-between;font-size:11px;color:var(--mut)}
+  #barin{position:relative}
+  #mkBand{position:absolute;left:0;top:50%;transform:translateY(-50%);height:12px;border-radius:6px;pointer-events:none;z-index:2}
+  #mkKnob{position:absolute;top:50%;width:34px;height:34px;border-radius:50%;transform:translate(-50%,-50%);z-index:3;cursor:grab;touch-action:none;box-shadow:0 2px 8px rgba(0,0,0,.55);border:3px solid rgba(255,255,255,.35)}
+  #mkBub{position:absolute;left:50%;bottom:42px;transform:translateX(-50%);background:#14152b;border:1px solid #8e91b8;color:#fff;font-size:12px;font-weight:700;padding:2px 8px;border-radius:8px;display:none;white-space:nowrap}
+  #mkKnob.drag #mkBub{display:block}
+  /* 再生行(作成画面では本体の大きな再生ボタンは56pxに縮む) */
+  .playrow{display:flex;gap:8px;align-items:center;justify-content:space-between}
+  .playrow .skb{height:48px}
+  .skb{padding:0 10px;border-radius:20px;border:2px solid #8e91b8;font-weight:900;font-size:13px;color:#f4f4fb;background:#262a4a}
+  #play{width:56px;height:56px;flex:none;border-radius:50%;background:var(--pink);color:#2a0c1c;font-weight:900;font-size:12px}
+  /* 作成セクション */
+  #mk{display:flex;padding:14px;border-radius:18px;background:var(--panel);flex-direction:column;gap:10px}
+  #mk h2{margin:0;font-size:16px}
+  #mk input[type=text]{height:44px;border-radius:12px;border:2px solid #8e91b8;background:var(--bg);color:var(--ink);padding:0 12px;font:inherit;width:100%}
+  .mkmode{font-size:11px;color:#ffd23f;border:1.5px solid #ffd23f;border-radius:10px;padding:2px 8px;vertical-align:2px}
+  .subctl{display:flex;gap:8px}
+  .subctl button{flex:1;height:44px;border-radius:22px;background:#262a4a;color:var(--ink);font-weight:700;border:1px solid #3a3f6b}
+  #mkCreate{width:118px;height:118px;border-radius:50%;margin:2px auto;font-size:17px;display:block;background:#ffd23f;color:#2a2410;font-weight:900}
+  #mkCreate.go{background:#4dc9ff;color:#0b2233}
+  #mkCreate.edit{background:#ffd23f;color:#2a2410;border:4px solid #a66bff}
+  #mkHint{font-size:12px;color:var(--mut);line-height:1.6}
+  #mkEdit{flex-direction:column;gap:10px;background:#14152b;border:1px solid #2c2f57;border-radius:12px;padding:10px}
+  .types{display:flex;gap:8px}
+  .types button{flex:1;height:44px;border-radius:22px;border:2px solid #8e91b8;font-weight:700;font-size:12px;color:var(--ink)}
+  .types .sel{background:var(--ink);color:var(--bg)}
+  #mkDelBtn{height:40px;border-radius:20px;background:#3a2030;color:#ff8fa8;font-weight:700}
+  #mkList{height:208px;overflow-y:auto;overscroll-behavior:contain;border:1px solid #2c2f57;border-radius:12px;padding:6px;background:#14152b}
+  .mkcard{display:flex;align-items:stretch;gap:6px;border-bottom:1px solid #2c2f57;padding:3px 0}
+  .mkcard:last-child{border-bottom:0}
+  .mkcard .mkpick{flex:1;display:flex;align-items:center;gap:8px;min-height:44px;text-align:left;font-size:13px;padding:4px 8px;border-radius:10px;color:var(--ink)}
+  .mkcard .mkt{font-weight:900;color:#cfd2f2;flex:none}
+  .mkcard .mkk{flex:none;font-size:11px;font-weight:900;border:1.5px solid #8e91b8;border-radius:9px;padding:2px 7px}
+  .mkcard .mkx{flex:1;overflow-wrap:anywhere}
+  .mkcard .mkd{flex:none;color:#ffd23f;font-weight:700;font-size:12px}
+  .mkcard .mkdel{width:40px;flex:none;font-size:16px;color:var(--mut)}
+  .mkcard.sel{background:rgba(166,107,255,.16);border-radius:10px}
+  .mkcard.sel .mkpick{outline:2px solid #a66bff}
+  #saveBtn{height:52px;border-radius:26px;background:#ff5c8a;color:#fff;font-weight:900;font-size:16px}
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:90vw;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:20px;font-weight:700;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:30;text-align:center}
+  #toast.on{opacity:1}
+  /* build 60: 作成画面下部の引き出しとプリセットコール(本体アプリとまったく同じ見た目・動き) */
+  #maker{padding-bottom:60px}
+  #mkDrawer{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:26}
+  #mkDrawerBar{width:100%;height:42px;background:#262a4a;border:0;border-top:2px solid #3a3f6b;color:var(--ink);font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font:inherit}
+  #mkDrawerBar .drwHint{font-size:11px;color:var(--mut);font-weight:700}
+  #mkDrawerBody{max-height:0;overflow:hidden;transition:max-height .3s ease;background:#1c1e38}
+  #mkDrawer.open #mkDrawerBody{max-height:25vh;overflow-y:auto;padding:10px}
+  .drwBtns{display:flex;gap:8px;flex-wrap:wrap}
+  .drwBtn{flex:1;min-width:140px;height:44px;border-radius:12px;background:#ff5c8a;color:#fff;font-weight:900;font-size:14px;border:0;cursor:pointer;font:inherit}
+  #psList{flex-direction:column;gap:6px;margin-top:10px}
+  .psChip{display:flex;align-items:center;gap:8px;min-height:44px;text-align:left;font-size:13px;padding:4px 8px;border-radius:10px;background:#14152b;border:1px solid #2c2f57;color:var(--ink);cursor:pointer;width:100%;font:inherit}
+  .psChip .psk{flex:none;font-size:11px;font-weight:900;border:1.5px solid #8e91b8;border-radius:9px;padding:2px 7px}
+  .psChip .psx{flex:1;overflow-wrap:anywhere}
+  .psNone{font-size:12px;color:var(--mut);padding:6px 2px;line-height:1.6}
+  /* build 61: 0.1秒微調整ボタン */
+  .fineRow{display:flex;gap:8px;align-items:center}
+  .fineRow span{font-size:12px;color:var(--mut);flex:none}
+  .fineRow button{flex:1;height:44px;border-radius:22px;border:2px solid #8e91b8;font-weight:700;font-size:13px;color:var(--ink);background:#262a4a}
+  /* build 61: 下書き保存 */
+  #draftBtn{height:48px;border-radius:24px;background:#262a4a;color:var(--ink);font-weight:900;font-size:15px;border:2px solid #8e91b8}
+  #draftState{font-size:12px;color:#ffd23f;line-height:1.6}
+  #draftBox{display:flex;padding:14px;border-radius:18px;background:var(--panel);flex-direction:column;gap:10px}
+  #draftBox h2{margin:0;font-size:16px}
+  #draftList{display:flex;flex-direction:column;gap:6px}
+  .draftItem{display:flex;flex-direction:column;gap:2px;min-height:44px;text-align:left;padding:8px 10px;border-radius:10px;background:#14152b;border:1px solid #2c2f57;color:var(--ink);cursor:pointer;width:100%;font:inherit}
+  .draftItem .dv{font-size:14px;font-weight:700;overflow-wrap:anywhere}
+  .draftItem .dm{font-size:11px;color:var(--mut)}
+  .draftItem.sel{outline:2px solid #a66bff}
+  #newBtn{height:44px;border-radius:22px;background:#262a4a;color:var(--ink);font-weight:700;border:1px solid #3a3f6b}
+  /* build 61: 制作ガイドモード */
+  #guideBtn{height:48px;border-radius:24px;background:linear-gradient(120deg,#e0408c,#7a45d8);color:#fff;font-weight:900;font-size:15px;box-shadow:0 4px 14px rgba(166,107,255,.45)}
+  #guideBar{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:40;background:#ffd23f;color:#2a2410;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top));box-shadow:0 4px 18px rgba(0,0,0,.5);border-radius:0 0 16px 16px}
+  #guideProg{font-size:11px;font-weight:900;opacity:.75}
+  #guideMsg{font-size:14px;font-weight:900;line-height:1.6;margin-top:2px}
+  #guideBtns{display:flex;gap:8px;margin-top:8px}
+  #guideBtns button{flex:1;height:46px;border-radius:23px;background:#2a2410;color:#ffd23f;font-weight:900;font-size:14px}
+  #gEndBtn{width:100%;height:46px;border-radius:23px;background:#2a2410;color:#ffd23f;font-weight:900;font-size:14px;margin-top:8px}
+  @keyframes gBlink{0%,100%{box-shadow:0 0 0 3px rgba(255,210,63,.95),0 0 18px 6px rgba(255,210,63,.55)}50%{box-shadow:0 0 0 3px rgba(255,210,63,.2),0 0 4px 1px rgba(255,210,63,.1)}}
+  .gtarget{animation:gBlink 1s ease-in-out infinite}
+  .glocked{opacity:.35 !important;pointer-events:none !important}
+  /* build 62: プレビュー(作りかけのカードを動画に重ねて表示) */
+  #pvCards{position:absolute;left:0;right:0;bottom:8px;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;z-index:5;padding:0 8px}
+  .pvcd{background:rgba(20,21,43,.85);border:2px solid var(--pink);color:#fff;border-radius:12px;padding:6px 14px;font-weight:900;font-size:15px;text-align:center;max-width:100%}
+  .pvcd small{display:block;font-size:10px;color:var(--pink)}
+  #pvBtn{height:48px;border-radius:24px;background:#262a4a;color:var(--ink);font-weight:900;font-size:15px;border:2px solid #8e91b8}
+
+  /* build 64(新仕様版): 作成の2モード制・長押しカード作成・シーク連動スクラブ・拡大タイムライン・カード再編集(本体 style.css の build 64 ブロックと同じ) */
+  .durrow{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:700}
+  .durrow input[type=range]{flex:1}
+  .durrow b{color:#ffd23f;min-width:40px;text-align:right}
+  #mkModeTabs{display:flex;flex-direction:column;gap:8px}
+  .mktab{min-height:52px;border-radius:16px;border:2px solid #8e91b8;font-weight:900;font-size:15px;padding:8px 12px;color:var(--ink);line-height:1.35;cursor:pointer;font:inherit;background:#262a4a;text-align:center}
+  .mktab.sel{background:var(--pink);color:#2a0c1c;border-color:var(--pink);box-shadow:0 4px 16px rgba(255,122,184,.45)}
+  #mkModeDesc{margin:0;font-size:12px;color:var(--mut);line-height:1.65}
+  #mkTlBox{display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:14px;background:rgba(20,21,43,.55);border:1px solid #3a3f6b}
+  #mkTlBox.tlfloat{position:fixed;left:8px;right:8px;bottom:calc(10px + env(safe-area-inset-bottom));max-width:464px;margin:0 auto;z-index:88;background:rgba(20,21,43,.96);border:1.5px solid var(--pink);box-shadow:0 12px 34px rgba(0,0,0,.65)}
+  .mktl-head{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:900}
+  #mkTlMode{padding:2px 10px;border-radius:10px;background:#3a3f6b;font-size:11px}
+  #mkTlBox.zoom #mkTlMode{background:#ffd23f;color:#2a2410}
+  #mkTlPos{margin-left:auto;font-size:11px;color:var(--mut);font-weight:700;text-align:right}
+  #mkTlView{display:flex;gap:6px}
+  #mkTlLabs{flex:0 0 52px;display:flex;flex-direction:column;font-size:9px;font-weight:900;color:#cfd2f2}
+  #mkTlLabs span{height:20px;margin-bottom:3px;display:flex;align-items:center}
+  #mkTlLabs span:last-child{height:20px;margin-bottom:0}
+  #mkTlSlide{position:relative;flex:1;overflow:hidden;border-radius:8px;background:rgba(255,255,255,.05);min-height:92px}
+  #mkTlInner{position:absolute;left:0;top:0;bottom:0;width:100%;transition:transform .55s cubic-bezier(.3,1.25,.35,1),width .55s cubic-bezier(.3,1.25,.35,1);will-change:transform,width}
+  .mktl-lane{position:relative;height:20px;margin-bottom:3px}
+  .mktl-bar{position:absolute;top:2px;height:16px;border-radius:5px;border:1px solid rgba(255,255,255,.55);min-width:6px;overflow:hidden;font-size:9px;font-weight:900;line-height:16px;padding:0 4px;white-space:nowrap;color:#14152b;cursor:pointer}
+  .mktl-bar span{display:none}
+  #mkTlBox.zoom .mktl-bar span{display:inline}
+  .mb-call{background:#ff6b9d}.mb-sing{background:#4dc9ff}.mb-koko{background:#ffd23f}
+  .mktl-bar.selb2{outline:2px solid #fff;outline-offset:1px}
+  .mktl-ticks{position:relative;height:20px}
+  .mktl-tick{position:absolute;bottom:0;width:1px;height:6px;background:#8e91b8}
+  .mktl-tick.big{height:10px;background:#cfd2f2}
+  .mktl-tlab{position:absolute;top:0;transform:translateX(-50%);font-size:9px;font-weight:700;color:#8e91b8;white-space:nowrap}
+  #mkTlBox.zoom .mktl-tlab{color:#f4f4fb;font-size:10px;font-weight:900}
+  #mkTlPlay{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 6px #fff;pointer-events:none;display:none}
+  #mkTlPrev{position:absolute;height:16px;border-radius:5px;border:2px dashed #ffd23f;background:rgba(255,210,63,.35);color:#ffd23f;font-size:9px;font-weight:900;line-height:16px;padding:0 4px;white-space:nowrap;overflow:visible;z-index:2}
+  .mktl-note{margin:0;font-size:11px;color:var(--mut);line-height:1.6}
+  #mkTlKnob{position:absolute;top:0;bottom:0;width:16px;margin-left:-8px;background:var(--pink);border:2px solid #fff;border-radius:8px;box-shadow:0 0 10px rgba(255,122,184,.8);display:none;z-index:3;touch-action:none;cursor:ew-resize}
+  #mkCreate{touch-action:none;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+  #mkCreate:active{transform:scale(.96)}
+  .mkTextRow{display:flex;gap:8px}
+  .mkTextRow input{flex:1;min-width:0}
+  #mkGrip{flex:none;height:44px;padding:0 14px;border-radius:12px;border:2px solid #ffd23f;color:#ffd23f;font-weight:900;font-size:13px;touch-action:none;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none;background:#262a4a;cursor:pointer;font:inherit}
+  #mkGrip:active{background:rgba(255,210,63,.2)}
+  #mkPresets{display:flex;flex-direction:column;gap:8px}
+  #mkPresets .plab{font-size:12px;font-weight:900;line-height:1.6}
+  #mkChips{display:flex;gap:8px;flex-wrap:wrap}
+  .pchip{min-height:44px;padding:0 16px;border-radius:22px;border:2px solid var(--pink);color:#ffd2e6;font-weight:900;font-size:14px;background:rgba(255,122,184,.12);touch-action:none;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none;cursor:pointer;font:inherit}
+  .pchip:active{background:var(--pink);color:#2a0c1c}
+  .mknote{font-size:11px;color:var(--mut);line-height:1.6}
+  #dragGhost{position:fixed;z-index:95;pointer-events:none;display:none;transform:translate(-50%,-150%);max-width:78vw;padding:8px 14px;border-radius:20px;background:var(--pink);color:#2a0c1c;font-weight:900;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.5);text-align:center;line-height:1.3}
+  #dragGhost small{display:block;font-size:11px;font-weight:900}
+  #dragGhost.on{display:block}
+  #mkTuneBtn{align-self:flex-start;min-height:40px;padding:0 14px;border-radius:20px;border:2px solid #8e91b8;color:var(--mut);font-weight:900;font-size:12px;cursor:pointer;font:inherit;background:#262a4a}
+  #mkTunePanel{display:none;flex-direction:column;gap:10px;padding:12px;border-radius:14px;background:rgba(20,21,43,.55);border:1px solid #3a3f6b}
+  #mkTunePanel.on{display:flex}
+  #mkTunePanel .durrow b{min-width:52px}
+  .tuneword{flex:none;font-size:11px;color:var(--mut);font-weight:700}
+  #tuneReset{align-self:flex-start;min-height:40px;padding:0 14px;border-radius:20px;border:2px solid #8e91b8;font-weight:700;font-size:12px;color:var(--ink);cursor:pointer;font:inherit;background:#262a4a}
+  .mkcard{transition:transform .25s ease,box-shadow .25s ease}
+  .mkcard.sel{transform:translateY(-4px) scale(1.015);background:rgba(255,122,184,.16);border-radius:12px;box-shadow:0 10px 22px rgba(0,0,0,.45),0 0 16px rgba(255,122,184,.45);animation:selFloat .3s ease-out}
+  .mkcard.sel .mkpick{outline:2px solid var(--pink)}
+  @keyframes selFloat{from{transform:translateY(4px) scale(.98);opacity:.55}to{transform:translateY(-4px) scale(1.015);opacity:1}}
+  @media (prefers-reduced-motion:reduce){.mkcard.sel{animation:none}}
+  #mkPosEdit{flex-direction:column;gap:10px;padding:12px;border-radius:14px;background:rgba(255,122,184,.10);border:1.5px solid rgba(255,122,184,.55)}
+  .mkpe-head{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:900;flex-wrap:wrap}
+  #mkPosTime{color:#ffd23f}
+  .mkpe-note{margin:0;font-size:11px;color:var(--mut);line-height:1.6}
+  #mkPosScrub{min-height:48px;border-radius:14px;border:2px solid #ffd23f;color:#ffd23f;font-weight:900;font-size:13px;touch-action:none;user-select:none;-webkit-user-select:none;background:#262a4a;cursor:pointer;font:inherit}
+  #mkPosScrub:active{background:rgba(255,210,63,.2)}
+  .mkpe-btns{display:flex;gap:8px;flex-wrap:wrap}
+  .mkpe-btns button{flex:1;min-width:70px;min-height:44px;border-radius:22px;border:2px solid #4dc9ff;color:#4dc9ff;font-weight:900;font-size:13px;background:#262a4a;cursor:pointer;font:inherit}
+  .mkpe-btns .restore{border-color:var(--ink);color:var(--ink)}
+  .mkpe-btns .here{border-color:#ffd23f;color:#ffd23f}
+  #mkApplyNote{margin:0;font-size:12px;font-weight:700;line-height:1.6;color:var(--mut)}
+  #mkApplyNote:empty{display:none}
+  @media (prefers-reduced-motion:reduce){#mkTlInner{transition:none}#mkCreate:active{transform:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>ももクロ<b>コール</b>共有<small>参考コール作成（新仕様版）</small></h1>
+  </header>
+
+  <div id="gateBox">
+    <h2>入場パスワード</h2>
+    <p class="note">このページでは、アプリに表示する「参考コール」を作れます。ログインは不要で、入場パスワードを知っている人だけが作れます。</p>
+    <div id="gateMsg">確認中…</div>
+    <input class="fin" type="password" id="gatePw" placeholder="パスワード" autocomplete="current-password">
+    <button id="gateBtn">入る</button>
+  </div>
+
+  <div id="guideBar" style="display:none">
+    <div id="guideProg"></div>
+    <div id="guideMsg"></div>
+    <button id="gEndBtn" style="display:none">ガイドをやめる</button>
+  </div>
+
+  <div id="maker" style="display:none;flex-direction:column;gap:14px">
+    <button id="guideBtn">ガイドモードで作る</button>
+    <div id="songbox"><select id="songsel" aria-label="曲を選ぶ"></select></div>
+    <div id="mvwrap"><div id="mv"><div id="yt"></div><div id="pvCards"></div></div></div>
+    <div id="barwrap">
+      <div id="barin"><input type="range" id="bar" min="0" max="240" step="0.1" value="0" aria-label="シークバー"><div id="mkBand" style="display:none"></div><div id="mkKnob" style="display:none" role="slider" aria-label="選択中カードの位置"><div id="mkBub"></div></div></div>
+      <div class="times"><span id="tm">0:00</span><span id="dur">0:00</span></div>
+    </div>
+    <div class="playrow">
+      <button class="skb" data-seek="-30">-30秒</button>
+      <button class="skb" data-seek="-10">-10秒</button>
+      <button id="play">再生</button>
+      <button class="skb" data-seek="10">+10秒</button>
+      <button class="skb" data-seek="30">+30秒</button>
+    </div>
+
+    <section id="mk">
+      <h2>参考コールを作る <span class="mkmode">作成画面</span></h2>
+      <div id="mkModeTabs" role="group" aria-label="作り方のモードを選ぶ">
+        <button type="button" class="mktab sel" data-mkmode="nori">♪ ノリノリながらモード</button>
+        <button type="button" class="mktab" data-mkmode="oki">お気に置きにいっちゃうモード</button>
+      </div>
+      <p id="mkModeDesc"></p>
+      <div class="subctl">
+        <button id="mkPlayBtn">▶ 再生</button>
+        <button class="ratebtn" id="rateBtn">速度 1倍</button>
+      </div>
+      <!-- build 64(新仕様版): 拡大タイムライン。ドラッグ中・長押し中は約30秒表示になり、画面下部に浮いて出続けます(元の位置には同じ高さの空きを残します) -->
+      <div id="mkTlBox">
+        <div class="mktl-head"><span>タイムライン</span><span id="mkTlMode">全体表示</span><span id="mkTlPos"></span></div>
+        <div id="mkTlView">
+          <div id="mkTlLabs"><span>コール</span><span>シンガロン</span><span>ココ好き!</span><span></span></div>
+          <div id="mkTlSlide"><div id="mkTlInner"></div><div id="mkTlPlay"></div><div id="mkTlKnob" role="slider" aria-label="選択中のカードの位置つまみ" aria-valuemin="0" aria-valuemax="240" aria-valuenow="0"></div></div>
+        </div>
+        <p class="mktl-note" id="mkTlNote">長押ししている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。打ったカードの開始〜終了も表示されます。</p>
+      </div>
+      <div class="mknori" id="mkBigWrap">
+        <button id="mkCreate">カード作成</button>
+        <div id="mkHint">再生しながら押すと、その位置にカードができます(長さは仮の5秒)。できたカードをタップすると中身や長さを直せます。</div>
+      </div>
+      <!-- build 64(新仕様版): お気に置きにいっちゃうモード。プリセットチップか「つかむ」を押さえて左右へ動かすと、シーク連動スクラブで置く場所を探ります -->
+      <div id="mkPresets" class="mkoki">
+        <div class="plab">プリセットコール（押さえて左右に動かし、指を止めるとその位置の音が流れます。離した位置に置けます）</div>
+        <div id="mkChips"></div>
+        <p class="mknote">指を動かして、止めてください。指を止めると、その位置からの音が流れます。音を頼りに置く場所を探って、離した位置にカードが置かれます。</p>
+      </div>
+      <p id="mkApplyNote" aria-live="polite"></p>
+      <div id="mkTypes" class="types">
+        <button data-i="call" class="sel">コール</button><button data-i="sing">シンガロン</button><button data-i="koko">ココ好き!</button>
+      </div>
+      <div class="mkTextRow">
+        <input type="text" id="mkText" placeholder="内容(例: ハイ!ハイ!)" maxlength="30">
+        <button id="mkGrip" class="mkoki" type="button" aria-label="入力した文言をつかんで移動">⠿ つかむ</button>
+      </div>
+      <div id="mkEdit" style="display:none">
+        <div class="fineRow"><span>位置</span><button id="fineM">−0.1秒</button><button id="fineP">＋0.1秒</button></div>
+        <button id="mkDelBtn">このカードを削除</button>
+      </div>
+      <div id="mkList"></div>
+      <!-- build 64(新仕様版): カード再編集(両モード共通)。カードを選んだ時だけ出ます -->
+      <div id="mkPosEdit" style="display:none">
+        <div class="mkpe-head"><span id="mkPosTitle">選択中のカード</span><span id="mkPosTime"></span></div>
+        <p class="mkpe-note">選んだカードの位置から音が流れています。位置はここで直せます（どちらのモードでも同じ直し方です）。曲を再生して止めた位置へ一気に動かすなら「今の再生位置へ持っていく」が使えます。</p>
+        <button id="mkPosScrub" type="button">押さえて左右に動かす（音を聞きながら位置を探る）</button>
+        <div class="mkpe-btns">
+          <button type="button" class="posStepB" data-dt="-1">−1秒</button>
+          <button type="button" class="posStepB" data-dt="-0.1">−0.1秒</button>
+          <button type="button" class="posStepB" data-dt="0.1">＋0.1秒</button>
+          <button type="button" class="posStepB" data-dt="1">＋1秒</button>
+        </div>
+        <div class="mkpe-btns">
+          <button type="button" class="here" id="mkPosHere">今の再生位置へ持っていく</button>
+          <button type="button" class="restore" id="mkPosRestore">↩ 戻す（選んだときの位置へ）</button>
+          <button type="button" class="restore" id="mkSelClear">選択を解除</button>
+        </div>
+      </div>
+      <!-- build 64(新仕様版): 操作感の調整(反応の鈍さ/手ブレ抑制)。本体 build 64 と同じ範囲・既定値 -->
+      <button id="mkTuneBtn" type="button" aria-expanded="false">操作感の調整<span aria-hidden="true">›</span></button>
+      <div id="mkTunePanel">
+        <p class="mknote" style="margin:0">ドラッグの感触を変えられます。変えた瞬間から反映されます。</p>
+        <div class="durrow"><span style="flex:none;width:86px">反応の鈍さ</span><input type="range" id="tuneGain" min="0.2" max="1" step="0.05" value="0.5" aria-label="反応の鈍さ（指の位置へ再生位置が追いつく速さ）"><b id="tuneGainVal">0.50倍</b></div>
+        <p class="mknote" style="margin:0">指の位置へ再生位置が追いつく速さです。小さいほど鈍くなります。</p>
+        <div class="durrow"><span style="flex:none;width:86px">手ブレ抑制</span><span class="tuneword">弱い</span><input type="range" id="tuneDead" min="4" max="30" step="1" value="14" aria-label="手ブレ抑制（小さい動きを無視する強さ）"><span class="tuneword">強い</span><b id="tuneDeadVal">やや弱い</b></div>
+        <p class="mknote" style="margin:0">小さい指の動きを無視する強さです。強いほど手ブレに強くなります。</p>
+        <button id="tuneReset" type="button">最初の値に戻す</button>
+      </div>
+      <input type="text" id="mkVer" placeholder="バージョン名(例: お手本コール)" maxlength="20">
+      <div id="draftState" style="display:none"></div>
+      <button id="saveBtn">この内容で保存</button>
+      <button id="draftBtn">下書き保存</button>
+      <button id="pvBtn">プレビュー</button>
+    </section>
+    <p class="note">保存すると、アプリの「参考コール」にすぐ表示されます。「下書き保存」を押すと、アプリには表示されずに下書きとして残り、次に来た時に続きが作れます。</p>
+
+    <section id="draftBox">
+      <h2>下書き</h2>
+      <div id="draftList"></div>
+      <button id="newBtn">新規作成</button>
+      <p class="note">下書きをタップすると、その内容が読み込まれて続きが作れます。「新規作成」を押すと、下書きを選ばずに新しく作り始められます。</p>
+    </section>
+
+    <div id="mkDrawer">
+      <div id="mkDrawerBody">
+        <div class="drwBtns"><button class="drwBtn" id="psOpenBtn">プリセットコール</button></div>
+        <div id="psList" style="display:none"></div>
+      </div>
+      <button id="mkDrawerBar" aria-expanded="false">ツール<span class="drwHint">タップで開く</span></button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script type="module">
+const B = "https://www.gstatic.com/firebasejs/10.12.2/";
+const appM = await import(B + "firebase-app.js");
+const fsM = await import(B + "firebase-firestore.js");
+const { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, query, where, orderBy, serverTimestamp } = fsM;
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBWmghjT5uh-awZEyvi53rYPe8Y8Gf2ICA",
+  authDomain: "momoclo-call.firebaseapp.com",
+  projectId: "momoclo-call",
+  storageBucket: "momoclo-call.firebasestorage.app",
+  messagingSenderId: "972978318918",
+  appId: "1:972978318918:web:921e911bc2a29571f62447"
+};
+const db = getFirestore(appM.initializeApp(firebaseConfig));
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, m => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[m]));
+const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+const LAB = {call: "コール", sing: "シンガロン", koko: "ココ好き!"};
+let toastTimer = null;
+function toast(s) { const t = $("toast"); t.textContent = s; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 2600); }
+
+/* ---------- 入場パスワード(ゲート) ---------- */
+async function sha256hex(s) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+let gateHash = null;
+async function initGate() {
+  try {
+    const d = await getDoc(doc(db, "siteMeta", "refgate"));
+    if (d.exists() && d.data().hash) gateHash = String(d.data().hash);
+  } catch (e) {}
+  if (!gateHash) {
+    $("gateMsg").textContent = "パスワードがまだ設定されていません。管理画面で設定してください。";
+    $("gatePw").style.display = "none";
+    $("gateBtn").style.display = "none";
+    return;
+  }
+  if (sessionStorage.getItem("refgate_ok") === "1") { enterMaker(); return; }
+  $("gateMsg").textContent = "入場パスワードを入力してください。";
+}
+async function tryGate() {
+  const pw = $("gatePw").value;
+  if (!pw) return;
+  if (!window.crypto || !crypto.subtle) { $("gateMsg").textContent = "この環境では入場できません(HTTPSのページで開いてください)。"; return; }
+  let h = "";
+  try { h = await sha256hex(pw); } catch (e) { $("gateMsg").textContent = "確認できませんでした。もう一度お試しください。"; return; }
+  if (h === gateHash) {
+    sessionStorage.setItem("refgate_ok", "1");
+    enterMaker();
+  } else {
+    $("gateMsg").textContent = "パスワードが違います";
+    $("gatePw").value = "";
+    $("gatePw").focus();
+  }
+}
+$("gateBtn").addEventListener("click", tryGate);
+$("gatePw").addEventListener("keydown", e => { if (e.key === "Enter") tryGate(); });
+
+/* ---------- 曲リスト(songs。読めない/空の時は内蔵の3曲) ---------- */
+const DEF_SONGS = [
+  {title: "走れ!", yid: "tCD81ACqUYk", startSec: 0, endSec: 0},
+  {title: "Event Horizon", yid: "XN4RSUj15TE", startSec: 0, endSec: 0},
+  {title: "行くぜっ!怪盗少女 -ZZ ver.-", yid: "f-X5-pYU9gM", startSec: 0, endSec: 0}
+];
+let SONGS = DEF_SONGS, si = 0;
+async function loadSongs() {
+  try {
+    const snap = await getDocs(query(collection(db, "songs"), orderBy("order")));
+    if (!snap.empty) SONGS = snap.docs.map(d => { const x = d.data(); return {title: x.title, yid: x.yid, startSec: x.startSec || 0, endSec: x.endSec || 0}; });
+  } catch (e) {}
+  $("songsel").innerHTML = SONGS.map((s, i) => '<option value="' + i + '">♪ ' + esc(s.title) + "</option>").join("");
+  $("songsel").value = String(si);
+  cueSong();
+}
+$("songsel").addEventListener("change", () => { si = +$("songsel").value; scenes = []; sel = -1; lenPhase = null; curDraftId = null; $("mkText").value = ""; renderList(); paintDrafts(); paintDraftState(); cueSong(); });
+
+/* ---------- YouTubeプレイヤー ---------- */
+let yt = null, ytReady = false, drag = false;
+window.onYouTubeIframeAPIReady = () => {
+  yt = new YT.Player("yt", {
+    videoId: SONGS[si].yid,
+    playerVars: {playsinline: 1, controls: 0, rel: 0},
+    events: {
+      onReady: () => { ytReady = true; cueSong(); },
+      onError: () => toast("動画を表示できませんでした")
+    }
+  });
+};
+{ const tag = document.createElement("script"); tag.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(tag); }
+function cueSong() {
+  if (!ytReady) return;
+  const sg = SONGS[si]; if (!sg) return;
+  const R = curRange();
+  try { yt.cueVideoById({videoId: sg.yid, startSeconds: R ? R.s : 0}); } catch (e) {}
+}
+const now = () => ytReady ? (yt.getCurrentTime() || 0) : 0;
+const dur = () => ytReady ? (yt.getDuration() || 240) : 240;
+const curRange = () => { const sg = SONGS[si]; return (sg && +sg.endSec > +sg.startSec && +sg.endSec > 0) ? {s: +sg.startSec, e: +sg.endSec} : null; };
+const clampT = t => { const R = curRange(); return Math.max(R ? R.s : 0, Math.min(R ? R.e : dur(), t)); };
+function togglePlay() {
+  if (!ytReady) return toast("動画の準備ができていません");
+  if (yt.getPlayerState() === 1) { yt.pauseVideo(); return; }
+  const R = curRange();
+  if (R && now() < R.s) yt.seekTo(R.s, true);
+  yt.playVideo();
+}
+$("play").addEventListener("click", togglePlay);
+$("mkPlayBtn").addEventListener("click", togglePlay);
+document.querySelectorAll("[data-seek]").forEach(b => b.addEventListener("click", () => { if (ytReady) yt.seekTo(clampT(now() + +b.dataset.seek), true); }));
+$("bar").addEventListener("input", () => { drag = true; });
+$("bar").addEventListener("change", () => { drag = false; if (ytReady) yt.seekTo(clampT(+$("bar").value), true); });
+
+/* ---------- 作成(build 59の推しコール作成画面と同じ操作) ---------- */
+let scenes = [], sel = -1, lenPhase = null, rate = 1;
+/* build 61: 下書き保存の状態(編集中の下書きIDと下書き一覧) */
+let curDraftId = null, DRAFTS = [];
+const MK_KCOL = {call: "#ff5c8a", sing: "#2ec4b6", koko: "#ff9f1c"};
+
+/* ---------- build 64(新仕様版): 作成の2モード制 / 長押し / シーク連動スクラブ / 拡大タイムライン / 位置再編集(本体 build 64 と同じ操作仕様) ---------- */
+let mkType = "call";            // 「次に作るカード」の種類(種類ボタンで切替。カード選択中は選択中カードの種類も連動する)
+let mkMode = "nori";            // 作成モード "nori"(♪ノリノリながら) | "oki"(お気に置きにいっちゃう)。localStorageに保存し、次回も同じモードで開く
+try { const m64 = localStorage.getItem("momo_mkmode"); if (m64 === "oki" || m64 === "nori") mkMode = m64; } catch (e) {}
+let mkSelOrigT = null;          // カードを選んだときの開始位置(位置編集の「戻す」用)
+let mkHoldClickAt = 0;          // 大きなボタンを長押しで処理した時刻(続くクリックを握りつぶすため)
+let mkScrSt = null, mkPosScrSt = null, mkHoldSt = null;   // スクラブ(新規)/位置スクラブ/長押し の進行中状態
+let mkTune = {gain: 0.5, dead: 14};   // 操作感: 反応の鈍さ(指の絶対位置への追従速度) / 手ブレ抑制(小さい動きを無視する幅)。本番と同じ既定値・範囲。localStorage保存
+try {
+  const g64 = parseFloat(localStorage.getItem("momo_drag_gain")); if (isFinite(g64)) mkTune.gain = Math.min(1, Math.max(0.2, g64));
+  const d64 = parseFloat(localStorage.getItem("momo_drag_dead")); if (isFinite(d64)) mkTune.dead = Math.min(30, Math.max(4, Math.round(d64)));
+} catch (e) {}
+function seekYT(t) { if (!ytReady) return; try { yt.seekTo(Math.round(t * 10) / 10, true); } catch (e) {} }
+function playYT() { if (!ytReady) return; const R = curRange(); if (R && now() < R.s) { try { yt.seekTo(R.s, true); } catch (e) {} } try { yt.playVideo(); } catch (e) {} }
+
+function paintBtn() {
+  const b = $("mkCreate"), hint = $("mkHint"), ed = $("mkEdit");
+  ed.style.display = (sel >= 0 && scenes[sel]) ? "flex" : "none";
+  b.classList.remove("go", "edit");
+  if (lenPhase === "run" && sel >= 0 && scenes[sel]) {
+    b.textContent = "ここで終わり"; b.classList.add("go");
+    hint.textContent = "再生中です。表示を終わらせたい位置で「ここで終わり」を押してください。";
+  } else if (sel >= 0 && scenes[sel]) {
+    const sc = scenes[sel];
+    b.textContent = "長さ指定"; b.classList.add("edit");
+    hint.textContent = fmt(sc.t) + " のカードを選択中です。「長さ指定」を押すか、このボタンを長押しすると、その位置から再生して長さを決め直せます。シークバーのつまみや下の位置編集でも直せます。もう一度カードを押すと選択を終わります。";
+  } else {
+    b.textContent = "カード作成";
+    hint.textContent = "再生しながらタップすると5秒のカード、長押しすると押している長さのカードができます(0.5〜20秒)。止まっている時は今の位置にできます。できたカードをタップすると中身や長さを直せます。";
+  }
+}
+function paintKnob() {
+  const band = $("mkBand"), kn = $("mkKnob");
+  const sc = sel >= 0 ? scenes[sel] : null;
+  if (!sc) { band.style.display = "none"; kn.style.display = "none"; return; }
+  const D = Math.max(dur() || 0, +($("bar").max || 0), 1);
+  const col = MK_KCOL[sc.k] || "#ff5c8a";
+  band.style.display = "block"; band.style.left = (sc.t / D * 100) + "%"; band.style.width = Math.max(sc.d / D * 100, 1.5) + "%"; band.style.background = col + "55";
+  kn.style.display = "block"; kn.style.left = (sc.t / D * 100) + "%"; kn.style.background = col;
+  $("mkBub").textContent = fmt(sc.t);
+}
+function renderList() {
+  const L = $("mkList");
+  if (!scenes.length) {
+    L.innerHTML = '<div style="font-size:12px;color:var(--mut);padding:8px 2px">まだカードがありません。「カード作成」を押すと、その再生位置にカードができます(長さは仮の5秒)。</div>';
+  } else {
+    L.innerHTML = scenes.map((e, i) => '<div class="mkcard' + (i === sel ? " sel" : "") + '">'
+      + '<button class="mkpick" data-pick="' + i + '"><span class="mkt">' + fmt(e.t) + '</span><span class="mkk">' + LAB[e.k] + '</span><span class="mkx">' + esc(e.x) + '</span><span class="mkd">' + e.d + '秒</span></button>'
+      + '<button class="mkdel" data-del="' + i + '" aria-label="削除">×</button></div>').join("");
+    L.querySelectorAll("[data-pick]").forEach(b => b.addEventListener("click", () => pickCard(+b.dataset.pick)));
+    L.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => delScene(+b.dataset.del)));
+  }
+  paintBtn(); paintKnob(); paintPosEdit(); renderMkTl();
+  applyGuide();
+}
+function pickCard(i) {
+  if (sel === i) { sel = -1; lenPhase = null; mkSelOrigT = null; renderList(); return; }
+  const sc = scenes[i]; if (!sc) return;
+  sel = i; lenPhase = null; mkSelOrigT = sc.t;   // build 64: 「戻す」用に、選んだときの位置を覚える
+  mkType = sc.k;
+  document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === sc.k));
+  $("mkText").value = sc.x;
+  renderList();
+  if (ytReady) { seekYT(sc.t); playYT(); }   // build 64: 選んだカードの位置から再生して、どの部分か音で確かめられる
+  const pe = $("mkPosEdit"); if (pe) pe.scrollIntoView({behavior: "smooth", block: "nearest"});
+  guideEvent("picked");
+}
+function delScene(i) {
+  scenes.splice(i, 1);
+  if (sel === i) { sel = -1; lenPhase = null; mkSelOrigT = null; $("mkText").value = ""; }
+  else if (sel > i) sel--;
+  renderList();
+}
+$("mkDelBtn").addEventListener("click", () => { if (sel >= 0 && scenes[sel]) delScene(sel); });
+document.querySelectorAll("#mkTypes button").forEach(b => b.addEventListener("click", () => {
+  mkType = b.dataset.i;
+  document.querySelectorAll("#mkTypes button").forEach(x => x.classList.toggle("sel", x === b));
+  if (sel >= 0 && scenes[sel]) { scenes[sel].k = b.dataset.i; renderList(); }
+  guideEvent("type");
+}));
+$("mkText").addEventListener("input", e => {
+  if (sel >= 0 && scenes[sel]) {
+    scenes[sel].x = e.target.value;
+    const rows = $("mkList").querySelectorAll(".mkcard .mkx");
+    if (rows[sel]) rows[sel].textContent = e.target.value;
+  }
+  guideEvent("text");
+});
+/* build 61: 0.1秒微調整(つまみのドラッグと同じ更新処理: 位置を変えて並べ替え、一覧・つまみ・帯を同期) */
+function shiftScene(dt) {
+  const sc = scenes[sel]; if (!sc) return;
+  const D = Math.max(dur() || 0, 1);
+  let t = Math.round((sc.t + dt) * 10) / 10;
+  t = Math.max(0, Math.min(Math.max(0, D - sc.d), t));
+  if (t === sc.t) return;
+  sc.t = t;
+  scenes.sort((a, b) => a.t - b.t);
+  sel = scenes.indexOf(sc);
+  renderList();
+}
+$("fineM").addEventListener("click", () => { shiftScene(-0.1); guideEvent("fine"); });
+$("fineP").addEventListener("click", () => { shiftScene(0.1); guideEvent("fine"); });
+/* 大きな丸いボタン: カード作成 / 長さ指定 / ここで終わり(build 59と同じ状態機械。build 64: カード作成は「次に作るカード」の設定(種類ボタン・入力欄)を使う) */
+function mkMain() {
+  if (lenPhase === "run") {
+    const sc = scenes[sel];
+    lenPhase = null;
+    if (!sc) { renderList(); return; }
+    const d = Math.round((now() - sc.t) * 10) / 10;
+    sc.d = Math.max(0.5, Math.min(20, d));
+    renderList();
+    toast(fmt(sc.t) + " のカードの長さを " + sc.d + " 秒にしました");
+    guideEvent("lenDone");
+    return;
+  }
+  if (sel >= 0 && scenes[sel]) {
+    if (!ytReady) return toast("動画の準備ができていません");
+    const sc = scenes[sel];
+    lenPhase = "run";
+    seekYT(sc.t);
+    playYT();
+    renderList();
+    toast("再生中です。終わりの位置で「ここで終わり」を押してください");
+    return;
+  }
+  const t = Math.round(clampT(now()));
+  const sc = {t: t, d: 5, k: mkType, x: $("mkText").value.trim()};
+  scenes.push(sc);
+  scenes.sort((a, b) => a.t - b.t);
+  if (sc.x) $("mkText").value = "";
+  renderList();
+  const L = $("mkList"); L.scrollTop = L.scrollHeight;
+  toast(fmt(t) + " にカードを作りました");
+  guideEvent("card");
+}
+$("mkCreate").addEventListener("click", () => {
+  if (Date.now() - mkHoldClickAt < 500) return;   // build 64: 長押しで処理済みのクリックは握りつぶす(二重作成・二重の長さ指定を防ぐ)
+  mkMain();
+});
+/* 速度切替: 1倍 → 0.5倍 → 0.25倍 */
+$("rateBtn").addEventListener("click", () => {
+  const R = [1, 0.5, 0.25];
+  rate = R[(R.indexOf(rate) + 1) % R.length];
+  try { if (ytReady) yt.setPlaybackRate(rate); } catch (e) {}
+  $("rateBtn").textContent = "速度 " + rate + "倍";
+  toast("再生速度を " + rate + "倍にしました");
+});
+/* シークバー上のカードつまみ(ドラッグで開始位置を0.1秒刻みで移動。長さは不変) */
+(function () {
+  const kn = $("mkKnob"), wrap = $("barin");
+  let dragK = false;
+  const move = e => {
+    if (!dragK) return;
+    const sc = scenes[sel]; if (!sc) return;
+    const r = wrap.getBoundingClientRect(); if (!r.width) return;
+    const D = Math.max(dur() || 0, 1);
+    let t = Math.round(((e.clientX - r.left) / r.width * D) * 10) / 10;
+    t = Math.max(0, Math.min(Math.max(0, D - sc.d), t));
+    if (t === sc.t) return;
+    sc.t = t;
+    scenes.sort((a, b) => a.t - b.t);
+    sel = scenes.indexOf(sc);
+    renderList();
+  };
+  kn.addEventListener("pointerdown", e => { if (sel < 0) return; dragK = true; try { kn.setPointerCapture(e.pointerId); } catch (err) {} kn.classList.add("drag"); e.preventDefault(); e.stopPropagation(); });
+  kn.addEventListener("pointermove", move);
+  const end = () => { const was = dragK; dragK = false; kn.classList.remove("drag"); if (was) guideEvent("knob"); };
+  kn.addEventListener("pointerup", end);
+  kn.addEventListener("pointercancel", end);
+})();
+
+/* 再生位置の同期(バー・時刻・再生ボタン・つまみ・再生範囲の終端) */
+let wasPlaying = false;
+setInterval(() => {
+  if (!ytReady || $("maker").style.display === "none") return;
+  try {
+    const t = now(), pl = yt.getPlayerState() === 1;
+    if (pl !== wasPlaying) { wasPlaying = pl; guideEvent(pl ? "play" : "pause"); }
+    $("play").textContent = pl ? "一時停止" : "再生";
+    $("mkPlayBtn").textContent = pl ? "⏸ 一時停止" : "▶ 再生";
+    if (!drag) { $("bar").max = dur(); $("bar").value = t; }
+    $("tm").textContent = fmt(t); $("dur").textContent = fmt(dur());
+    paintKnob();
+    const R = curRange();
+    if (R && pl && t >= R.e) yt.pauseVideo();
+    if (pvOn) {   // build 62: プレビュー中は作りかけのカードを動画に重ねて表示する
+      if (t >= pvUntil) { pvOn = false; $("pvCards").innerHTML = ""; $("pvBtn").textContent = "プレビュー"; yt.pauseVideo(); toast("プレビューが終わりました"); }
+      else {
+        const on = scenes.filter(x => t >= x.t && t < x.t + x.d);
+        $("pvCards").innerHTML = on.map(x => '<div class="pvcd"><small>' + LAB[x.k] + "</small>" + esc(x.x) + "</div>").join("");
+      }
+    }
+  } catch (e) {}
+}, 200);
+
+/* ---------- プレビュー(build 62。本体アプリと同じ: 作りかけのカード群を先頭から通し再生。止めても編集状態は保持) ---------- */
+let pvOn = false, pvUntil = 0;
+$("pvBtn").addEventListener("click", () => {
+  if (pvOn) { pvOn = false; $("pvCards").innerHTML = ""; $("pvBtn").textContent = "プレビュー"; if (ytReady) yt.pauseVideo(); toast("プレビューを止めました(編集内容はそのまま残っています)"); return; }
+  if (!scenes.length) { toast("場面を追加してください"); return; }
+  if (!ytReady) { toast("動画の準備ができていません"); return; }
+  const sorted = scenes.slice().sort((a, b) => a.t - b.t), first = sorted[0], lastS = sorted[sorted.length - 1];
+  pvUntil = lastS.t + lastS.d + 3;
+  pvOn = true; $("pvBtn").textContent = "プレビューを止める";
+  yt.seekTo(first.t, true); yt.playVideo();
+  toast("作成中の参考コールをプレビュー中");
+});
+
+/* ---------- プリセットコール(build 60。本体アプリと同じ引き出し・同じ presets コレクション) ---------- */
+let PRESETS = [], psLoaded = false, psListShown = false;
+async function loadPresets() {
+  try {
+    const snap = await getDocs(collection(db, "presets"));
+    PRESETS = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    PRESETS.sort((a, b) => ((a.order == null ? 1e9 : a.order) - (b.order == null ? 1e9 : b.order)) || (((a.at && a.at.seconds) || 0) - ((b.at && b.at.seconds) || 0)));
+  } catch (e) { PRESETS = []; }
+  psLoaded = true;
+  paintPsList();
+}
+function paintPsList() {
+  const el = $("psList");
+  if (!PRESETS.length) { el.innerHTML = '<div class="psNone">プリセットはまだ登録されていません（管理画面で登録できます）</div>'; paintMkChips(); applyGuide(); return; }
+  el.innerHTML = PRESETS.map((p, i) => '<button class="psChip" data-ps="' + i + '"><span class="psk">' + LAB[p.k] + '</span><span class="psx">' + esc(p.x) + "</span></button>").join("");
+  paintMkChips(); applyGuide();
+}
+$("mkDrawerBar").addEventListener("click", () => {
+  const d = $("mkDrawer");
+  d.classList.toggle("open");
+  $("mkDrawerBar").setAttribute("aria-expanded", d.classList.contains("open") ? "true" : "false");
+});
+$("psOpenBtn").addEventListener("click", () => {
+  psListShown = !psListShown;
+  $("psList").style.display = psListShown ? "flex" : "none";
+  if (psListShown && !psLoaded) loadPresets();
+});
+$("psList").addEventListener("click", e => {
+  const b = e.target.closest("[data-ps]"); if (!b) return;
+  const p = PRESETS[+b.dataset.ps]; if (!p) return;
+  if (!(sel >= 0 && scenes[sel])) { toast("先にカードを選んでください"); return; }
+  scenes[sel].k = p.k;
+  scenes[sel].x = p.x;
+  mkType = p.k;
+  document.querySelectorAll("#mkTypes button").forEach(x => x.classList.toggle("sel", x.dataset.i === p.k));
+  $("mkText").value = p.x;
+  renderList();
+  $("mkDrawer").classList.remove("open");
+  toast("プリセットを適用しました");
+  guideEvent("text");
+});
+
+/* ---------- 保存(admin.htmlの参考コール作成と完全に同じ形式) ---------- */
+function sortedScenes() { return scenes.map(e => ({t: e.t, d: e.d, k: e.k, x: e.x})).sort((a, b) => a.t - b.t); }
+$("saveBtn").addEventListener("click", async () => {
+  if (!scenes.length) { toast("場面を追加してください"); return; }
+  const ver = $("mkVer").value.trim();
+  if (!ver) { toast("バージョン名を入力してください"); return; }
+  const sg = SONGS[si]; if (!sg) return;
+  try {
+    if (curDraftId) {
+      /* 下書きを読み込み中: 同じドキュメントを完成(draft: false)に更新して公開する */
+      await updateDoc(doc(db, "refs", curDraftId), {videoId: sg.yid, versionName: ver, scenes: sortedScenes(), draft: false, updatedAt: serverTimestamp()});
+    } else {
+      await addDoc(collection(db, "refs"), {videoId: sg.yid, versionName: ver, scenes: sortedScenes(), createdAt: serverTimestamp()});
+    }
+    toast("保存しました");
+    curDraftId = null;
+    scenes = []; sel = -1; lenPhase = null;
+    $("mkVer").value = ""; $("mkText").value = "";
+    renderList(); paintDraftState();
+    loadDrafts();
+    guideEvent("saved");
+  } catch (e) { toast("保存できませんでした(通信を確認してください)"); }
+});
+
+/* ---------- 下書き保存(build 61) ---------- */
+async function saveDraft() {
+  if (!scenes.length) { toast("カードを作ってから下書き保存してください"); return false; }
+  const sg = SONGS[si]; if (!sg) return false;
+  const data = {videoId: sg.yid, versionName: $("mkVer").value.trim(), scenes: sortedScenes(), draft: true, updatedAt: serverTimestamp()};
+  try {
+    if (curDraftId) {
+      await updateDoc(doc(db, "refs", curDraftId), data);
+    } else {
+      data.createdAt = serverTimestamp();
+      const d = await addDoc(collection(db, "refs"), data);
+      curDraftId = d.id;
+    }
+    toast("下書きを保存しました");
+    paintDraftState();
+    loadDrafts();
+    return true;
+  } catch (e) { toast("下書きを保存できませんでした(通信を確認してください)"); return false; }
+}
+$("draftBtn").addEventListener("click", async () => { if (await saveDraft()) guideEvent("saved"); });
+
+function paintDraftState() {
+  const el = $("draftState");
+  if (!curDraftId) { el.style.display = "none"; el.textContent = ""; return; }
+  const d = DRAFTS.find(x => x.id === curDraftId);
+  el.textContent = "下書き「" + ((d && d.versionName) || $("mkVer").value.trim() || "（名称未設定）") + "」を編集中です";
+  el.style.display = "block";
+}
+function paintDrafts() {
+  const el = $("draftList");
+  if (!DRAFTS.length) { el.innerHTML = '<div class="psNone">下書きはまだありません。</div>'; applyGuide(); return; }
+  el.innerHTML = DRAFTS.map((d, i) => {
+    const sg = SONGS.find(s => s.yid === d.videoId);
+    const sec = d.updatedAt && d.updatedAt.seconds;
+    const dt = sec ? new Date(sec * 1000) : null;
+    const ds = dt ? (dt.getMonth() + 1) + "/" + dt.getDate() + " " + String(dt.getHours()).padStart(2, "0") + ":" + String(dt.getMinutes()).padStart(2, "0") : "";
+    return '<button class="draftItem' + (d.id === curDraftId ? " sel" : "") + '" data-draft="' + i + '"><span class="dv">' + esc(d.versionName || "（名称未設定）") + '</span><span class="dm">' + esc(sg ? sg.title : "") + (ds ? " ・ " + ds + " 更新" : "") + "</span></button>";
+  }).join("");
+  applyGuide();
+}
+async function loadDrafts() {
+  try {
+    const snap = await getDocs(query(collection(db, "refs"), where("draft", "==", true)));
+    DRAFTS = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    DRAFTS.sort((a, b) => ((b.updatedAt && b.updatedAt.seconds) || 0) - ((a.updatedAt && a.updatedAt.seconds) || 0));
+  } catch (e) { DRAFTS = []; }
+  paintDrafts(); paintDraftState();
+}
+function loadDraft(d) {
+  const idx = SONGS.findIndex(s => s.yid === d.videoId);
+  if (idx >= 0 && idx !== si) { si = idx; $("songsel").value = String(si); cueSong(); }
+  curDraftId = d.id;
+  scenes = (d.scenes || []).map(e => ({t: e.t, d: e.d, k: e.k, x: e.x || ""})).sort((a, b) => a.t - b.t);
+  sel = -1; lenPhase = null;
+  $("mkVer").value = d.versionName || "";
+  $("mkText").value = "";
+  renderList(); paintDrafts(); paintDraftState();
+  toast("下書きを読み込みました");
+}
+$("draftList").addEventListener("click", e => {
+  const b = e.target.closest("[data-draft]"); if (!b) return;
+  const d = DRAFTS[+b.dataset.draft]; if (d) loadDraft(d);
+});
+$("newBtn").addEventListener("click", () => {
+  curDraftId = null;
+  scenes = []; sel = -1; lenPhase = null;
+  $("mkVer").value = ""; $("mkText").value = "";
+  renderList(); paintDrafts(); paintDraftState();
+  toast("新規作成の状態に戻しました");
+});
+
+/* ---------- build 64(新仕様版): 2モード制の表示切替(本体 build 64 の paintMkMode / setMkMode と同じ) ---------- */
+const MKMODE_DESC = {
+  nori: "曲を聞きながら作るモードです。コールを口で言っている間だけ大きな丸ボタンを長押しすると、離した長さでカードが打てます。中身（種類・文言）は後から入れられます。",
+  oki: "文言を先に用意してから置きに行くモードです。プリセットを選ぶか文字を書いておいて、掴んで左右に動かすと、その位置の音を頼りに置く場所を探れます。再生ボタンを押していなくても、掴んで動かし始めるとその位置の音が自動で流れます。指を止めると、その位置からの音が流れるので、聞いて確かめてから離してください。離した位置にカードが置けて、長さは後から変えられます。"
+};
+const MKMODE_TLNOTE = {
+  nori: "長押ししている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。打ったカードの開始〜終了も表示されます。",
+  oki: "掴んで動かしている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。指の横の位置が、そのまま曲の位置になります。"
+};
+function paintMkMode() {
+  document.querySelectorAll("#mkModeTabs .mktab").forEach(b => b.classList.toggle("sel", b.dataset.mkmode === mkMode));
+  const nori = mkMode === "nori";
+  document.querySelectorAll("#mk .mknori").forEach(el => { el.style.display = nori ? "" : "none"; });
+  document.querySelectorAll("#mk .mkoki").forEach(el => { el.style.display = nori ? "none" : ""; });
+  const d = $("mkModeDesc"); if (d) d.textContent = MKMODE_DESC[mkMode];
+  const n = $("mkTlNote"); if (n) n.textContent = MKMODE_TLNOTE[mkMode];
+}
+function setMkMode(m) {
+  if (m !== "nori" && m !== "oki") return;
+  mkMode = m;
+  try { localStorage.setItem("momo_mkmode", m); } catch (e) {}
+  paintMkMode();
+  guideEvent("mode");
+}
+document.querySelectorAll("#mkModeTabs .mktab").forEach(b => b.addEventListener("click", () => setMkMode(b.dataset.mkmode)));
+
+/* ---------- build 64(新仕様版): 選択中カードの位置編集パネルと、種類・文言の適用先の表示 ---------- */
+function paintPosEdit() {
+  const box = $("mkPosEdit"); if (!box) return;
+  const sc = (sel >= 0 && scenes[sel]) ? scenes[sel] : null;
+  const note = $("mkApplyNote");
+  if (note) note.textContent = sc
+    ? "いま選択中のカード「" + (sc.x || LAB[sc.k]) + "」を編集中です。種類ボタン・文言の入力・プリセットは、このカードに適用されます。"
+    : "種類・文言は、次に作るカードのものになります。作ったカードを選ぶと、選んだカードの書き換えに使えます。";
+  if (!sc) { box.style.display = "none"; return; }
+  box.style.display = "flex";
+  $("mkPosTitle").textContent = "選択中: " + LAB[sc.k] + "「" + sc.x + "」";
+  $("mkPosTime").textContent = fmt(sc.t) + "〜" + fmt(sc.t + sc.d);
+}
+function posHere() {
+  const sc = scenes[sel]; if (!sc) return toast("先にカードを選んでください");
+  const D = Math.max(dur() || 0, 1);
+  let v = Math.round(now() * 10) / 10;
+  v = Math.max(0, Math.min(Math.max(0, D - sc.d), v));
+  if (v !== sc.t) { sc.t = v; scenes.sort((a, b) => a.t - b.t); sel = scenes.indexOf(sc); renderList(); }
+  toast("「" + (sc.x || LAB[sc.k]) + "」を今の再生位置(" + fmt(sc.t) + ")へ持ってきました");
+  guideEvent("tweak");
+}
+function posRestore() {
+  const sc = scenes[sel]; if (!sc || mkSelOrigT == null) return;
+  const D = Math.max(dur() || 0, 1);
+  let v = Math.max(0, Math.min(Math.max(0, D - sc.d), mkSelOrigT));
+  if (v !== sc.t) { sc.t = v; scenes.sort((a, b) => a.t - b.t); sel = scenes.indexOf(sc); renderList(); }
+  if (ytReady) { seekYT(sc.t); playYT(); }
+  toast("選んだときの位置(" + fmt(mkSelOrigT) + ")に戻しました");
+  guideEvent("tweak");
+}
+$("mkPosHere").addEventListener("click", posHere);
+$("mkPosRestore").addEventListener("click", posRestore);
+$("mkSelClear").addEventListener("click", () => { sel = -1; lenPhase = null; mkSelOrigT = null; renderList(); });
+document.querySelectorAll(".posStepB").forEach(b => b.addEventListener("click", () => { shiftScene(parseFloat(b.dataset.dt)); guideEvent("fine"); }));
+
+/* ---------- build 64(新仕様版): 作成画面のタイムライン(通常は曲全体。ドラッグ中/長押し中は現在位置を中心に約30秒へ拡大し、画面下部に浮かせて出し続ける。元の位置にはプレースホルダを残す) ---------- */
+const MK_TL_KINDS = ["call", "sing", "koko"];
+let mkTlZoom = false, mkTlCenter = 0, mkTlLastD = 0, mkTlPh = null;
+function mkTlD() { return Math.max(1, dur() || 240); }
+function mkTlWin() {
+  const d = mkTlD();
+  if (!mkTlZoom) return {a: 0, span: d};
+  const span = Math.min(30, d);
+  let a = mkTlCenter - span / 2;
+  a = Math.max(0, Math.min(Math.max(0, d - span), a));
+  return {a: a, span: span};
+}
+function renderMkTl() {
+  const inner = $("mkTlInner"); if (!inner) return;
+  const d = mkTlD();
+  let html = "";
+  MK_TL_KINDS.forEach(k => {
+    const bars = scenes.filter(x => x.k === k).map(x => {
+      const l = Math.max(0, x.t / d * 100), w = Math.max(0.8, x.d / d * 100), idx = scenes.indexOf(x), sel2 = idx === sel;
+      return '<div class="mktl-bar mb-' + k + (sel2 ? " selb2" : "") + '" data-mksel="' + idx + '" style="left:' + l + '%;width:' + w + '%" title="' + fmt(x.t) + "〜" + fmt(x.t + x.d) + " " + LAB[k] + " " + esc(x.x) + '"><span>' + fmt(x.t) + "〜" + fmt(x.t + x.d) + " " + esc(x.x) + "</span></div>";
+    }).join("");
+    html += '<div class="mktl-lane">' + bars + "</div>";
+  });
+  let ticks = "";
+  if (mkTlZoom) {
+    for (let t = 0; t <= d; t += 1) {
+      const big = t % 5 === 0, l2 = t / d * 100;
+      ticks += '<div class="mktl-tick' + (big ? " big" : "") + '" style="left:' + l2 + '%"></div>' + (big ? '<span class="mktl-tlab" style="left:' + l2 + '%">' + fmt(t) + "</span>" : "");
+    }
+  } else {
+    const steps = [5, 10, 15, 20, 30, 60]; let step = 60;
+    for (let si2 = 0; si2 < steps.length; si2++) { if (d / steps[si2] <= 14) { step = steps[si2]; break; } }
+    for (let t2 = 0; t2 <= d; t2 += step) {
+      const l3 = t2 / d * 100;
+      ticks += '<div class="mktl-tick big" style="left:' + l3 + '%"></div><span class="mktl-tlab" style="left:' + l3 + '%">' + fmt(t2) + "</span>";
+    }
+  }
+  html += '<div class="mktl-ticks">' + ticks + "</div>";
+  inner.innerHTML = html;
+  const box = $("mkTlBox"); if (box) box.classList.toggle("zoom", mkTlZoom);
+  const md = $("mkTlMode"); if (md) md.textContent = mkTlZoom ? "拡大表示（約30秒）" : "全体表示";
+  mkTlApplyView();
+}
+function mkTlApplyView() {
+  const inner = $("mkTlInner"); if (!inner) return;
+  const d = mkTlD(), w = mkTlWin();
+  inner.style.width = (d / w.span * 100) + "%";
+  inner.style.transform = "translateX(" + (-(w.a / d * 100)) + "%)";
+  const t = now() || 0;
+  const p = (t - w.a) / w.span * 100, pl = $("mkTlPlay");
+  if (pl) { if (p >= 0 && p <= 100) { pl.style.display = "block"; pl.style.left = p + "%"; } else pl.style.display = "none"; }
+  const pos = $("mkTlPos"); if (pos) pos.textContent = "現在 " + fmt(t) + (mkTlZoom ? " ／ 表示範囲 " + fmt(w.a) + "〜" + fmt(w.a + w.span) : "");
+  const kn = $("mkTlKnob");
+  if (kn) {
+    const sc = (sel >= 0 && scenes[sel]) ? scenes[sel] : null;
+    if (sc) {
+      const kp = (sc.t - w.a) / w.span * 100;
+      if (kp >= 0 && kp <= 100) { kn.style.display = "block"; kn.style.left = kp + "%"; kn.setAttribute("aria-valuenow", Math.round(sc.t)); } else kn.style.display = "none";
+    } else kn.style.display = "none";
+  }
+}
+function mkTlSetFloat(on) {
+  const box = $("mkTlBox"); if (!box) return;
+  if (on) {
+    if (!mkTlPh) { mkTlPh = document.createElement("div"); mkTlPh.setAttribute("aria-hidden", "true"); mkTlPh.style.height = box.offsetHeight + "px"; box.parentNode.insertBefore(mkTlPh, box); }
+    box.classList.add("tlfloat");
+  } else {
+    box.classList.remove("tlfloat");
+    if (mkTlPh) { mkTlPh.remove(); mkTlPh = null; }
+  }
+}
+function mkSetZoom(on, c) {
+  mkTlSetFloat(on);
+  if (on === mkTlZoom) { if (on && c != null) { mkTlCenter = c; mkTlApplyView(); } return; }
+  mkTlZoom = on; if (c != null) mkTlCenter = c;
+  renderMkTl();
+}
+
+/* ---------- build 64(新仕様版): シーク連動スクラブ(お気に置きにいっちゃうモードの「置きに行く」操作と、選択中カードの位置探りで共用)。
+   指の絶対位置対応: 画面幅より少し狭い帯に曲全体を割り当て、指の横位置そのものが曲の位置になる。
+   デッドゾーン(手ブレ抑制: 小さい動きは無視)と、反応の鈍さ(絶対位置への追従速度)で操作感を調整できる ---------- */
+function mkBandAbs(clientX) {
+  const W = window.innerWidth || 360;
+  const m = Math.max(10, Math.round(W * 0.04));
+  const width = Math.max(50, W - m * 2);
+  let r = (clientX - m) / width;
+  r = Math.max(0, Math.min(1, r));
+  return r * mkTlD();
+}
+let mkGhost = null;
+function mkGhostEl() { if (!mkGhost) { mkGhost = document.createElement("div"); mkGhost.id = "dragGhost"; document.body.appendChild(mkGhost); } return mkGhost; }
+function mkShowGhost(e, src, t) {
+  const g = mkGhostEl();
+  g.innerHTML = "";
+  g.appendChild(document.createTextNode(src.x || LAB[src.k]));
+  const sm = document.createElement("small");
+  sm.textContent = fmt(t) + " に置く";
+  g.appendChild(sm);
+  g.style.left = e.clientX + "px"; g.style.top = e.clientY + "px";
+  g.classList.add("on");
+}
+function mkMoveGhost(e, t) { const g = mkGhost; if (!g) return; g.style.left = e.clientX + "px"; g.style.top = e.clientY + "px"; const sm = g.querySelector("small"); if (sm) sm.textContent = fmt(t) + " に置く"; }
+function mkScrStart(e, src, el) {
+  e.preventDefault();
+  try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  mkScrSt = {pid: e.pointerId, x0: e.clientX, anchorX: e.clientX, seek0: now() || 0, target: now() || 0, lastSeek: null, active: false, src: src, settle: null, lastX: e.clientX, lastY: e.clientY};
+}
+function mkScrMove(e) {
+  const scr = mkScrSt; if (!scr || e.pointerId !== scr.pid) return;
+  const dead = mkTune.dead;
+  if (!scr.active) {
+    if (Math.abs(e.clientX - scr.x0) <= dead) return;
+    scr.active = true; scr.anchorX = e.clientX;
+    mkSetZoom(true, scr.seek0);
+    mkShowGhost(e, scr.src, scr.seek0);
+    if (ytReady) playYT();   // 再生を押していなくても、掴んで動かし始めるとその位置の音がプレビューで流れる
+  } else if (Math.abs(e.clientX - scr.anchorX) <= dead) { return; }   // 手ブレ抑制: 前回位置を更新した地点から dead(px) 未満の動きは無視
+  else { scr.anchorX = e.clientX; }
+  const absT = mkBandAbs(e.clientX);
+  const g = mkTune.gain;
+  let target = g >= 1 ? absT : scr.target + (absT - scr.target) * g;   // 反応の鈍さ: gain が小さいほど、再生位置は指の絶対位置へゆっくり近づく
+  target = Math.max(0, Math.min(mkTlD(), target));
+  scr.target = target; mkTlCenter = target; mkTlApplyView();
+  mkMoveGhost(e, target);
+  if (scr.lastSeek === null || Math.abs(target - scr.lastSeek) >= 0.15) { scr.lastSeek = target; seekYT(target); }
+  scr.lastX = e.clientX; scr.lastY = e.clientY;
+  if (scr.settle) clearTimeout(scr.settle);
+  scr.settle = setTimeout(() => {   // 指を止めたら(約320ms)、指の絶対位置から再生して聞き直せる
+    if (!mkScrSt || !mkScrSt.active) return;
+    const t = Math.max(0, Math.min(mkTlD(), Math.round(mkBandAbs(mkScrSt.lastX) * 10) / 10));
+    mkScrSt.target = t; mkScrSt.lastSeek = t; mkTlCenter = t; mkTlApplyView();
+    mkMoveGhost({clientX: mkScrSt.lastX, clientY: mkScrSt.lastY}, t);
+    seekYT(t); if (ytReady) playYT();
+  }, 320);
+}
+function mkScrEnd(commit, upX) {
+  const sc = mkScrSt; if (!sc) return;
+  mkScrSt = null;
+  if (sc.settle) clearTimeout(sc.settle);
+  if (mkGhost) mkGhost.classList.remove("on");
+  if (sc.active) {
+    mkSetZoom(false);
+    if (commit) {
+      if (upX != null) sc.target = mkBandAbs(upX);
+      const t = Math.max(0, Math.min(mkTlD() - 0.5, Math.round(sc.target * 10) / 10));
+      const nc = {t: t, d: 5, k: sc.src.k, x: sc.src.x};   // 置いたカードの長さは仮の5秒(後から長さ指定で直せる)
+      scenes.push(nc); scenes.sort((a, b) => a.t - b.t);
+      if (sc.src.grip) $("mkText").value = "";
+      renderList();
+      toast("「" + (nc.x || LAB[nc.k]) + "」を " + fmt(t) + " に置きました");
+      guideEvent("drop");
+    }
+    return;
+  }
+  if (commit && sc.src.chip) {   // チップのただのタップ(ドラッグしなかった)
+    if (sel >= 0 && scenes[sel]) {
+      const s2 = scenes[sel];
+      s2.k = sc.src.k; s2.x = sc.src.x; mkType = sc.src.k;
+      document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === sc.src.k));
+      $("mkText").value = sc.src.x;
+      renderList();
+      toast("選択中のカードにプリセット「" + sc.src.x + "」を適用しました");
+      guideEvent("text");
+      return;
+    }
+    $("mkText").value = sc.src.x;
+    if (mkType !== sc.src.k) { mkType = sc.src.k; document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === sc.src.k)); }
+    toast("プリセット「" + sc.src.x + "」を入力しました。チップを押さえて左右に動かすと、その位置に置けます");
+    guideEvent("text");
+  }
+}
+function mkBindScr(el, srcFn, isChip) {
+  el.addEventListener("pointerdown", e => mkScrStart(e, srcFn(), el));
+  el.addEventListener("pointermove", mkScrMove);
+  el.addEventListener("pointerup", e => mkScrEnd(true, e.clientX));
+  el.addEventListener("pointercancel", () => mkScrEnd(false));
+  el.addEventListener("contextmenu", e => e.preventDefault());
+  if (isChip) el.dataset.chip = "1";
+}
+/* お気に置きにいっちゃうモードのプリセットチップ(引き出しの psChips とは別に、掴んでドラッグできるチップを描く) */
+function paintMkChips() {
+  const box = $("mkChips"); if (!box) return;
+  box.innerHTML = "";
+  if (!PRESETS.length) { box.innerHTML = '<div class="psNone">プリセットはまだ登録されていません（管理画面で登録できます）</div>'; return; }
+  PRESETS.forEach(p => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "pchip"; b.textContent = p.x;
+    b.setAttribute("aria-label", "プリセット " + p.x + "（押さえて左右に動かすと、その位置に置けます）");
+    box.appendChild(b);
+    mkBindScr(b, () => ({k: p.k, x: p.x, chip: true}), true);
+  });
+}
+/* 操作感の調整パネルの表示(手ブレ抑制は言葉のみで出し、px値は利用者に出さない) */
+function paintTune() {
+  const g = $("tuneGain"), d = $("tuneDead"); if (!g || !d) return;
+  g.value = mkTune.gain; d.value = mkTune.dead;
+  $("tuneGainVal").textContent = mkTune.gain.toFixed(2) + "倍";
+  $("tuneDeadVal").textContent = mkTune.dead <= 8 ? "弱い" : mkTune.dead <= 14 ? "やや弱い" : mkTune.dead <= 20 ? "ふつう" : mkTune.dead <= 26 ? "やや強い" : "強い";
+}
+
+/* build 64(新仕様版): 大きなボタンの長押し(ノリノリながらモードの打ち方 / 選択中カードの長さ決め直し)。
+   短いタップ(0.25秒未満)は従来のクリック(mkMain: カード作成/長さ指定/ここで終わり)に任せ、長押しになった時だけこちらで処理し、続くクリックは mkHoldClickAt で握りつぶす。
+   長さ指定の計測中(lenPhase==="run")は長押しを無効にして、従来の「ここで終わり」タップだけが効くようにする */
+(function () {
+  const btn = $("mkCreate"); if (!btn) return;
+  const drawPrev = () => {
+    const h = mkHoldSt; if (!h) return;
+    const inner = $("mkTlInner"); if (!inner) return;
+    let el = $("mkTlPrev");
+    if (!el) { el = document.createElement("div"); el.id = "mkTlPrev"; inner.appendChild(el); }
+    const d = mkTlD();
+    const li = Math.max(0, MK_TL_KINDS.indexOf(h.rel ? h.rel.k : mkType));
+    el.style.left = (h.t0 / d * 100) + "%";
+    el.style.width = Math.max(1.2, h.d / d * 100) + "%";
+    el.style.top = (li * 23 + 2) + "px";
+    el.textContent = h.d.toFixed(1) + "秒";
+  };
+  const upd = () => {
+    const h = mkHoldSt; if (!h) return;
+    const el = (performance.now() - h.at) / 1000;
+    h.d = Math.min(20, Math.max(0.5, Math.round(el * 10) / 10));   // 実際に押していた時間(壁時計)で測るので、再生のもたつきに左右されない
+    drawPrev();
+    if (h.rel) { const pt = $("mkPosTime"); if (pt) pt.textContent = fmt(h.rel.t) + "〜" + fmt(h.rel.t + h.d); }
+  };
+  const end = commit => {
+    const h = mkHoldSt; if (!h) return;
+    mkHoldSt = null;
+    clearInterval(h.timer);
+    const el = (performance.now() - h.at) / 1000;
+    const pv = $("mkTlPrev"); if (pv) pv.remove();
+    mkSetZoom(false);
+    // 短いタップ: 従来の働きをここで直接実行する(ブラウザによって pointerdown の preventDefault で click が来ない場合があるため)。実行後に印を付け、続きで来るネイティブクリックは握りつぶす
+    if (el < 0.25) { if (commit) mkMain(); mkHoldClickAt = Date.now(); return; }
+    mkHoldClickAt = Date.now();   // 長押しとして処理したので、続くクリックは握りつぶす
+    if (h.rel) {   // 選択中カードの長さ決め直し: 0.3秒以上押した場合だけ確定(うっかり触れただけでは変えない)
+      if (commit && el >= 0.3) { h.rel.d = h.d; renderList(); toast("「" + (h.rel.x || LAB[h.rel.k]) + "」の長さを " + h.d.toFixed(1) + " 秒に決め直しました"); guideEvent("lenDone"); }
+      else renderList();
+      return;
+    }
+    if (!commit) return;
+    // 新規カード: 押した位置から、押していた長さで作る。種類・文言は「次に作るカード」の設定を使う
+    const sc = {t: h.t0, d: h.d, k: mkType, x: $("mkText").value.trim()};
+    scenes.push(sc); scenes.sort((a, b) => a.t - b.t);
+    if (sc.x) $("mkText").value = "";
+    renderList();
+    const L = $("mkList"); if (L) L.scrollTop = L.scrollHeight;
+    toast(fmt(sc.t) + " にカードを作りました(" + sc.d.toFixed(1) + "秒)");
+    guideEvent("card");
+  };
+  btn.addEventListener("pointerdown", e => {
+    if (lenPhase === "run") return;
+    e.preventDefault();
+    try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+    const s2 = (sel >= 0 && scenes[sel]) ? scenes[sel] : null;
+    let t0 = Math.round(clampT(now()) * 10) / 10;
+    if (s2) { t0 = s2.t; if (ytReady) { seekYT(s2.t); playYT(); } }   // 選択中: そのカードの位置から再生して長さを決め直す
+    mkHoldSt = {t0: t0, at: performance.now(), d: 0.5, rel: s2, timer: null};
+    mkSetZoom(true, t0);
+    mkHoldSt.timer = setInterval(upd, 50);
+    upd();
+  });
+  btn.addEventListener("pointerup", () => end(true));
+  btn.addEventListener("pointercancel", () => end(false));
+  btn.addEventListener("contextmenu", e => e.preventDefault());
+})();
+/* build 64(新仕様版): タイムラインのバーをタップ → そのカードを選択(選ぶと、その位置から再生が始まる)。すでに選択中のバーは、もう一度その位置から再生し直す */
+$("mkTlInner").addEventListener("click", e => {
+  const b = e.target && e.target.closest ? e.target.closest("[data-mksel]") : null;
+  if (!b) return;
+  const i = +b.getAttribute("data-mksel");
+  if (sel !== i) { pickCard(i); return; }
+  const sc = scenes[i];
+  if (sc && ytReady) { seekYT(sc.t); playYT(); }
+});
+/* build 64(新仕様版): タイムライン内のつまみ(選択中カードの位置)。ドラッグ中はタイムラインが拡大表示になり、再生位置もついてくる */
+(function () {
+  const kn = $("mkTlKnob"); if (!kn) return;
+  let kd = null;
+  kn.addEventListener("pointerdown", e => {
+    const sc = scenes[sel]; if (!sc) return;
+    e.preventDefault(); e.stopPropagation();
+    try { kn.setPointerCapture(e.pointerId); } catch (err) {}
+    kd = {pid: e.pointerId, sc: sc, lastSeek: null};
+    mkSetZoom(true, sc.t);
+    playYT();
+  });
+  kn.addEventListener("pointermove", e => {
+    if (!kd || e.pointerId !== kd.pid) return;
+    const sc = kd.sc; if (scenes.indexOf(sc) < 0) return;
+    const slide = $("mkTlSlide"), r = slide.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width)));
+    const w = mkTlWin(), D = mkTlD();
+    let t = w.a + ratio * w.span;
+    t = Math.max(0, Math.min(Math.max(0, D - sc.d), Math.round(t * 10) / 10));
+    sc.t = t; mkTlCenter = t; mkTlApplyView(); paintKnob();
+    const pt = $("mkPosTime"); if (pt) pt.textContent = fmt(t) + "〜" + fmt(t + sc.d);
+    if (kd.lastSeek === null || Math.abs(t - kd.lastSeek) >= 0.15) { kd.lastSeek = t; seekYT(t); }
+  });
+  const end = () => {
+    if (!kd) return;
+    const sc = kd.sc; kd = null;
+    mkSetZoom(false);
+    if (scenes.indexOf(sc) >= 0) { scenes.sort((a, b) => a.t - b.t); sel = scenes.indexOf(sc); }
+    renderList();
+    guideEvent("knob");
+  };
+  kn.addEventListener("pointerup", end);
+  kn.addEventListener("pointercancel", end);
+  kn.addEventListener("contextmenu", e => e.preventDefault());
+})();
+/* build 64(新仕様版): 選択中カードの位置スクラブ(「押さえて左右に動かす」)。新規カードのスクラブと同じ絶対位置対応・デッドゾーン・追従・指止め再生で、選択中カードの開始位置を動かす */
+(function () {
+  const btn = $("mkPosScrub"); if (!btn) return;
+  const end = e => {
+    const st = mkPosScrSt; if (!st) return;
+    if (st.settle) clearTimeout(st.settle);
+    const was = st.active, sc = st.sc;
+    mkPosScrSt = null;
+    if (!was) return;
+    if (e && e.clientX != null && scenes.indexOf(sc) >= 0) sc.t = Math.max(0, Math.min(Math.max(0, mkTlD() - sc.d), Math.round(mkBandAbs(e.clientX) * 10) / 10));
+    mkSetZoom(false);
+    scenes.sort((a, b) => a.t - b.t); sel = scenes.indexOf(sc);
+    renderList();
+    guideEvent("tweak");
+  };
+  btn.addEventListener("pointerdown", e => {
+    const sc = scenes[sel]; if (!sc) return;
+    e.preventDefault();
+    try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+    mkPosScrSt = {pid: e.pointerId, x0: e.clientX, anchorX: e.clientX, active: false, target: sc.t, lastSeek: null, sc: sc, settle: null, lastX: e.clientX};
+  });
+  btn.addEventListener("pointermove", e => {
+    const st = mkPosScrSt; if (!st || e.pointerId !== st.pid) return;
+    const sc = st.sc; if (scenes.indexOf(sc) < 0) return;
+    if (!st.active) {
+      if (Math.abs(e.clientX - st.x0) <= mkTune.dead) return;
+      st.active = true; st.anchorX = e.clientX;
+      mkSetZoom(true, sc.t);
+      if (ytReady) playYT();
+    } else if (Math.abs(e.clientX - st.anchorX) <= mkTune.dead) { return; }
+    else { st.anchorX = e.clientX; }
+    const absT = mkBandAbs(e.clientX), g = mkTune.gain;
+    let target = g >= 1 ? absT : st.target + (absT - st.target) * g;
+    target = Math.max(0, Math.min(Math.max(0, mkTlD() - sc.d), Math.round(target * 10) / 10));
+    st.target = target; sc.t = target; mkTlCenter = target; mkTlApplyView(); paintKnob();
+    const pt = $("mkPosTime"); if (pt) pt.textContent = fmt(target) + "〜" + fmt(target + sc.d);
+    if (st.lastSeek === null || Math.abs(target - st.lastSeek) >= 0.15) { st.lastSeek = target; seekYT(target); }
+    st.lastX = e.clientX;
+    if (st.settle) clearTimeout(st.settle);
+    st.settle = setTimeout(() => {
+      if (!mkPosScrSt || !mkPosScrSt.active) return;
+      const sc2 = mkPosScrSt.sc; if (scenes.indexOf(sc2) < 0) return;
+      const t = Math.max(0, Math.min(Math.max(0, mkTlD() - sc2.d), Math.round(mkBandAbs(mkPosScrSt.lastX) * 10) / 10));
+      mkPosScrSt.target = t; mkPosScrSt.lastSeek = t; sc2.t = t; mkTlCenter = t; mkTlApplyView(); paintKnob();
+      const pt2 = $("mkPosTime"); if (pt2) pt2.textContent = fmt(t) + "〜" + fmt(t + sc2.d);
+      seekYT(t); if (ytReady) playYT();
+    }, 320);
+  });
+  btn.addEventListener("pointerup", end);
+  btn.addEventListener("pointercancel", () => end(null));
+  btn.addEventListener("contextmenu", e => e.preventDefault());
+})();
+/* build 64(新仕様版): 手打ちテキストの「つかむ」にもスクラブを付ける(種類は現在の種類ボタン、文言は入力欄の内容) */
+const mkGripEl = $("mkGrip");
+if (mkGripEl) mkBindScr(mkGripEl, () => ({k: mkType, x: $("mkText").value.trim() || LAB[mkType], grip: true}), false);
+/* build 64(新仕様版): 操作感の調整(即時反映・localStorage保存) */
+const tuneGainEl = $("tuneGain"); if (tuneGainEl) tuneGainEl.addEventListener("input", e => { mkTune.gain = parseFloat(e.target.value) || 0.5; try { localStorage.setItem("momo_drag_gain", String(mkTune.gain)); } catch (err) {} paintTune(); });
+const tuneDeadEl = $("tuneDead"); if (tuneDeadEl) tuneDeadEl.addEventListener("input", e => { mkTune.dead = Math.round(parseFloat(e.target.value) || 0); try { localStorage.setItem("momo_drag_dead", String(mkTune.dead)); } catch (err) {} paintTune(); });
+const tuneResetEl = $("tuneReset"); if (tuneResetEl) tuneResetEl.addEventListener("click", () => { mkTune.gain = 0.5; mkTune.dead = 14; try { localStorage.setItem("momo_drag_gain", "0.5"); localStorage.setItem("momo_drag_dead", "14"); } catch (err) {} paintTune(); toast("操作感を最初の値に戻しました"); });
+const mkTuneBtnEl = $("mkTuneBtn"); if (mkTuneBtnEl) mkTuneBtnEl.addEventListener("click", () => { const p = $("mkTunePanel"); const on = p.classList.toggle("on"); mkTuneBtnEl.setAttribute("aria-expanded", on ? "true" : "false"); });
+paintTune();
+/* build 64(新仕様版): 作成画面を開いている間だけ、タイムラインの再生ヘッドと拡大表示の追従を更新する */
+setInterval(() => {
+  if ($("maker").style.display === "none") return;
+  if (Math.abs(mkTlD() - mkTlLastD) > 1) { mkTlLastD = mkTlD(); renderMkTl(); return; }
+  if (mkTlZoom && !mkScrSt && !mkPosScrSt && !mkHoldSt) mkTlCenter = now() || 0;
+  mkTlApplyView();
+}, 250);
+
+
+/* ---------- 制作ガイドモード: 手順どおりにしか進めない誘導モード ----------
+   build 64(新仕様版): 本体 build 64 の新ガイドと同じ流れ。共通の最初はモード選び(m0)。
+   ノリノリながら版=全8手順: モード選び→再生してよく聞く→長押しでカード作成を繰り返す(この手順は長押しでは進まず、一時停止で次へ)→カード選択(その位置から再生)→位置の修正→長さの変更(もう一度長押し)→種類・文言の変更→保存。
+   お気に置きにいっちゃう版=全6手順: モード選び→文言を用意→ドラッグで位置を探る(指を止めると音が流れる。再生を押す手順はなし)→離してカード作成→長さは後で変えられる案内(位置の再編集)→保存。
+   ロック方式・次に操作する要素の点滅・バナー表示・いつでも解除可は、従来(build 61)の仕組みを踏襲。ガイド中はプレビュー不可。 */
+let guide = null;   // {step: "m0"/"n2"〜"n8"/"nd"/"o2"〜"o6"/"od"}
+const GMSG = {
+  m0: "作り方を選びます。「♪ ノリノリながらモード」は、曲を聞きながら長押しでカードを打つ作り方。「お気に置きにいっちゃうモード」は、文言を先に用意してから置きに行く作り方です。作りたい方のボタンを押してください（あとから切り替えることもできます）",
+  n2: "再生ボタンを押して、曲を再生します。まずはよく聞いて、コールの入るところを耳でつかみましょう",
+  n3: "コールのところが来たら、口で言っている間だけ大きな『カード作成』ボタンを長押しします。離すと、その長さでカードが1つできます（短いタップだと5秒の仮カード）。そのまま聞き続けて、次のコールのところでも長押し→離してカード完成。これを繰り返して、ながらでカードを作っていきます。カード作成を止めたいところで、「一時停止」ボタンを押してください。押すと、次は作ったカードの再編集の案内に進みます",
+  n4: "ここからは再編集です。まず、直したいカードを下の一覧でタップして選択します。選ぶとカードがふわっと浮かび上がって、そのカードの位置から再生が始まるので、どの部分のカードか音で確かめられます",
+  n5: "選択中のカードの位置を直します。シークバーのつまみや「押さえて左右に動かす」で位置を動かせて、−1秒／−0.1秒／＋0.1秒／＋1秒のボタンで細かく直せます。曲を再生して「ここだ」というところで止めて、「今の再生位置へ持っていく」を押すと、その位置へ一気に移動もできます。間違えたら「戻す」で、選んだときの位置に戻せます",
+  n6: "長さも変えられます。カードを選んだ状態で、大きな『カード作成』ボタンをもう一度長押ししてください。押した瞬間に、そのカードの位置から再生が始まり、押している間カードが伸びます。ちょうどいいところで離すと、その長さに決め直せます（新しいカードは増えません）",
+  n7: "種類と文言も変えられます。カードを選んでいる間は、種類ボタン・文言の入力・プリセットが、選んだカードにそのまま適用されます。種類はボタン（コール／シンガロン／ココ好き!）で切り替え、文言は入力欄に書き直してください。プリセットは、画面いちばん下のバーの引き出しや、プリセットのチップのタップでも適用できます",
+  n8: "他のカードも直したくなったら、一覧で選び直して、同じように再編集できます。終わりにするなら「この内容で保存」を押してください（バージョン名の入力が必要です）。途中の状態を残したい時は「下書き保存」を押せば、次に来た時に下書きから続きが作れます",
+  nd: "できあがり！おつかれさまでした。ガイドモードは上のボタンでいつでもやめられます",
+  o2: "先に文言を用意します。プリセットのチップをタップするか、入力欄に文言を書いてください。種類（コール／シンガロン／ココ好き!）もここで選べます",
+  o3: "用意した文言を掴んで、左右に動かします。再生ボタンを押していなくても、掴んで動かし始めると、その位置の音が自動で流れます。指を動かして、止めてください。指を止めると、その位置からの音が流れます。その音を聞いて置く場所を確かめて、置きたい場所で指を離すと、そこにカードが置かれます。プリセットのチップか、入力欄の横の「つかむ」を押さえてください",
+  o4: "置いたカードを後から直すときは、下の一覧でタップして選びます。選ぶとカードがふわっと浮かび上がって、そのカードの位置から音が再生されるので、どの部分のカードか音で確かめられます",
+  o5: "選択中のカードは、シークバーのつまみや「押さえて左右に動かす」で位置を動かせて、−／＋ボタンで細かく直せます。曲を再生して「ここだ」というところで止めて、「今の再生位置へ持っていく」を押すと、その位置へ一気に移動もできます。間違えたら「戻す」で、選んだときの位置に戻せます。長さは、カードを選んだ状態で大きなボタンを長押しすると決め直せます",
+  o6: "次の文言も、同じように掴んで置けます。終わりにするなら「この内容で保存」を押してください（バージョン名の入力が必要です）。途中の状態を残したい時は「下書き保存」を押せば、次に来た時に下書きから続きが作れます",
+  od: "できあがり！おつかれさまでした。ガイドモードは上のボタンでいつでもやめられます"
+};
+const GNUM = {m0: 1, n2: 2, n3: 3, n4: 4, n5: 5, n6: 6, n7: 7, n8: 8, nd: 8, o2: 2, o3: 3, o4: 4, o5: 5, o6: 6, od: 6};
+const GTARGETS = {
+  m0: ["#mkModeTabs .mktab"],
+  n2: ["#mkPlayBtn", "#play"],
+  n3: ["#mkCreate", "#mkPlayBtn", "#play"],
+  n4: ["#mkList .mkpick"],
+  n5: ["#mkKnob", "#mkTlKnob", "#mkPosScrub", ".posStepB", "#mkPosHere", "#mkPosRestore", "#fineM", "#fineP"],
+  n6: ["#mkCreate", "#mkList .mkpick"],
+  n7: ["#mkTypes button", "#mkText", "#mkDrawerBar", "#psOpenBtn", ".psChip", "#mkChips .pchip"],
+  n8: ["#saveBtn", "#draftBtn", "#mkVer"],
+  nd: [],
+  o2: ["#mkText", "#mkTypes button", "#mkChips .pchip", "#mkDrawerBar", "#psOpenBtn", ".psChip"],
+  o3: ["#mkChips .pchip", "#mkGrip"],
+  o4: ["#mkList .mkpick"],
+  o5: ["#mkKnob", "#mkTlKnob", "#mkPosScrub", ".posStepB", "#mkPosHere", "#mkPosRestore", "#fineM", "#fineP"],
+  o6: ["#saveBtn", "#draftBtn", "#mkVer", "#mkChips .pchip", "#mkGrip"],
+  od: []
+};
+const GSCROLL = {m0: "#mkModeTabs", n2: "#mkPlayBtn", n3: "#mkCreate", n4: "#mkList", n5: "#mkPosEdit", n6: "#mkCreate", n7: "#mkTypes", n8: "#saveBtn", o2: "#mkText", o3: "#mkPresets", o4: "#mkList", o5: "#mkPosEdit", o6: "#saveBtn"};
+const GLOCK_SEL = "#songsel,#bar,.skb,#play,#mkPlayBtn,.ratebtn,#mkCreate,#mkTypes button,#mkText,#fineM,#fineP,#mkDelBtn,#mkList .mkpick,#mkList .mkdel,#mkKnob,#mkVer,#saveBtn,#draftBtn,#pvBtn,#mkDrawerBar,#psOpenBtn,.psChip,#draftList button,#newBtn,#mkModeTabs .mktab,#mkGrip,#mkChips .pchip,#mkPosScrub,.posStepB,#mkPosHere,#mkPosRestore,#mkSelClear,#mkTuneBtn,#tuneGain,#tuneDead,#tuneReset,#mkTlKnob";
+function applyGuide() {
+  const all = document.querySelectorAll(GLOCK_SEL);
+  if (!guide) { all.forEach(el => el.classList.remove("glocked", "gtarget")); return; }
+  all.forEach(el => { el.classList.add("glocked"); el.classList.remove("gtarget"); });
+  (GTARGETS[guide.step] || []).forEach(s => document.querySelectorAll(s).forEach(el => { el.classList.remove("glocked"); el.classList.add("gtarget"); }));
+}
+function paintGuide() {
+  const bar = $("guideBar"); if (!bar) return;
+  if (!guide) { bar.style.display = "none"; $("gEndBtn").style.display = "none"; applyGuide(); return; }
+  bar.style.display = "block";
+  $("gEndBtn").style.display = "block";   // ガイド中はいつでもやめられるよう、バナー内に常時表示
+  const done = guide.step === "nd" || guide.step === "od";
+  const tot = (guide.step.charAt(0) === "o" || (guide.step === "m0" && mkMode === "oki")) ? 6 : 8;   // ながら版8手順 / お気に版6手順
+  $("guideProg").textContent = done ? "完了しました" : "手順 " + (GNUM[guide.step] || "") + " / " + tot;
+  $("guideMsg").textContent = GMSG[guide.step] || "";
+  applyGuide();
+}
+function setGuideStep(s) {
+  if (!guide) return;
+  guide.step = s;
+  paintGuide();
+  const sc = GSCROLL[s] ? document.querySelector(GSCROLL[s]) : null;
+  if (sc) setTimeout(() => { try { sc.scrollIntoView({behavior: "smooth", block: "center"}); } catch (e) {} }, 90);
+}
+function startGuide() {
+  guide = {step: "m0"};
+  $("guideBtn").textContent = "ガイドをやめる";
+  setGuideStep("m0");
+}
+function endGuide() {
+  guide = null;
+  $("guideBtn").textContent = "ガイドモードで作る";
+  paintGuide();
+}
+$("guideBtn").addEventListener("click", () => { if (guide) endGuide(); else startGuide(); });
+$("gEndBtn").addEventListener("click", endGuide);
+function guideEvent(name) {
+  if (!guide) return;
+  const st = guide.step;
+  if (name === "cancel") { endGuide(); return; }
+  /* 2モード制ガイドの遷移。ながら版の作成ループ(n3)は長押し・カード作成では進まず、「一時停止」を押したときだけ次へ進む */
+  if (st === "m0" && name === "mode") setGuideStep(mkMode === "oki" ? "o2" : "n2");
+  else if (st === "n2" && name === "play") setGuideStep("n3");
+  else if (st === "n3" && name === "pause") setGuideStep("n4");
+  else if (st === "n4" && name === "picked") setGuideStep("n5");
+  else if (st === "n5" && (name === "knob" || name === "fine" || name === "tweak")) setGuideStep("n6");
+  else if (st === "n6" && name === "lenDone") setGuideStep("n7");
+  else if (st === "n7" && (name === "type" || (name === "text" && $("mkText").value.trim()))) setGuideStep("n8");
+  else if (st === "n8" && name === "saved") setGuideStep("nd");
+  else if (st === "o2" && (name === "type" || (name === "text" && $("mkText").value.trim()))) setGuideStep("o3");
+  else if (st === "o3" && name === "drop") setGuideStep("o4");
+  else if (st === "o4" && name === "picked") setGuideStep("o5");
+  else if (st === "o5" && (name === "knob" || name === "fine" || name === "tweak" || name === "lenDone")) setGuideStep("o6");
+  else if (st === "o6" && name === "saved") setGuideStep("od");
+}
+
+
+function enterMaker() {
+  $("gateBox").style.display = "none";
+  $("maker").style.display = "flex";
+  paintMkMode(); paintTune();
+  renderList();
+  loadSongs().then(() => loadDrafts());
+  loadPresets();
+}
+initGate();
+</script>
+</body>
+</html>
