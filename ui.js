@@ -72,10 +72,11 @@
         els[i].style.transform = "translateY(" + (-100 + 25 * p).toFixed(1) + "%) scale(" + (0.94 + 0.08 * p).toFixed(3) + ")";
       }
     },
-    /* YouTube画面の外: 曲名(左寄せ)の下に「◯◯さんの推しコール」 */
-    who: function (title, name, ver) {
+    /* YouTube画面の外: 曲名(左寄せ)の下に「◯◯さんの推しコール」。canAuthor のときだけ「この作者の他の推しコール」ボタンも出す(build 63) */
+    who: function (title, name, ver, canAuthor) {
       $("who").innerHTML = '<div class="st">♪ ' + esc(title) + "</div>"
-        + (name ? '<div class="wn">' + esc(name) + "さんの<b>推し</b>コール" + (ver ? "<i>" + esc(ver) + "</i>" : "") + "</div>" : "");
+        + (name ? '<div class="wn">' + esc(name) + "さんの<b>推し</b>コール" + (ver ? "<i>" + esc(ver) + "</i>" : "") + "</div>" : "")
+        + (name && canAuthor ? '<button id="authorOtherBtn" data-a="authorOther">この作者の他の推しコール<span aria-hidden="true">›</span></button>' : "");
     },
     /* 全画面の情報パネル */
     panel: function (c) {

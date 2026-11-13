@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ももクロコール共有(テスト中)</title>
-<link rel="stylesheet" href="style.css?v=62">
+<link rel="stylesheet" href="style.css?v=63">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
 <script>
@@ -92,6 +92,7 @@ gtag('config', 'G-00QSZME258');
     <button class="sq penb" id="penbtn" data-a="pen">ペンライト</button>
     <button class="sq wk" id="wakubtn" data-a="waku">湧く!</button>
     <button class="sq" id="gekibtn" data-a="geki" aria-pressed="false">激湧き<br>モード<br><span class="gkstate">OFF</span></button>
+    <button class="sq" id="kanranbtn" data-a="kanran">観覧<br>モード</button>
     <button id="q" aria-label="説明" data-a="help">?</button>
   </div>
   <button id="applybtn" data-a="apply" style="display:none"></button>
@@ -158,7 +159,7 @@ gtag('config', 'G-00QSZME258');
   <div id="info"></div>
   <button id="mkvBtn" data-a="mkv">ももクリDelivery特集<span class="newStamp">NEW</span></button>
   <div id="freearea"></div>
-  <div style="text-align:center;font-size:10px;color:#8e91b8">build 62</div>
+  <div style="text-align:center;font-size:10px;color:#8e91b8">build 63</div>
   <div style="text-align:center"><button data-a="wcShow" style="font-size:10px;color:#8e91b8;text-decoration:underline;background:none;border:0;cursor:pointer">ようこそカードを再表示</button></div>
 
 </div>
@@ -443,10 +444,48 @@ gtag('config', 'G-00QSZME258');
   <button id="gOffBtn" data-a="guideOff">ガイドモードを解除</button>
 </div>
 
+<!-- build 63: 観覧モード / シェアの選択肢 / この作者の他の推しコール -->
+<div id="kanranSheet" role="dialog" aria-modal="true" aria-label="観覧モード">
+  <div class="kspanel">
+    <div class="kshead"><h2>観覧モード</h2><button class="ksx" data-a="kanranClose" aria-label="閉じる"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M6 6l14 14M20 6L6 20" fill="none" stroke="#f4f4fb" stroke-width="2.4" stroke-linecap="round"/></svg></button></div>
+    <div id="ksStatus" aria-live="polite">いまは通常観覧です</div>
+    <button class="ksitem" id="ksSpecItem" data-a="kanranSpec">指定パート<span aria-hidden="true">›</span></button>
+    <div id="ksSpecBox">
+      <p>観たい範囲を1つ決めると、どの推しコールでもその範囲だけを観られます。再生しながら位置を決められます。</p>
+      <div class="durrow"><span class="ksname">始点</span><input type="range" id="ksStart" min="0" max="240" step="0.1" value="0" aria-label="指定パートの始点"><b id="ksStartVal">0:00</b></div>
+      <div class="durrow"><span class="ksname">終点</span><input type="range" id="ksEnd" min="0" max="240" step="0.1" value="30" aria-label="指定パートの終点"><b id="ksEndVal">0:30</b></div>
+      <div class="ksbtns">
+        <button data-a="kanranHereStart">今の位置を始点に</button>
+        <button data-a="kanranHereEnd">今の位置を終点に</button>
+      </div>
+      <button id="ksApply" data-a="kanranApplySpec">この範囲で観る</button>
+    </div>
+    <button class="ksitem" id="ksOshiItem" data-a="kanranOshi">推しパート<span aria-hidden="true">›</span></button>
+    <button class="ksitem" data-a="kanranNormal">通常観覧に戻す<span aria-hidden="true">›</span></button>
+    <button class="ksclose" data-a="kanranClose">閉じる</button>
+  </div>
+</div>
+<div id="shareChoiceSheet" role="dialog" aria-modal="true" aria-label="シェア方法を選ぶ">
+  <div class="kspanel">
+    <div class="kshead"><h2>シェア</h2><button class="ksx" data-a="shChoiceClose" aria-label="閉じる"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M6 6l14 14M20 6L6 20" fill="none" stroke="#f4f4fb" stroke-width="2.4" stroke-linecap="round"/></svg></button></div>
+    <div id="shChoiceNote" aria-live="polite"></div>
+    <div id="shChoiceBtns"></div>
+    <button class="ksclose" data-a="shChoiceClose">閉じる</button>
+  </div>
+</div>
+<div id="authorSheet" role="dialog" aria-modal="true" aria-label="この作者の他の推しコール">
+  <div class="kspanel">
+    <div class="kshead"><h2 style="font-size:17px">この作者の他の推しコール</h2><button class="ksx" data-a="authorClose" aria-label="閉じる"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M6 6l14 14M20 6L6 20" fill="none" stroke="#f4f4fb" stroke-width="2.4" stroke-linecap="round"/></svg></button></div>
+    <div id="authorHead" aria-live="polite"></div>
+    <div id="authorList"></div>
+    <button class="ksclose" data-a="authorClose">閉じる</button>
+  </div>
+</div>
+
 <div id="toast"></div>
 
-<script src="ui.js?v=62" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="app.js?v=62" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
+<script src="ui.js?v=63" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
+<script src="app.js?v=63" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
 </body>

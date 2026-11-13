@@ -239,16 +239,22 @@ function loop(ts) {
   if (pl !== loop.prevPl) { loop.prevPl = pl; guideEvent(pl ? "play" : "pause"); }   // build 62: ガイドモードの再生/停止の検知
   const R = curRange(); if (R && pl && !mkPv && t >= R.e) playerPause();   // 再生範囲の終わりで止める
   if (spRange && pl && !mkPv && t >= spRange.b) { spRange = null; playerPause(); toast("シェアポイントの範囲が終わりました"); }   // シェアポイントの終点で止める
+  const kr = mkPv ? null : kanranRange();   // build 63: 観覧モードの有効範囲(作成中プレビューでは効かせない)
+  if (kr && pl) {   // 観覧モード: 指定範囲の外には出ない(手前なら始点へ寄せ、終点で止めて始点へ戻す)
+    if (t < kr.a - 0.05) playerSeek(kr.a);
+    else if (t >= kr.b && Date.now() - kanranEndAt > 800) { kanranEndAt = Date.now(); playerPause(); playerSeek(kr.a); toast("観覧モードの範囲の終わりまで再生しました"); }
+  }
   if (pl && act && !isMine() && !mkPv) { const q = sessFor(); if (!q.t0) { q.t0 = Date.now(); q.ready = loadPrev(q); } }   // 再生を始めてから10分を数える
   if (!drag) { bar.max = dur(); bar.value = t; }
   $("tm").textContent = fmt(t); $("dur").textContent = fmt(dur());
   const SRC = mkPv ? mkPv.scenes : EV;
-  const on = SRC.filter(x => t >= x.t && t < x.t + x.d);           // いま出ている場面(重なってもそれぞれ本来のタイミング)
+  let on = SRC.filter(x => t >= x.t && t < x.t + x.d);           // いま出ている場面(重なってもそれぞれ本来のタイミング)
   if (wakuHold && !mkPv) {   // build 62: 湧く!を押した場面は、再生位置に関係なく設定時間いっぱい表示し続ける
     if (performance.now() < wakuHold.until) { if (!on.includes(wakuHold.e)) on.push(wakuHold.e); }
     else wakuHold = null;
   }
-  UI.cards(on); UI.nexts(SRC.filter(x => t < x.t && x.t - t <= 6 && x.k !== "koko"), t);
+  if (kr) on = on.filter(x => x.t < kr.b && x.t + x.d > kr.a);   // build 63: 観覧モードでは範囲と重ならない場面カードは出さない
+  UI.cards(on); UI.nexts(SRC.filter(x => t < x.t && x.t - t <= 6 && x.k !== "koko" && (!kr || (x.t < kr.b && x.t + x.d > kr.a))), t);
   const tp = $("tlPos");
   if (tp) { const on2 = tlId && (tlId === act || tlId === "__cur__") && dur() > 0; tp.style.display = on2 ? "block" : "none"; if (on2) tp.style.left = "calc(64px + (100% - 72px) * " + Math.min(1, t / dur()) + ")"; }
   const e = on.slice().reverse().find(x => x.k !== "koko") || null;   // 「自分も湧く!」の対象
@@ -337,17 +343,24 @@ function applyRef(c) {
   $("info").textContent = "";
   $("panelbody").innerHTML = "参考コールで再生中です";
   renderPEv();
+  paintKanran();   // build 63: 参考コール表示でも観覧モードの状態表示を合わせる
 }
 function applyAct() {
   wakuHold = null;
   curRef = null;
   const c = calls.find(x => x.id === act);
   EV = c ? c.scenes.map(x => ({...x, mine: !!me && c.ownerUid === me.uid})).sort((a, b) => a.t - b.t) : [];
-  UI.who(SONGS[si].title, c ? c.ownerName : "", c ? c.versionName : "");
+  UI.who(SONGS[si].title, c ? c.ownerName : "", c ? c.versionName : "", isAuthorLinkable(c));   // build 63: ゲスト作のときは「この作者の他の推しコール」ボタンを出さない
   $("info").textContent = c ? "" : "まだ推しコールがありません。ログインして作ってみましょう";
   UI.total(calls.filter(x => x.public).reduce((n, x) => n + (x.used || 0), 0)); $("panelbody").innerHTML = UI.panel(c);
   if (act && act !== evFor) { evFor = act; if (!cmts[act]) loadCmts(act).then(() => renderPEv()); }
   renderPEv();
+  /* build 63: 観覧モードはコールを切り替えても効き続ける。推しパートで未設定のコールに移ったら一度だけ知らせる */
+  if (kanranMode && kanranMode.type === "oshi" && !randPlay) {
+    if (c && !c.oshiPart && kanranOshiNotifiedFor !== c.id) { kanranOshiNotifiedFor = c.id; toast("このコールには推しパートが設定されていません"); }
+    if (c && c.oshiPart) kanranOshiNotifiedFor = null;
+  }
+  paintKanran();
 }
 
 /* ---------- 一覧(一番上のレイヤー) ---------- */
@@ -626,6 +639,129 @@ function runIntro() {
   introTm.push(setTimeout(() => { el.style.display = "none"; el.classList.remove("whiteout"); el.style.transition = ""; clearIntroTm(); }, 7300));
 }
 function skipIntro() { clearIntroTm(); const el = $("intro"); el.style.display = "none"; el.classList.remove("whiteout"); playerPlay(); }
+/* ---------- build 63: 観覧モード(指定パート / 推しパート) ----------
+   指定パート: 観る人が決めた1つの範囲を全コール共通で効かせる(メモリのみで持ち、コールを切り替えても解除するまで効き続ける)。
+   推しパート: コールごとの oshiPart {a,b} を効かせる(作成側の指定は今後の機能。今は読み取りだけ)。
+   範囲の効かせ方は共通で kanranRange() が返す。Firestoreの変更は要らない(oshiPart は calls の既存フィールドとして読むだけ)。 */
+let kanranMode = null;   // null=通常観覧 / {type:"spec", a, b} / {type:"oshi"}
+let ksEdit = {a: 0, b: 30};   // 指定パートの範囲指定(シート内での編集中の値)
+let kanranEndAt = 0, kanranOshiNotifiedFor = null;
+function kanranRange() {
+  if (!kanranMode || randPlay) return null;
+  if (kanranMode.type === "spec") return {a: kanranMode.a, b: kanranMode.b};
+  const c = calls.find(x => x.id === act);
+  if (c && c.oshiPart && c.oshiPart.b > c.oshiPart.a) return {a: +c.oshiPart.a || 0, b: +c.oshiPart.b || 0};
+  return null;
+}
+function paintKsSpecVals() { $("ksStartVal").textContent = fmt(+$("ksStart").value); $("ksEndVal").textContent = fmt(+$("ksEnd").value); }
+function renderKsSpec() {
+  const D = Math.max(10, Math.ceil(dur() || 240));
+  const sEl = $("ksStart"), eEl = $("ksEnd");
+  if (!sEl || !eEl) return;
+  sEl.max = D; eEl.max = D; sEl.value = ksEdit.a; eEl.value = ksEdit.b;
+  paintKsSpecVals();
+}
+$("ksStart").addEventListener("input", () => { ksEdit.a = +$("ksStart").value; if (ksEdit.b <= ksEdit.a) { ksEdit.b = ksEdit.a + 1; $("ksEnd").value = ksEdit.b; } paintKsSpecVals(); });
+$("ksEnd").addEventListener("input", () => { ksEdit.b = +$("ksEnd").value; if (ksEdit.b <= ksEdit.a) { ksEdit.a = Math.max(0, ksEdit.b - 1); $("ksStart").value = ksEdit.a; } paintKsSpecVals(); });
+function paintKanran() {
+  const b = $("kanranbtn"); if (!b) return;
+  const st = $("ksStatus");
+  b.classList.toggle("on", !!kanranMode);
+  const si2 = $("ksSpecItem"), oi = $("ksOshiItem");
+  if (si2) si2.classList.toggle("sel", !!kanranMode && kanranMode.type === "spec");
+  if (oi) oi.classList.toggle("sel", !!kanranMode && kanranMode.type === "oshi");
+  if (!kanranMode) {
+    b.innerHTML = "観覧<br>モード";
+    if (st) st.innerHTML = "いまは<b>通常観覧</b>です";
+    return;
+  }
+  if (kanranMode.type === "spec") {
+    b.innerHTML = "指定パート<br>観覧中";
+    if (st) st.innerHTML = "<b>指定パート</b>で観覧中: " + fmt(kanranMode.a) + " 〜 " + fmt(kanranMode.b) + "（どのコールでもこの範囲だけ観ます）";
+    return;
+  }
+  b.innerHTML = "推しパート<br>観覧中";
+  const kr = kanranRange(), c = calls.find(x => x.id === act);
+  if (st) st.innerHTML = kr
+    ? "<b>推しパート</b>で観覧中: このコールは " + fmt(kr.a) + " 〜 " + fmt(kr.b) + " だけ観ます"
+    : "<b>推しパート</b>で観覧中: " + (c ? "このコールには推しパートが設定されていません" : "コールを選ぶと、そのコールの推しパートだけ観ます");
+}
+/* 観覧モードの範囲の始点から再生する(オープニング演出が出ているときは先に飛ばす) */
+function kanranPlayFrom(a) {
+  if ($("intro").style.display === "block") skipIntro();
+  playerSeek(a); playerPlay();
+}
+/* ---------- build 63: この作者の他の推しコール ---------- */
+const isGuestCall = c => !c || !c.ownerUid;   // ゲストのコールは ownerUid が null で紐づけできないため対象外
+const isAuthorLinkable = c => !isGuestCall(c);
+let authorTargetUid = null, authorListCache = [];
+async function authorCallsOf(uid) {
+  if (!uid) return [];
+  let rows = [];
+  try { rows = (await getDocs(query(collection(db, "calls"), where("ownerUid", "==", uid), where("public", "==", true)))).docs.map(d => ({id: d.id, ...d.data()})); }
+  catch (e) { return []; }
+  if (me && me.uid === uid) {   // 自分の下書きも一覧に出す(openUserPage と同じ扱い)
+    try { (await getDocs(query(collection(db, "calls"), where("ownerUid", "==", uid)))).forEach(d => { if (!rows.some(r => r.id === d.id)) rows.push({id: d.id, ...d.data()}); }); } catch (e) {}
+  }
+  const order = c => { const i = SONGS.findIndex(x => x.vid === c.videoId); return i < 0 ? 99 : i; };
+  return rows.sort((a, b) => (order(a) - order(b)) || ((b.hearts || 0) - (a.hearts || 0)));
+}
+async function renderAuthorSheet() {
+  const head = $("authorHead"), box = $("authorList"); if (!head || !box) return;
+  const list = authorListCache;
+  const name = list.length ? list[0].ownerName : "";
+  head.innerHTML = list.length
+    ? "<b>" + esc(name) + "さんの推しコール</b><br>今の曲だけでなく、全ての曲から " + list.length + " 件あります。選ぶと、そのコールに切り替えて再生できます。"
+    : "この作者の公開コールは、他にまだありません。";
+  box.innerHTML = list.length ? list.map(c => {
+    const cur = c.id === act, song = SONGS.find(s => s.vid === c.videoId);
+    return '<div class="authorItem' + (cur ? " cur" : "") + '">'
+      + '<div class="asong">♪ ' + esc(song ? song.title : "曲名不明") + "</div>"
+      + '<div class="atitle">' + esc(c.ownerName) + "さんの推しコール" + (c.versionName ? '<span class="tag">' + esc(c.versionName) + "</span>" : "") + (c.public ? "" : '<span class="tag">下書き</span>') + "</div>"
+      + '<div class="ameta">♥ ' + (c.hearts || 0) + " / 湧き " + (c.used || 0) + "回 ・ 場面 " + ((c.scenes || []).length) + "個" + (cur ? " ・ 再生中" : "") + "</div>"
+      + (cur
+        ? '<button class="aplay curbtn" data-a="authorClose">再生中です</button>'
+        : '<button class="aplay" data-a="authorPlay" data-i="' + c.id + '">これで再生</button>')
+      + "</div>";
+  }).join("") : '<div class="authorEmpty">この作者の公開コールは、他にまだありません。</div>';
+}
+async function openAuthorSheet() {
+  const c = calls.find(x => x.id === act);
+  if (!c) return toast("まず推しコールを選んでください");
+  if (isGuestCall(c)) return toast("ゲストが作ったコールは、作者の一覧を表示できません");
+  authorTargetUid = c.ownerUid;
+  $("authorHead").innerHTML = "読み込み中…"; $("authorList").innerHTML = "";
+  $("authorSheet").classList.add("on");
+  authorListCache = await authorCallsOf(authorTargetUid);
+  renderAuthorSheet();
+}
+/* ---------- build 63: シェアの一本化 ----------
+   入口は既存の「シェアポイントを作る」ボタンに一本化し、押すと範囲設定へ直行せず、今の観覧状態に応じた選択肢シートをまず出す。
+   ガイド中は選択肢を出さず従来どおり直行する(モックと同じ扱い)。 */
+let shChoiceTarget = null;   // {id, ref}
+function openShareChoice(target) { shChoiceTarget = target; paintShareChoice(); $("shareChoiceSheet").classList.add("on"); }
+function paintShareChoice() {
+  const note = $("shChoiceNote"), btns = $("shChoiceBtns"); if (!note || !btns) return;
+  const t = shChoiceTarget; if (!t) return;
+  const c = t.ref ? (refCalls.find(x => x.id === t.id) || (curRef && curRef.id === t.id ? curRef : null)) : calls.find(x => x.id === t.id);
+  const nm = t.ref ? ("参考コール" + (c && c.versionName ? "「" + esc(c.versionName) + "」" : "")) : (c ? esc(c.ownerName) + "さんの推しコール" : "推しコール");
+  if (kanranMode && kanranMode.type === "spec") {
+    note.innerHTML = "<b>指定パート</b>で観覧中（" + fmt(kanranMode.a) + " 〜 " + fmt(kanranMode.b) + "）です。" + nm + "をどうシェアしますか?";
+    btns.innerHTML = '<button class="ksitem" data-a="shChoiceWhole">この指定パート全体をシェア<span aria-hidden="true">›</span></button>'
+      + '<button class="ksitem" data-a="shChoiceRange">さらに絞る<span aria-hidden="true">›</span></button>';
+  } else if (kanranMode && kanranMode.type === "oshi") {
+    const op = c && c.oshiPart && c.oshiPart.b > c.oshiPart.a ? c.oshiPart : null;
+    note.innerHTML = op
+      ? "<b>推しパート</b>で観覧中（" + fmt(op.a) + " 〜 " + fmt(op.b) + "）です。" + nm + "をどうシェアしますか?"
+      : "<b>推しパート</b>で観覧中ですが、このコールには推しパートが設定されていません。";
+    btns.innerHTML = '<button class="ksitem" data-a="shChoiceWhole">この推しパートをシェア<span aria-hidden="true">›</span></button>'
+      + '<button class="ksitem" data-a="shChoiceRange">さらに絞る<span aria-hidden="true">›</span></button>';
+  } else {
+    note.innerHTML = nm + "をどうシェアしますか?";
+    btns.innerHTML = '<button class="ksitem" data-a="shChoiceFull">フルでシェア<span aria-hidden="true">›</span></button>'
+      + '<button class="ksitem" data-a="shChoiceRange">シェアポイント範囲を設定<span aria-hidden="true">›</span></button>';
+  }
+}
 /* ---------- シェアポイント ---------- */
 const SPBASE = "https://go-apsp.github.io/momoclo-call/";
 function spLink(id, a, b) { return SPBASE + "#sp=" + id + "&a=" + (+a).toFixed(1) + "&b=" + (+b).toFixed(1); }
@@ -635,7 +771,7 @@ function spVals() { return {a: +$("spA").value, b: +$("spB").value}; }
 /* build 58: シェアポイント作成モードの細長いボタンの段階表示(始点 → 終点 → 作成) */
 function paintSpStep() { const b = $("spStep"); if (b) b.textContent = ["ここを始点にする", "ここを終点にする", "シェアポイントを作成"][spStep] || "ここを始点にする"; }
 function paintSpVals() { const v = spVals(); $("spAv").textContent = fmt(v.a); $("spBv").textContent = fmt(v.b); }
-function openSpPanel(id) {
+function openSpPanel(id, preset, autoCreate) {
   spRef = null;
   const c = calls.find(x => x.id === id); if (!c) return;
   if (act !== id) { act = id; refPlay = false; randPlay = false; spRange = null; sess = null; paintApply(); applyAct(); render(); }
@@ -647,10 +783,14 @@ function openSpPanel(id) {
   $("spA").max = D; $("spB").max = D;
   $("spA").value = A0; $("spB").value = Math.min(D, A0 + 30);
   paintSpVals();
+  if (preset) {   // build 63: シェアの選択肢シートから渡された範囲を初期値にする
+    $("spA").value = Math.max(0, Math.min(preset.a, D)); $("spB").value = Math.max(+$("spA").value + 0.5, Math.min(preset.b, D)); paintSpVals();
+  }
   $("spResult").innerHTML = (me && prof) ? "" : '<div class="spLink">ログインしていないため、このシェアポイントは保存されません（リンクのコピーとシェアはできます）</div>';
   enterSp();
+  if (autoCreate) createSp();   // build 63: 「フルでシェア」「この指定パート全体をシェア」は、そのままリンク作成まで進む
 }
-function openSpPanelRef(id) {
+function openSpPanelRef(id, preset, autoCreate) {
   const c = refCalls.find(x => x.id === id) || (curRef && curRef.id === id ? curRef : null);
   if (!c) return toast("参考コールが見つかりませんでした");
   applyRef(c);
@@ -662,8 +802,12 @@ function openSpPanelRef(id) {
   $("spA").max = D; $("spB").max = D;
   $("spA").value = A0; $("spB").value = Math.min(D, A0 + 30);
   paintSpVals();
+  if (preset) {   // build 63: シェアの選択肢シートから渡された範囲を初期値にする
+    $("spA").value = Math.max(0, Math.min(preset.a, D)); $("spB").value = Math.max(+$("spA").value + 0.5, Math.min(preset.b, D)); paintSpVals();
+  }
   $("spResult").innerHTML = (me && prof) ? "" : '<div class="spLink">ログインしていないため、このシェアポイントは保存されません（リンクのコピーとシェアはできます）</div>';
   enterSp();
+  if (autoCreate) createSp();   // build 63: 「フルでシェア」「この指定パート全体をシェア」は、そのままリンク作成まで進む
 }
 async function createSp() {
   const v = spVals(), a = v.a, b = v.b;
@@ -863,7 +1007,9 @@ const A = {
     if ($("intro").style.display === "block") { skipIntro(); return; }
     if (playerState() === 1) { playerPause(); return; }
     const R = curRange();
+    const krP = kanranRange();   // build 63: 観覧モード中は、再生を始める時点で範囲の外なら始点へ寄せる(曲の再生範囲があるときはそちらが優先)
     if (R) { const t = now(); if (t < R.s - 0.05 || t >= R.e - 0.3) playerSeek(R.s); }
+    else if (krP) { const t = now(); if (t < krP.a - 0.05 || t >= krP.b - 0.05) playerSeek(krP.a); }
     else if (spMode && spOff() < 0 && spRawNow() < -spOff() - 0.1) { playerSeek(0); }
     if (playerState() === 2 && now() > 1) { playerPlay(); return; }
     runIntro();
@@ -886,6 +1032,101 @@ const A = {
     if (q.first) { clearTimeout(q.tm); q.tm = setTimeout(() => saveWaku(q), 2500); } else paintApply();
   },
   geki: () => { gekiOn = !gekiOn; paintGekiBtn(); toast(gekiOn ? "激湧きモード ON! 「湧く!」のたびに画面全体に光が出ます" : "激湧きモード OFF"); },
+  /* build 63: 観覧モード。ガイドモードの手順には組み込まない(ロック対象にもしない) */
+  kanran: () => { paintKanran(); $("kanranSheet").classList.add("on"); },
+  kanranClose: () => { $("kanranSheet").classList.remove("on"); },
+  kanranSpec: () => {   // 指定パート: シートの中で範囲指定の欄を開く(既に開いていれば閉じる)
+    const box = $("ksSpecBox");
+    const willOpen = !box.classList.contains("on");
+    if (willOpen) {
+      if (kanranMode && kanranMode.type === "spec") ksEdit = {a: kanranMode.a, b: kanranMode.b};
+      else { const a = Math.max(0, Math.floor(now())); ksEdit = {a: a, b: Math.min(Math.max(10, Math.ceil(dur() || 240)), a + 30)}; if (ksEdit.b <= ksEdit.a) ksEdit.b = ksEdit.a + 1; }
+      renderKsSpec();
+    }
+    box.classList.toggle("on", willOpen);
+  },
+  kanranHereStart: () => { ksEdit.a = Math.round(now() * 10) / 10; if (ksEdit.b <= ksEdit.a) ksEdit.b = ksEdit.a + 1; renderKsSpec(); },
+  kanranHereEnd: () => { ksEdit.b = Math.round(now() * 10) / 10; if (ksEdit.b <= ksEdit.a) ksEdit.a = Math.max(0, ksEdit.b - 1); renderKsSpec(); },
+  kanranApplySpec: () => {   // 「この範囲で観る」: 指定パートモードを開始する。以後どのコールでも同じ範囲が効く
+    if (!(ksEdit.b > ksEdit.a)) return toast("終点は始点より後にしてください");
+    kanranMode = {type: "spec", a: Math.round(ksEdit.a * 10) / 10, b: Math.round(ksEdit.b * 10) / 10};
+    $("ksSpecBox").classList.remove("on");
+    $("kanranSheet").classList.remove("on");
+    paintKanran();
+    kanranPlayFrom(kanranMode.a);
+    toast("指定パートで観覧中: " + fmt(kanranMode.a) + " 〜 " + fmt(kanranMode.b));
+  },
+  kanranOshi: () => {   // 推しパートモードを開始する。範囲は再生中のコールの oshiPart から取る
+    kanranMode = {type: "oshi"};
+    $("ksSpecBox").classList.remove("on");
+    $("kanranSheet").classList.remove("on");
+    paintKanran();
+    const kr = kanranRange();
+    if (kr) { kanranPlayFrom(kr.a); toast("推しパートで観覧中: " + fmt(kr.a) + " 〜 " + fmt(kr.b)); }
+    else { kanranOshiNotifiedFor = act; toast("このコールには推しパートが設定されていません"); }
+  },
+  kanranNormal: () => {   // 通常観覧に戻す
+    kanranMode = null; kanranOshiNotifiedFor = null;
+    $("ksSpecBox").classList.remove("on");
+    $("kanranSheet").classList.remove("on");
+    paintKanran();
+    toast("通常観覧に戻しました");
+  },
+  /* build 63: この作者の他の推しコール。どの観覧モードでも使える。ガイドモードの対象にはしない */
+  authorOther: () => { openAuthorSheet(); },
+  authorClose: () => { $("authorSheet").classList.remove("on"); },
+  authorPlay: async id => {   // 一覧で選んだコールへ切り替える。別の曲のコールなら曲(動画)ごと切り替える
+    const target = authorListCache.find(x => x.id === id); if (!target) return;
+    if (isGuestCall(target)) return toast("ゲストが作ったコールは、作者の一覧を表示できません");
+    $("authorSheet").classList.remove("on");
+    A.closeOv();
+    refPlay = false; randPlay = false; spRange = null; mkPv = null;
+    sess = null; paintApply();
+    const idx = SONGS.findIndex(x => x.vid === target.videoId);
+    const songChanged = idx >= 0 && idx !== si;
+    if (songChanged) {
+      si = idx; VID = SONGS[si].vid;
+      try { localStorage.setItem("momo_song", String(si)); } catch (e) {}
+      UI.songSel(si);
+      cueCurrentSong();
+    }
+    act = id;
+    await loadCalls();   // 切り替え先の曲のコール一覧を読み直す(act は先に決めてあるので参考コールの自動適用は入らない)
+    if (calls.some(x => x.id === id)) { act = id; applyAct(); render(); }
+    const kr = kanranRange();   // 観覧モード中は、範囲の始点から再生する
+    if (kr) kanranPlayFrom(kr.a);
+    else if (playerReady()) playerSeek(rangeStart());
+    $("mvwrap").scrollIntoView({behavior: "smooth"});
+    toast(target.ownerName + "さんの推しコールに切り替えました" + (songChanged ? "(♪ " + (SONGS[idx] ? SONGS[idx].title : "") + ")" : ""));
+  },
+  /* build 63: シェアの選択肢シート */
+  shChoiceClose: () => { $("shareChoiceSheet").classList.remove("on"); },
+  shChoiceFull: () => {   // 通常観覧: 曲全体(0〜曲の終わり)を範囲にして、そのままシェア結果まで進む
+    const t = shChoiceTarget; if (!t) return;
+    $("shareChoiceSheet").classList.remove("on");
+    const D = Math.max(10, Math.ceil(dur() || 240));
+    if (t.ref) openSpPanelRef(t.id, {a: 0, b: D}, true);
+    else openSpPanel(t.id, {a: 0, b: D}, true);
+  },
+  shChoiceWhole: () => {   // 指定パート全体 / 推しパートを、そのままシェア範囲にしてシェア結果まで進む
+    const t = shChoiceTarget; if (!t) return;
+    let range = null;
+    if (kanranMode && kanranMode.type === "spec") range = {a: kanranMode.a, b: kanranMode.b};
+    else if (kanranMode && kanranMode.type === "oshi") {
+      const c = t.ref ? (refCalls.find(x => x.id === t.id) || (curRef && curRef.id === t.id ? curRef : null)) : calls.find(x => x.id === t.id);
+      if (c && c.oshiPart && c.oshiPart.b > c.oshiPart.a) range = {a: +c.oshiPart.a || 0, b: +c.oshiPart.b || 0};
+    }
+    if (!range) return toast("このコールには推しパートが設定されていません");   // 案内だけ出して、範囲設定へは進まない(シートは開いたまま)
+    $("shareChoiceSheet").classList.remove("on");
+    if (t.ref) openSpPanelRef(t.id, range, true);
+    else openSpPanel(t.id, range, true);
+  },
+  shChoiceRange: () => {   // 範囲設定画面へ進む。本番の作成画面は3段階ボタン式でスライダーが無いため、初期値の持ち込みはせず通常の流れで決める
+    const t = shChoiceTarget; if (!t) return;
+    $("shareChoiceSheet").classList.remove("on");
+    if (t.ref) openSpPanelRef(t.id);
+    else openSpPanel(t.id);
+  },
   apply: () => { if (sess) saveWaku(sess); },
   pickIcon: i => { pickI = +i; UI.sheetIcons(pickI); },
   tl: id => { const c = calls.find(x => x.id === id); if (!c) return; tlId = id; tlZoom = false; tlD = Math.max(dur() || 0, c.scenes.reduce((m, s) => Math.max(m, s.t + s.d), 0), 1); $("tlBody").innerHTML = UI.timeline(c, tlD, false); $("tlov").style.display = "block"; },
@@ -920,6 +1161,7 @@ const A = {
     $("info").textContent = "";
     $("panelbody").innerHTML = "コールランダム再生モードです。みんなの推しコールから、場面ごとに選んで再生しています";
     renderPEv();
+    paintKanran();   // build 63: ランダム再生では観覧モードは効かない(kanranRange が null を返す)が、状態表示だけ合わせる
     A.closeOv();
     if (playerReady()) playerSeek(rangeStart());
     toast("コールランダム再生モードで再生します");
@@ -928,7 +1170,7 @@ const A = {
   mkvCancel: () => { $("mkvWarn").style.display = "none"; },
   mkvOk: () => { $("mkvWarn").style.display = "none"; $("mkvPage").style.display = "block"; },
   closeMkv: () => { $("mkvPage").style.display = "none"; },
-  spOpen: id => openSpPanel(id),
+  spOpen: id => { if (guide) { openSpPanel(id); return; } openShareChoice({id: id, ref: false}); },   // build 63: まず観覧状態に応じた選択肢シートを出す(ガイド中は直行)
   spClose: () => { guideEvent("cancel"); setScreen("play"); spStep = 0; paintSpStep(); },
   spSetA: () => { $("spA").value = Math.floor(now()); paintSpVals(); if (spStep === 0) { spStep = 1; paintSpStep(); } },
   spSetB: () => { $("spB").value = Math.ceil(now()); paintSpVals(); if (spStep === 1) { spStep = 2; paintSpStep(); } },
@@ -955,7 +1197,7 @@ const A = {
   },
   spPageClose: () => { $("spPage").style.display = "none"; try { history.replaceState(null, "", location.pathname); } catch (e) {} },
   spPlay: key => { const p = key.split("|"); A.spPageClose(); startSpCall(p[0], +p[1], +p[2]).then(() => toast("シェアポイントの範囲を再生します")); },
-  spOpenRef: id => openSpPanelRef(id),
+  spOpenRef: id => { if (guide) { openSpPanelRef(id); return; } openShareChoice({id: id, ref: true}); },   // build 63: まず観覧状態に応じた選択肢シートを出す(ガイド中は直行)
   spPlayRef: key => { const p = key.split("|"); A.spPageClose(); startSpRef(p[0], +p[1], +p[2]).then(() => toast("シェアポイントの範囲を再生します")); },
   mypSpOpen: id => { const s = mySps.find(x => x.id === id); if (!s) return; $("mypage").style.display = "none"; if (String(s.callId || "").indexOf("ref:") === 0) openSrPage(s.callId.slice(4), s.a, s.b); else openSpPage(s.callId, s.a, s.b); },
   mypSpShare: id => { const s = mySps.find(x => x.id === id); if (s) A.spCopy(spLinkFor(s)); },

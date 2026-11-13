@@ -354,9 +354,9 @@ body.scr-mk #play,body.scr-sp #play{width:56px;height:56px;font-size:12px}
 #mkDrawer{display:none}
 body.scr-mk #mkDrawer{display:block;position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:26}
 body.scr-mk #app{padding-bottom:64px}
-#mkDrawerBar{width:100%;height:42px;background:#262a4a;border:0;border-top:2px solid #3a3f6b;color:var(--ink);font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font:inherit}
+#mkDrawerBar{width:100%;height:42px;background:rgba(38,42,74,.78);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:0;border-top:2px solid #3a3f6b;color:var(--ink);font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font:inherit}
 #mkDrawerBar .drwHint{font-size:11px;color:var(--mut);font-weight:700}
-#mkDrawerBody{max-height:0;overflow:hidden;transition:max-height .3s ease;background:#1c1e38}
+#mkDrawerBody{max-height:0;overflow:hidden;transition:max-height .3s ease;background:rgba(28,30,56,.78);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 #mkDrawer.open #mkDrawerBody{max-height:25vh;overflow-y:auto;padding:10px}
 .drwBtns{display:flex;gap:8px;flex-wrap:wrap}
 .drwBtn{flex:1;min-width:140px;height:44px;border-radius:12px;background:#ff5c8a;color:#fff;font-weight:900;font-size:14px;border:0;cursor:pointer;font:inherit}
@@ -399,3 +399,51 @@ body.scr-mk #trybtn,body.scr-sp #trybtn{display:none!important}
 #mkPvBtn{height:44px;border-radius:22px;background:#262a4a;color:var(--ink);font-weight:700;border:1px solid #3a3f6b;cursor:pointer;font:inherit}
 /* この訪問中に作ったコールは湧きボタンを少し透かす(自押し制限の目印) */
 .wk.off{opacity:.45}
+
+/* ===== build 63: 観覧モード / シェアの選択肢シート / この作者の他の推しコール ===== */
+/* 観覧モード: 下部シート(プリセットコールの引き出しと同じ形式・同じ半透明の見た目) */
+#kanranbtn{border:2px solid #4dc9ff;background:#16283d;color:#bfe9ff;font-size:14px}
+#kanranbtn.on{border-color:#fff;background:#4dc9ff;color:#0b2233;box-shadow:0 0 18px rgba(77,201,255,.65)}
+#kanranSheet{position:fixed;inset:0;background:rgba(10,10,24,.38);display:none;align-items:flex-end;z-index:25}
+#kanranSheet.on{display:flex}
+#kanranSheet .kspanel{width:100%;max-width:480px;margin:0 auto;height:50vh;height:50dvh;background:rgba(38,42,74,.78);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1.5px solid rgba(255,255,255,.22);border-bottom:0;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;overflow:auto}
+#shareChoiceSheet{position:fixed;inset:0;background:rgba(10,10,24,.38);display:none;align-items:flex-end;z-index:26}
+#shareChoiceSheet.on{display:flex}
+#shareChoiceSheet .kspanel{width:100%;max-width:480px;margin:0 auto;max-height:62vh;max-height:62dvh;background:rgba(38,42,74,.78);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1.5px solid rgba(255,255,255,.22);border-bottom:0;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;overflow:auto}
+#shChoiceNote{padding:10px 12px;border-radius:12px;background:rgba(20,21,43,.55);border:1px solid rgba(255,255,255,.20);font-size:12.5px;font-weight:700;line-height:1.6}
+#shChoiceNote b{color:var(--pink)}
+#shChoiceBtns{display:flex;flex-direction:column;gap:12px}
+.kshead{display:flex;justify-content:space-between;align-items:center;min-height:44px}
+.kshead h2{margin:0;font-size:19px;font-weight:900}
+.ksx{width:44px;height:44px;flex:none;display:flex;align-items:center;justify-content:center}
+.ksitem{width:100%;min-height:64px;border-radius:16px;border:2px solid rgba(255,255,255,.35);background:rgba(20,21,43,.45);font-weight:900;font-size:17px;text-align:left;padding:0 18px;display:flex;align-items:center;justify-content:space-between;color:var(--ink);cursor:pointer;font:inherit}
+.ksitem span{color:var(--mut);font-size:22px;font-weight:900}
+.ksclose{min-height:52px;border-radius:26px;border:2px solid var(--ink);font-weight:900;font-size:15px;color:var(--ink);cursor:pointer;font:inherit}
+.ksitem.sel{border-color:#4dc9ff;background:rgba(77,201,255,.20)}
+#ksStatus{padding:10px 12px;border-radius:12px;background:rgba(20,21,43,.55);border:1px solid rgba(255,255,255,.20);font-size:12.5px;font-weight:700;line-height:1.6}
+#ksStatus b{color:#4dc9ff}
+#ksSpecBox{display:none;flex-direction:column;gap:10px;padding:12px;border-radius:14px;background:rgba(20,21,43,.45);border:1px solid rgba(255,255,255,.18)}
+#ksSpecBox.on{display:flex}
+#ksSpecBox p{margin:0;font-size:12px;color:var(--mut);line-height:1.6}
+.ksname{flex:none;width:34px;font-size:12px;font-weight:900}
+.ksbtns{display:flex;gap:8px;flex-wrap:wrap}
+.ksbtns button{flex:1;min-width:100px;min-height:44px;border-radius:22px;border:2px solid #8e91b8;font-weight:700;font-size:12px;color:var(--ink);cursor:pointer;font:inherit}
+#ksApply{height:50px;border-radius:25px;background:#4dc9ff;color:#0b2233;font-weight:900;font-size:15px;cursor:pointer;font:inherit}
+/* この作者の他の推しコール: 再生画面の作者表示(#who)のすぐ下に出すボタンと、全曲横断の一覧シート(観覧シートと同じ下半分・半透明の形式) */
+#authorOtherBtn{margin-top:8px;min-height:44px;padding:0 18px;border-radius:22px;border:2px solid var(--pink);color:var(--pink);font-weight:900;font-size:13px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;font:inherit}
+#authorOtherBtn:active{background:rgba(255,122,184,.18)}
+#authorSheet{position:fixed;inset:0;background:rgba(10,10,24,.38);display:none;align-items:flex-end;z-index:25}
+#authorSheet.on{display:flex}
+#authorSheet .kspanel{width:100%;max-width:480px;margin:0 auto;max-height:72vh;max-height:72dvh;background:rgba(38,42,74,.82);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1.5px solid rgba(255,255,255,.22);border-bottom:0;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;overflow:auto}
+#authorHead{font-size:13px;font-weight:700;line-height:1.6;color:var(--mut)}
+#authorHead b{color:var(--ink);font-size:15px}
+#authorList{display:flex;flex-direction:column;gap:10px}
+.authorItem{border:1.5px solid rgba(255,255,255,.25);border-radius:16px;background:rgba(20,21,43,.5);padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.authorItem.cur{border-color:var(--pink);background:rgba(255,122,184,.14)}
+.authorItem .asong{font-size:12px;font-weight:900;color:#4dc9ff}
+.authorItem .atitle{font-size:15px;font-weight:900;line-height:1.4;overflow-wrap:anywhere}
+.authorItem .atitle .tag{margin-left:6px}
+.authorItem .ameta{font-size:11px;color:var(--mut);font-weight:700}
+.authorItem .aplay{align-self:flex-start;min-height:44px;padding:0 18px;border-radius:22px;background:var(--pink);color:#2a0c1c;font-weight:900;font-size:13px;cursor:pointer;font:inherit}
+.authorItem .aplay.curbtn{background:rgba(255,255,255,.15);color:var(--ink);border:2px solid var(--ink)}
+.authorEmpty{font-size:13px;color:var(--mut);font-weight:700;line-height:1.7;padding:6px 2px}
