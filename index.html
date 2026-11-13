@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ももクロコール共有(テスト中)</title>
-<link rel="stylesheet" href="style.css?v=63">
+<link rel="stylesheet" href="style.css?v=64">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
 <script>
@@ -128,21 +128,75 @@ gtag('config', 'G-00QSZME258');
   <section id="mk">
     <h2>推しコールを作る <span class="mkmode">作成画面</span></h2>
     <button class="gstart" data-a="guideStart">ガイドモードで作成</button>
+    <!-- build 64: 作成の2モード制。表示する操作UIは選択中のモード分だけ。切替えても作りかけのカードは保持される -->
+    <div id="mkModeTabs" role="group" aria-label="作り方のモードを選ぶ">
+      <button type="button" class="mktab sel" data-a="mkMode" data-i="nori" data-mkmode="nori">♪ ノリノリながらモード</button>
+      <button type="button" class="mktab" data-a="mkMode" data-i="oki" data-mkmode="oki">お気に置きにいっちゃうモード</button>
+    </div>
+    <p id="mkModeDesc"></p>
     <div class="subctl">
       <button id="mkPlayBtn" data-a="play">▶ 再生</button>
       <button class="ratebtn" data-a="rate">速度 1倍</button>
     </div>
-    <button id="mkCreate" data-a="mkMain">カード作成</button>
-    <div id="mkHint">再生しながら押すと、その位置にカードができます(長さは仮の5秒)。できたカードをタップすると中身や長さを直せます。</div>
-    <div id="mkEdit" style="display:none">
-      <div id="mkTypes" class="types">
-        <button data-a="type" data-i="call" class="sel">コール</button><button data-a="type" data-i="sing">シンガロン</button><button data-a="type" data-i="koko">ココ好き!</button>
+    <!-- build 64: 拡大タイムライン。ドラッグ中・長押し中は約30秒表示になり、画面下部に浮いて出続けます(元の位置には同じ高さの空きを残します) -->
+    <div id="mkTlBox">
+      <div class="mktl-head"><span>タイムライン</span><span id="mkTlMode">全体表示</span><span id="mkTlPos"></span></div>
+      <div id="mkTlView">
+        <div id="mkTlLabs"><span>コール</span><span>シンガロン</span><span>ココ好き!</span><span></span></div>
+        <div id="mkTlSlide"><div id="mkTlInner"></div><div id="mkTlPlay"></div><div id="mkTlKnob" role="slider" aria-label="選択中のカードの位置つまみ" aria-valuemin="0" aria-valuemax="240" aria-valuenow="0"></div></div>
       </div>
+      <p class="mktl-note" id="mkTlNote">長押ししている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。打ったカードの開始〜終了も表示されます。</p>
+    </div>
+    <div class="mknori" id="mkBigWrap">
+      <button id="mkCreate" data-a="mkMain">カード作成</button>
+      <div id="mkHint">再生しながら押すと、その位置にカードができます(長さは仮の5秒)。できたカードをタップすると中身や長さを直せます。</div>
+    </div>
+    <!-- build 64: お気に置きにいっちゃうモード。プリセットチップか「つかむ」を押さえて左右へ動かすと、シーク連動スクラブで置く場所を探ります -->
+    <div id="mkPresets" class="mkoki">
+      <div class="plab">プリセットコール（押さえて左右に動かし、指を止めるとその位置の音が流れます。離した位置に置けます）</div>
+      <div id="mkChips"></div>
+      <p class="mknote">指を動かして、止めてください。指を止めると、その位置からの音が流れます。音を頼りに置く場所を探って、離した位置にカードが置かれます。</p>
+    </div>
+    <p id="mkApplyNote" aria-live="polite"></p>
+    <div id="mkTypes" class="types">
+      <button data-a="type" data-i="call" class="sel">コール</button><button data-a="type" data-i="sing">シンガロン</button><button data-a="type" data-i="koko">ココ好き!</button>
+    </div>
+    <div class="mkTextRow">
       <input type="text" id="mkText" placeholder="内容(例: ハイ!ハイ!)" maxlength="30">
+      <button id="mkGrip" class="mkoki" type="button" aria-label="入力した文言をつかんで移動">⠿ つかむ</button>
+    </div>
+    <div id="mkEdit" style="display:none">
       <div class="fineRow"><span>位置</span><button id="mkFineM" data-a="mkFine" data-i="-0.1">−0.1秒</button><button id="mkFineP" data-a="mkFine" data-i="0.1">＋0.1秒</button></div>
       <button id="mkDelBtn" data-a="mkDelSel">このカードを削除</button>
     </div>
     <div id="mkList"></div>
+    <!-- build 64: カード再編集(両モード共通)。カードを選んだ時だけ出ます -->
+    <div id="mkPosEdit" style="display:none">
+      <div class="mkpe-head"><span id="mkPosTitle">選択中のカード</span><span id="mkPosTime"></span></div>
+      <p class="mkpe-note">選んだカードの位置から音が流れています。位置はここで直せます（どちらのモードでも同じ直し方です）。曲を再生して止めた位置へ一気に動かすなら「今の再生位置へ持っていく」が使えます。</p>
+      <button id="mkPosScrub" type="button">押さえて左右に動かす（音を聞きながら位置を探る）</button>
+      <div class="mkpe-btns">
+        <button type="button" class="posStepB" data-a="mkFine" data-i="-1">−1秒</button>
+        <button type="button" class="posStepB" data-a="mkFine" data-i="-0.1">−0.1秒</button>
+        <button type="button" class="posStepB" data-a="mkFine" data-i="0.1">＋0.1秒</button>
+        <button type="button" class="posStepB" data-a="mkFine" data-i="1">＋1秒</button>
+      </div>
+      <div class="mkpe-btns">
+        <button type="button" class="here" id="mkPosHere" data-a="posHere">今の再生位置へ持っていく</button>
+        <button type="button" class="restore" id="mkPosRestore" data-a="posRestore">↩ 戻す（選んだときの位置へ）</button>
+        <button type="button" class="restore" id="mkSelClear" data-a="selClear">選択を解除</button>
+      </div>
+    </div>
+    <!-- build 64: 操作感の調整(反応の鈍さ/手ブレ抑制)。モックより範囲を狭め、モックの既定値付近を中心にしています -->
+    <button id="mkTuneBtn" type="button" aria-expanded="false">操作感の調整<span aria-hidden="true">›</span></button>
+    <div id="mkTunePanel">
+      <p class="mknote" style="margin:0">ドラッグの感触を変えられます。変えた瞬間から反映されます。</p>
+      <div class="durrow"><span style="flex:none;width:86px">反応の鈍さ</span><input type="range" id="tuneGain" min="0.2" max="1" step="0.05" value="0.5" aria-label="反応の鈍さ（指の位置へ再生位置が追いつく速さ）"><b id="tuneGainVal">0.50倍</b></div>
+      <p class="mknote" style="margin:0">指の位置へ再生位置が追いつく速さです。小さいほど鈍くなります。</p>
+      <div class="durrow"><span style="flex:none;width:86px">手ブレ抑制</span><span class="tuneword">弱い</span><input type="range" id="tuneDead" min="4" max="30" step="1" value="14" aria-label="手ブレ抑制（小さい動きを無視する強さ）"><span class="tuneword">強い</span><b id="tuneDeadVal">やや弱い</b></div>
+      <p class="mknote" style="margin:0">小さい指の動きを無視する強さです。強いほど手ブレに強くなります。</p>
+      <button id="tuneReset" type="button">最初の値に戻す</button>
+    </div>
     <input type="text" id="mkVer" placeholder="バージョン名(2つ目以降は必須)" maxlength="20">
     <input type="text" id="mkNote" placeholder="備考(任意)" maxlength="100">
     <input type="text" id="mkGuestName" placeholder="名前(ゲスト用: 作者として表示されます)" maxlength="20" style="display:none">
@@ -159,7 +213,7 @@ gtag('config', 'G-00QSZME258');
   <div id="info"></div>
   <button id="mkvBtn" data-a="mkv">ももクリDelivery特集<span class="newStamp">NEW</span></button>
   <div id="freearea"></div>
-  <div style="text-align:center;font-size:10px;color:#8e91b8">build 63</div>
+  <div style="text-align:center;font-size:10px;color:#8e91b8">build 64</div>
   <div style="text-align:center"><button data-a="wcShow" style="font-size:10px;color:#8e91b8;text-decoration:underline;background:none;border:0;cursor:pointer">ようこそカードを再表示</button></div>
 
 </div>
@@ -484,8 +538,8 @@ gtag('config', 'G-00QSZME258');
 
 <div id="toast"></div>
 
-<script src="ui.js?v=63" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="app.js?v=63" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
+<script src="ui.js?v=64" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
+<script src="app.js?v=64" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
 </body>

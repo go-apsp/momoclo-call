@@ -72,6 +72,17 @@ let spStep = 0;                 // シェアポイント作成の段階 0=始点
 let mkPub = true;               // 作成画面: 保存先(公開=true / 下書き=false)。確定は「保存して戻る」
 let mkRate = 1;                 // 作成画面・シェアポイント作成画面: 再生速度(1 → 0.5 → 0.25)
 let PRESETS = [], psLoaded = false, psListShown = false;   // build 60: プリセットコール(presetsコレクション。管理画面で登録)
+/* ---------- build 64: 作成の2モード制 / 長押し / シーク連動スクラブ / 拡大タイムライン / 位置再編集 ---------- */
+let mkMode = "nori";            // 作成モード "nori"(♪ノリノリながら) | "oki"(お気に置きにいっちゃう)。localStorageに保存し、次回も同じモードで開く
+try { const m64 = localStorage.getItem("momo_mkmode"); if (m64 === "oki" || m64 === "nori") mkMode = m64; } catch (e) {}
+let mkSelOrigT = null;          // カードを選んだときの開始位置(位置編集の「戻す」用)
+let mkHoldClickAt = 0;          // 大きなボタンを長押しで処理した時刻(続くクリック=mhMain を握りつぶすため)
+let mkScrSt = null, mkPosScrSt = null, mkHoldSt = null;   // スクラブ(新規)/位置スクラブ/長押し の進行中状態(タイムライン追従の判定にも使う)
+let mkTune = {gain: 0.5, dead: 14};   // 操作感: 反応の鈍さ(指の絶対位置への追従速度) / 手ブレ抑制(小さい動きを無視する幅。既定はモックと同じ14相当)。localStorage保存
+try {
+  const g64 = parseFloat(localStorage.getItem("momo_drag_gain")); if (isFinite(g64)) mkTune.gain = Math.min(1, Math.max(0.2, g64));
+  const d64 = parseFloat(localStorage.getItem("momo_drag_dead")); if (isFinite(d64)) mkTune.dead = Math.min(30, Math.max(4, Math.round(d64)));
+} catch (e) {}
 /* ---------- build 62: ゲスト作成 / ウェルカムカード / ハート・湧きの開放 / ガイドモード ---------- */
 let guestLiked = new Set();   // ゲストのハート済み表示用(このページを開いている間だけ。誰が押したかの記録としては残さない)
 let wakuHold = null;          // 湧く!を押した場面カードを、設定時間(d)いっぱい表示し続けるための保持 {e, until}
@@ -444,7 +455,7 @@ setInterval(() => { if (me && prof) checkPending(true); }, 60000);
 
 /* ---------- 作成(build 58: 再生画面のまま切り替える制作モード) ---------- */
 /* ---------- 作成(build 59: 画面切り替え式の作成画面。プレイヤーは移動しない) ---------- */
-function renderMk() { $("mkList").innerHTML = UI.mkCards(mk.scenes, mkSel); paintMkBtn(); paintKnob(); applyGuide(); }
+function renderMk() { $("mkList").innerHTML = UI.mkCards(mk.scenes, mkSel); paintMkBtn(); paintKnob(); paintPosEdit(); renderMkTl(); applyGuide(); }
 function paintPvBtn() { const b = $("mkPvBtn"); if (b) b.textContent = mkPv ? "プレビューを止める" : "プレビュー"; }
 /* 画面切替: プレイヤー(#mvwrap・iframe)はDOM上で一切動かさず、他のUIの表示/非表示だけで切り替える */
 function setScreen(name) {
@@ -468,10 +479,10 @@ function paintMkBtn() {
   } else if (mkSel >= 0 && mk.scenes[mkSel]) {
     const sc = mk.scenes[mkSel];
     b.textContent = "長さ指定"; b.classList.add("edit");
-    if (hint) hint.textContent = fmt(sc.t) + " のカードを選択中です。「長さ指定」を押すと、その位置から再生します。シークバーのつまみを動かすと位置を変えられます。もう一度カードを押すと選択を終わります。";
+    if (hint) hint.textContent = fmt(sc.t) + " のカードを選択中です。「長さ指定」を押すか、このボタンを長押しすると、その位置から再生して長さを決め直せます。シークバーのつまみや下の位置編集でも直せます。もう一度カードを押すと選択を終わります。";
   } else {
     b.textContent = "カード作成";
-    if (hint) hint.textContent = "再生しながら押すと、その位置にカードができます(長さは仮の5秒)。止まっている時は今の位置にできます。できたカードをタップすると中身や長さを直せます。";
+    if (hint) hint.textContent = "再生しながらタップすると5秒のカード、長押しすると押している長さのカードができます(0.5〜20秒)。止まっている時は今の位置にできます。できたカードをタップすると中身や長さを直せます。";
   }
   paintMkPub();
 }
@@ -491,6 +502,7 @@ function enterMk() {
   spStep = 0; paintSpStep();
   setScreen("mk");
   applyRate();
+  paintMkMode();
   renderMk();
   loadPresets();
   const gn = $("mkGuestName"); if (gn) gn.style.display = me ? "none" : "block";
@@ -499,7 +511,7 @@ function enterMk() {
 function exitMk() {
   setScreen("play");
   const drw = $("mkDrawer"); if (drw) drw.classList.remove("open");
-  mkSel = -1; mkLenPhase = null;
+  mkSel = -1; mkLenPhase = null; mkSelOrigT = null; mkSetZoom(false);
   if (mkMeas !== null) { mkMeas = null; const b = $("mkMeas"); if (b) b.textContent = "▶ 再生して表示時間を測る"; }
   const pb = $("play"); if (pb) pb.classList.remove("meas");
 }
@@ -523,7 +535,246 @@ async function loadPresets() {
   psLoaded = true;
   paintPsList();
 }
-function paintPsList() { const el = $("psList"); if (el) el.innerHTML = UI.psChips(PRESETS); applyGuide(); }
+function paintPsList() { const el = $("psList"); if (el) el.innerHTML = UI.psChips(PRESETS); paintMkChips(); applyGuide(); }
+
+/* ---------- build 64: 2モード制の表示切替 ---------- */
+const MKMODE_DESC = {
+  nori: "曲を聞きながら作るモードです。コールを口で言っている間だけ大きな丸ボタンを長押しすると、離した長さでカードが打てます。中身（種類・文言）は後から入れられます。",
+  oki: "文言を先に用意してから置きに行くモードです。プリセットを選ぶか文字を書いておいて、掴んで左右に動かすと、その位置の音を頼りに置く場所を探れます。再生ボタンを押していなくても、掴んで動かし始めるとその位置の音が自動で流れます。指を止めると、その位置からの音が流れるので、聞いて確かめてから離してください。離した位置にカードが置けて、長さは後から変えられます。"
+};
+const MKMODE_TLNOTE = {
+  nori: "長押ししている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。打ったカードの開始〜終了も表示されます。",
+  oki: "掴んで動かしている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。指の横の位置が、そのまま曲の位置になります。"
+};
+function paintMkMode() {
+  document.querySelectorAll("#mkModeTabs .mktab").forEach(b => b.classList.toggle("sel", b.dataset.mkmode === mkMode));
+  const nori = mkMode === "nori";
+  document.querySelectorAll("#mk .mknori").forEach(el => { el.style.display = nori ? "" : "none"; });
+  document.querySelectorAll("#mk .mkoki").forEach(el => { el.style.display = nori ? "none" : ""; });
+  const d = $("mkModeDesc"); if (d) d.textContent = MKMODE_DESC[mkMode];
+  const n = $("mkTlNote"); if (n) n.textContent = MKMODE_TLNOTE[mkMode];
+}
+function setMkMode(m) {
+  if (m !== "nori" && m !== "oki") return;
+  mkMode = m;
+  try { localStorage.setItem("momo_mkmode", m); } catch (e) {}
+  paintMkMode();
+  guideEvent("mode");
+}
+
+/* ---------- build 64: 選択中カードの位置編集パネルと、種類・文言の適用先の表示 ---------- */
+function paintPosEdit() {
+  const box = $("mkPosEdit"); if (!box) return;
+  const sc = (mkSel >= 0 && mk.scenes[mkSel]) ? mk.scenes[mkSel] : null;
+  const note = $("mkApplyNote");
+  if (note) note.textContent = sc
+    ? "いま選択中のカード「" + (sc.x || LAB[sc.k]) + "」を編集中です。種類ボタン・文言の入力・プリセットは、このカードに適用されます。"
+    : "種類・文言は、次に作るカードのものになります。作ったカードを選ぶと、選んだカードの書き換えに使えます。";
+  if (!sc) { box.style.display = "none"; return; }
+  box.style.display = "flex";
+  $("mkPosTitle").textContent = "選択中: " + LAB[sc.k] + "「" + sc.x + "」";
+  $("mkPosTime").textContent = fmt(sc.t) + "〜" + fmt(sc.t + sc.d);
+}
+
+/* ---------- build 64: 作成画面のタイムライン(通常は曲全体。ドラッグ中/長押し中は現在位置を中心に約30秒へ拡大し、画面下部に浮かせて出し続ける。元の位置にはプレースホルダを残す) ---------- */
+const MK_TL_KINDS = ["call", "sing", "koko"];
+let mkTlZoom = false, mkTlCenter = 0, mkTlLastD = 0, mkTlPh = null;
+function mkTlD() { return Math.max(1, dur() || 240); }
+function mkTlWin() {
+  const d = mkTlD();
+  if (!mkTlZoom) return {a: 0, span: d};
+  const span = Math.min(30, d);
+  let a = mkTlCenter - span / 2;
+  a = Math.max(0, Math.min(Math.max(0, d - span), a));
+  return {a: a, span: span};
+}
+function renderMkTl() {
+  const inner = $("mkTlInner"); if (!inner) return;
+  const d = mkTlD();
+  let html = "";
+  MK_TL_KINDS.forEach(k => {
+    const bars = mk.scenes.filter(s => s.k === k).map(s => {
+      const l = Math.max(0, s.t / d * 100), w = Math.max(0.8, s.d / d * 100), idx = mk.scenes.indexOf(s), sel2 = idx === mkSel;
+      return '<div class="mktl-bar mb-' + k + (sel2 ? " selb2" : "") + '" data-mksel="' + idx + '" style="left:' + l + '%;width:' + w + '%" title="' + fmt(s.t) + "〜" + fmt(s.t + s.d) + " " + LAB[k] + " " + esc(s.x) + '"><span>' + fmt(s.t) + "〜" + fmt(s.t + s.d) + " " + esc(s.x) + "</span></div>";
+    }).join("");
+    html += '<div class="mktl-lane">' + bars + "</div>";
+  });
+  let ticks = "";
+  if (mkTlZoom) {
+    for (let t = 0; t <= d; t += 1) {
+      const big = t % 5 === 0, l2 = t / d * 100;
+      ticks += '<div class="mktl-tick' + (big ? " big" : "") + '" style="left:' + l2 + '%"></div>' + (big ? '<span class="mktl-tlab" style="left:' + l2 + '%">' + fmt(t) + "</span>" : "");
+    }
+  } else {
+    const steps = [5, 10, 15, 20, 30, 60]; let step = 60;
+    for (let si2 = 0; si2 < steps.length; si2++) { if (d / steps[si2] <= 14) { step = steps[si2]; break; } }
+    for (let t2 = 0; t2 <= d; t2 += step) {
+      const l3 = t2 / d * 100;
+      ticks += '<div class="mktl-tick big" style="left:' + l3 + '%"></div><span class="mktl-tlab" style="left:' + l3 + '%">' + fmt(t2) + "</span>";
+    }
+  }
+  html += '<div class="mktl-ticks">' + ticks + "</div>";
+  inner.innerHTML = html;
+  const box = $("mkTlBox"); if (box) box.classList.toggle("zoom", mkTlZoom);
+  const md = $("mkTlMode"); if (md) md.textContent = mkTlZoom ? "拡大表示（約30秒）" : "全体表示";
+  mkTlApplyView();
+}
+function mkTlApplyView() {
+  const inner = $("mkTlInner"); if (!inner) return;
+  const d = mkTlD(), w = mkTlWin();
+  inner.style.width = (d / w.span * 100) + "%";
+  inner.style.transform = "translateX(" + (-(w.a / d * 100)) + "%)";
+  const t = now() || 0;
+  const p = (t - w.a) / w.span * 100, pl = $("mkTlPlay");
+  if (pl) { if (p >= 0 && p <= 100) { pl.style.display = "block"; pl.style.left = p + "%"; } else pl.style.display = "none"; }
+  const pos = $("mkTlPos"); if (pos) pos.textContent = "現在 " + fmt(t) + (mkTlZoom ? " ／ 表示範囲 " + fmt(w.a) + "〜" + fmt(w.a + w.span) : "");
+  const kn = $("mkTlKnob");
+  if (kn) {
+    const sc = (mkSel >= 0 && mk.scenes[mkSel]) ? mk.scenes[mkSel] : null;
+    if (sc) {
+      const kp = (sc.t - w.a) / w.span * 100;
+      if (kp >= 0 && kp <= 100) { kn.style.display = "block"; kn.style.left = kp + "%"; kn.setAttribute("aria-valuenow", Math.round(sc.t)); } else kn.style.display = "none";
+    } else kn.style.display = "none";
+  }
+}
+function mkTlSetFloat(on) {
+  const box = $("mkTlBox"); if (!box) return;
+  if (on) {
+    if (!mkTlPh) { mkTlPh = document.createElement("div"); mkTlPh.setAttribute("aria-hidden", "true"); mkTlPh.style.height = box.offsetHeight + "px"; box.parentNode.insertBefore(mkTlPh, box); }
+    box.classList.add("tlfloat");
+  } else {
+    box.classList.remove("tlfloat");
+    if (mkTlPh) { mkTlPh.remove(); mkTlPh = null; }
+  }
+}
+function mkSetZoom(on, c) {
+  mkTlSetFloat(on);
+  if (on === mkTlZoom) { if (on && c != null) { mkTlCenter = c; mkTlApplyView(); } return; }
+  mkTlZoom = on; if (c != null) mkTlCenter = c;
+  renderMkTl();
+}
+
+/* ---------- build 64: シーク連動スクラブ(お気に置きにいっちゃうモードの「置きに行く」操作と、選択中カードの位置探りで共用)。
+   指の絶対位置対応: 画面幅より少し狭い帯に曲全体を割り当て、指の横位置そのものが曲の位置になる。
+   デッドゾーン(手ブレ抑制: 小さい動きは無視)と、反応の鈍さ(絶対位置への追従速度)で操作感を調整できる ---------- */
+function mkBandAbs(clientX) {
+  const W = window.innerWidth || 360;
+  const m = Math.max(10, Math.round(W * 0.04));
+  const width = Math.max(50, W - m * 2);
+  let r = (clientX - m) / width;
+  r = Math.max(0, Math.min(1, r));
+  return r * mkTlD();
+}
+let mkGhost = null;
+function mkGhostEl() { if (!mkGhost) { mkGhost = document.createElement("div"); mkGhost.id = "dragGhost"; document.body.appendChild(mkGhost); } return mkGhost; }
+function mkShowGhost(e, src, t) {
+  const g = mkGhostEl();
+  g.innerHTML = "";
+  g.appendChild(document.createTextNode(src.x || LAB[src.k]));
+  const sm = document.createElement("small");
+  sm.textContent = fmt(t) + " に置く";
+  g.appendChild(sm);
+  g.style.left = e.clientX + "px"; g.style.top = e.clientY + "px";
+  g.classList.add("on");
+}
+function mkMoveGhost(e, t) { const g = mkGhost; if (!g) return; g.style.left = e.clientX + "px"; g.style.top = e.clientY + "px"; const sm = g.querySelector("small"); if (sm) sm.textContent = fmt(t) + " に置く"; }
+function mkScrStart(e, src, el) {
+  e.preventDefault();
+  try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  mkScrSt = {pid: e.pointerId, x0: e.clientX, anchorX: e.clientX, seek0: now() || 0, target: now() || 0, lastSeek: null, active: false, src: src, settle: null, lastX: e.clientX, lastY: e.clientY};
+}
+function mkScrMove(e) {
+  const scr = mkScrSt; if (!scr || e.pointerId !== scr.pid) return;
+  const dead = mkTune.dead;
+  if (!scr.active) {
+    if (Math.abs(e.clientX - scr.x0) <= dead) return;
+    scr.active = true; scr.anchorX = e.clientX;
+    mkSetZoom(true, scr.seek0);
+    mkShowGhost(e, scr.src, scr.seek0);
+    if (playerReady()) playerPlay();   // 再生を押していなくても、掴んで動かし始めるとその位置の音がプレビューで流れる
+  } else if (Math.abs(e.clientX - scr.anchorX) <= dead) { return; }   // 手ブレ抑制: 前回位置を更新した地点から dead(px) 未満の動きは無視
+  else { scr.anchorX = e.clientX; }
+  const absT = mkBandAbs(e.clientX);
+  const g = mkTune.gain;
+  let target = g >= 1 ? absT : scr.target + (absT - scr.target) * g;   // 反応の鈍さ: gain が小さいほど、再生位置は指の絶対位置へゆっくり近づく
+  target = Math.max(0, Math.min(mkTlD(), target));
+  scr.target = target; mkTlCenter = target; mkTlApplyView();
+  mkMoveGhost(e, target);
+  if (scr.lastSeek === null || Math.abs(target - scr.lastSeek) >= 0.15) { scr.lastSeek = target; playerSeek(Math.round(target * 10) / 10); }
+  scr.lastX = e.clientX; scr.lastY = e.clientY;
+  if (scr.settle) clearTimeout(scr.settle);
+  scr.settle = setTimeout(() => {   // 指を止めたら(約320ms)、指の絶対位置から再生して聞き直せる
+    if (!mkScrSt || !mkScrSt.active) return;
+    const t = Math.max(0, Math.min(mkTlD(), Math.round(mkBandAbs(mkScrSt.lastX) * 10) / 10));
+    mkScrSt.target = t; mkScrSt.lastSeek = t; mkTlCenter = t; mkTlApplyView();
+    mkMoveGhost({clientX: mkScrSt.lastX, clientY: mkScrSt.lastY}, t);
+    playerSeek(t); if (playerReady()) playerPlay();
+  }, 320);
+}
+function mkScrEnd(commit, upX) {
+  const sc = mkScrSt; if (!sc) return;
+  mkScrSt = null;
+  if (sc.settle) clearTimeout(sc.settle);
+  if (mkGhost) mkGhost.classList.remove("on");
+  if (sc.active) {
+    mkSetZoom(false);
+    if (commit) {
+      if (upX != null) sc.target = mkBandAbs(upX);
+      const t = Math.max(0, Math.min(mkTlD() - 0.5, Math.round(sc.target * 10) / 10));
+      const nc = {t: t, d: 5, k: sc.src.k, x: sc.src.x};   // 置いたカードの長さは仮の5秒(本番の作り方に合わせる。後から長さ指定で直せる)
+      mk.scenes.push(nc); mk.scenes.sort((a, b) => a.t - b.t);
+      if (sc.src.grip) $("mkText").value = "";
+      renderMk();
+      toast("「" + (nc.x || LAB[nc.k]) + "」を " + fmt(t) + " に置きました");
+      guideEvent("drop");
+    }
+    return;
+  }
+  if (commit && sc.src.chip) {   // チップのただのタップ(ドラッグしなかった)
+    if (mkSel >= 0 && mk.scenes[mkSel]) {
+      const sel = mk.scenes[mkSel];
+      sel.k = sc.src.k; sel.x = sc.src.x; mk.type = sc.src.k;
+      document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === sc.src.k));
+      $("mkText").value = sc.src.x;
+      renderMk();
+      toast("選択中のカードにプリセット「" + sc.src.x + "」を適用しました");
+      guideEvent("text");
+      return;
+    }
+    $("mkText").value = sc.src.x;
+    if (mk.type !== sc.src.k) { mk.type = sc.src.k; document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === sc.src.k)); }
+    toast("プリセット「" + sc.src.x + "」を入力しました。チップを押さえて左右に動かすと、その位置に置けます");
+    guideEvent("text");
+  }
+}
+function mkBindScr(el, srcFn, isChip) {
+  el.addEventListener("pointerdown", e => mkScrStart(e, srcFn(), el));
+  el.addEventListener("pointermove", mkScrMove);
+  el.addEventListener("pointerup", e => mkScrEnd(true, e.clientX));
+  el.addEventListener("pointercancel", () => mkScrEnd(false));
+  el.addEventListener("contextmenu", e => e.preventDefault());
+  if (isChip) el.dataset.chip = "1";
+}
+/* お気に置きにいっちゃうモードのプリセットチップ(引き出しの psChips とは別に、掴んでドラッグできるチップを描く) */
+function paintMkChips() {
+  const box = $("mkChips"); if (!box) return;
+  box.innerHTML = "";
+  if (!PRESETS.length) { box.innerHTML = '<div class="psNone">プリセットはまだ登録されていません（管理画面で登録できます）</div>'; return; }
+  PRESETS.forEach(p => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "pchip"; b.textContent = p.x;
+    b.setAttribute("aria-label", "プリセット " + p.x + "（押さえて左右に動かすと、その位置に置けます）");
+    box.appendChild(b);
+    mkBindScr(b, () => ({k: p.k, x: p.x, chip: true}), true);
+  });
+}
+/* 操作感の調整パネルの表示(手ブレ抑制は言葉のみで出し、px値は利用者に出さない) */
+function paintTune() {
+  const g = $("tuneGain"), d = $("tuneDead"); if (!g || !d) return;
+  g.value = mkTune.gain; d.value = mkTune.dead;
+  $("tuneGainVal").textContent = mkTune.gain.toFixed(2) + "倍";
+  $("tuneDeadVal").textContent = mkTune.dead <= 8 ? "弱い" : mkTune.dead <= 14 ? "やや弱い" : mkTune.dead <= 20 ? "ふつう" : mkTune.dead <= 26 ? "やや強い" : "強い";
+}
 
 /* ---------- build 50: 湧きリアクション演出(画面の振動・再生中コール連動のはみ出しバッジ・紙吹雪) ---------- */
 let impactTm = null;
@@ -1278,11 +1529,12 @@ const A = {
   },
   editProf: () => { A.menu(); $("mypage").style.display = "none"; openSheet(true); },
   closeSheet: () => { $("sheet").style.display = "none"; },
-  startMk: () => { mk.editId = null; mkSel = -1; mkLenPhase = null; A.menu(); enterMk(); },   // build 62: ゲストでも作成画面に入れる
+  startMk: () => { mk.editId = null; mkSel = -1; mkLenPhase = null; mkSelOrigT = null; A.menu(); enterMk(); },   // build 62: ゲストでも作成画面に入れる
   endMk: () => { guideEvent("cancel"); exitMk(); },
   /* build 58: 作成ボタン。状態で働きが変わる(カード作成 → 長さを決める / 再編集=長さ測り直しの開始) */
   /* build 59: 大きなボタン。状態で働きが変わる(カード作成 → 長さ指定 → ここで終わり) */
   mkMain: () => {
+    if (Date.now() - mkHoldClickAt < 500) return;   // build 64: 長押しで処理済みのクリックは握りつぶす(二重作成・二重の長さ指定を防ぐ)
     if (mkLenPhase === "run") {   // 長さ指定の決定: 今の再生位置で、選択中カードの長さが決まる
       const sc = mk.scenes[mkSel];
       mkLenPhase = null;
@@ -1304,11 +1556,12 @@ const A = {
       toast("再生中です。終わりの位置で「ここで終わり」を押してください");
       return;
     }
-    // カード作成: 再生中でも停止中でも、今の位置に仮の長さ5秒・種類コール・文言空で1枚作る
+    // カード作成: 再生中でも停止中でも、今の位置に仮の長さ5秒で1枚作る。種類・文言は「次に作るカード」の設定(種類ボタン・入力欄)を使う(build 64: 仕様5)
     const t = Math.round(clampT(now()));
-    const sc = {t: t, d: 5, k: "call", x: ""};
+    const sc = {t: t, d: 5, k: mk.type, x: $("mkText").value.trim()};
     mk.scenes.push(sc);
     mk.scenes.sort((a, b) => a.t - b.t);
+    if (sc.x) $("mkText").value = "";
     renderMk();
     const L = $("mkList"); if (L) L.scrollTop = L.scrollHeight;
     toast(fmt(t) + " にカードを作りました");
@@ -1344,18 +1597,41 @@ const A = {
   /* build 58: 埋め込みパネルのカードをタップ → そのカードの中身を編集(もう一度タップで終了) */
   mkPick: i => {
     i = +i;
-    if (mkSel === i) { mkSel = -1; mkLenPhase = null; renderMk(); return; }
+    if (mkSel === i) { mkSel = -1; mkLenPhase = null; mkSelOrigT = null; renderMk(); return; }
     const sc = mk.scenes[i]; if (!sc) return;
-    mkSel = i; mkLenPhase = null;
+    mkSel = i; mkLenPhase = null; mkSelOrigT = sc.t;   // build 64: 「戻す」用に、選んだときの位置を覚える
     mk.type = sc.k;
     document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === sc.k));
     $("mkText").value = sc.x;
     renderMk();
+    if (playerReady()) { playerSeek(sc.t); playerPlay(); }   // build 64: 選んだカードの位置から再生して、どの部分か音で確かめられる
+    const pe = $("mkPosEdit"); if (pe) pe.scrollIntoView({behavior: "smooth", block: "nearest"});
     guideEvent("picked");
   },
+  /* build 64: 作成の2モード切替と、選択中カードの位置編集(今の再生位置へ / 戻す / 選択解除) */
+  mkMode: m => setMkMode(m),
+  posHere: () => {
+    const sc = mk.scenes[mkSel]; if (!sc) return toast("先にカードを選んでください");
+    const D = Math.max(dur() || 0, 1);
+    let v = Math.round(now() * 10) / 10;
+    v = Math.max(0, Math.min(Math.max(0, D - sc.d), v));
+    if (v !== sc.t) { sc.t = v; mk.scenes.sort((a, b) => a.t - b.t); mkSel = mk.scenes.indexOf(sc); renderMk(); }
+    toast("「" + (sc.x || LAB[sc.k]) + "」を今の再生位置(" + fmt(sc.t) + ")へ持ってきました");
+    guideEvent("tweak");
+  },
+  posRestore: () => {
+    const sc = mk.scenes[mkSel]; if (!sc || mkSelOrigT == null) return;
+    const D = Math.max(dur() || 0, 1);
+    let v = Math.max(0, Math.min(Math.max(0, D - sc.d), mkSelOrigT));
+    if (v !== sc.t) { sc.t = v; mk.scenes.sort((a, b) => a.t - b.t); mkSel = mk.scenes.indexOf(sc); renderMk(); }
+    if (playerReady()) { playerSeek(sc.t); playerPlay(); }
+    toast("選んだときの位置(" + fmt(mkSelOrigT) + ")に戻しました");
+    guideEvent("tweak");
+  },
+  selClear: () => { mkSel = -1; mkLenPhase = null; mkSelOrigT = null; renderMk(); },
   seek: (d) => { if (playerReady()) playerSeek(clampT(now() + +d)); },
   pseek: (d) => { if (playerReady()) playerSeek(clampT(now() + +d)); },
-  type: (k) => { mk.type = k; document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === k)); if (mkSel >= 0 && mk.scenes[mkSel]) { mk.scenes[mkSel].k = k; renderMk(); } },
+  type: (k) => { mk.type = k; document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === k)); if (mkSel >= 0 && mk.scenes[mkSel]) { mk.scenes[mkSel].k = k; renderMk(); } guideEvent("type"); },
   durAdj: d => {   // 旧UIの表示時間スライダー用(build 58で要素は廃止。互換のため残す)
     const el = $("mkDur"); if (!el) return;
     const c = Math.max(1, Math.min(20, Math.round((parseFloat(el.value) + parseFloat(d)) * 10) / 10));
@@ -1406,7 +1682,7 @@ const A = {
     $("mv").scrollIntoView({behavior: "smooth"});
     toast("作成中の推しコールをプレビュー中");
   },
-  delScene: i => { i = +i; mk.scenes.splice(i, 1); if (mkSel === i) { mkSel = -1; mkLenPhase = null; $("mkText").value = ""; } else if (mkSel > i) mkSel--; renderMk(); },
+  delScene: i => { i = +i; mk.scenes.splice(i, 1); if (mkSel === i) { mkSel = -1; mkLenPhase = null; mkSelOrigT = null; $("mkText").value = ""; } else if (mkSel > i) mkSel--; renderMk(); },
   /* build 62: 選択中カードの位置 ±0.1秒(refmakeと同じ。つまみのドラッグと同じ更新処理: 位置を変えて並べ替え、一覧・つまみ・帯を同期) */
   mkFine: dt => {
     const sc = mk.scenes[mkSel]; if (!sc) return toast("先にカードを選んでください");
@@ -1456,14 +1732,14 @@ const A = {
     } catch (e) { return toast("保存できませんでした"); }
     if (nid) { mySession.add(nid); sessSet("momo_my_calls", [...mySession]); }   // この訪問中に作ったコールとして覚える(自押し制限用)
     toast(+pub ? "公開しました" : "下書きを保存しました");
-    mk = {scenes: [], type: "call", from: null, base: ""}; mkSel = -1; mkLenPhase = null; $("mkVer").value = $("mkNote").value = ""; $("mkText").value = ""; $("mkGuestName").value = ""; renderMk(); loadCalls();
+    mk = {scenes: [], type: "call", from: null, base: ""}; mkSel = -1; mkLenPhase = null; mkSelOrigT = null; $("mkVer").value = $("mkNote").value = ""; $("mkText").value = ""; $("mkGuestName").value = ""; renderMk(); loadCalls();
     guideEvent("saved");
     return true;
   },
   ref: id => {
     const c = calls.find(x => x.id === id); if (!c) return;
     mk = {scenes: c.scenes.map(x => ({...x})), type: "call", from: id, base: JSON.stringify(c.scenes)};
-    mkSel = -1; mkLenPhase = null;
+    mkSel = -1; mkLenPhase = null; mkSelOrigT = null;
     A.closeOv(); enterMk();
     toast("中身を読み込みました。自分用に変えてください");
   },
@@ -1474,50 +1750,59 @@ const A = {
 /* ---------- build 62: 制作ガイドモード(refmake build 61のガイドが原型) ----------
    手順どおりにしか進めないロック方式。次に操作する要素が点滅し、バナーに案内文と手順番号が出る。
    「ガイドモードを解除」ボタンはバナーに常時表示。最後の保存/キャンセルは作った人が選ぶ。
-   推しコール作成は refmake の流れ(再生→カード作成→停止→選択→つまみ→±0.1秒→長さ→種類・文言・プリセット→次 or 保存)を本体画面に合わせた全10手順。
-   シェアポイント作成は 再生→始点→終点→リンク作成→完了 の全5手順。 */
-let guide = null;   // {mode: "mk"|"sp", step: "s1"〜"s11" / "sp1"〜"sp5"}
+   build 64: 推しコール作成のガイドは2モード制に合わせて作り替え。
+    - 共通の最初: モード選び(m0)
+    - ノリノリながら版=全8手順: モード選び→再生してよく聞く→長押しでカード作成を繰り返す(この手順は長押しでは進まず、一時停止で次へ)→カード選択(その位置から再生)→位置の修正→長さの変更(もう一度長押し)→種類・文言の変更→保存。
+    - お気に置きにいっちゃう版=全6手順: モード選び→文言を用意→ドラッグで位置を探る(指を止めると音が流れる。再生を押す手順はなし)→離してカード作成→長さは後で変えられる案内(位置の再編集)→保存。
+   シェアポイント作成は 再生→始点→終点→リンク作成→完了 の全5手順(build 62のまま)。 */
+let guide = null;   // {mode: "mk"|"sp", step: "m0"/"n2"〜"n8"/"nd"/"o2"〜"o6"/"od" / "sp1"〜"sp5"}
 const GMSG = {
-  s1: "まず「再生」を押してください(曲は、再生画面で選んだ曲になります)",
-  s2: "カードを作りたい場所で、大きな『カード作成』ボタンを押してください",
-  s3: "一時停止ボタンを押して、動画を止めてください",
-  s4: "できたカードをタップして選んでください",
-  s5: "つまみをドラッグして、カードの位置を大まかに動かしてください",
-  s6: "『−0.1秒』『＋0.1秒』ボタンで、位置を微調整してください",
-  s7: "長さを決めます。『長さ指定』ボタンを押すとカードの頭から再生されるので、終わりの場所でもう一度押してください",
-  s8: "カードの種類を選んで、文言を入れてください。画面いちばん下のバーをタップすると引き出しが開いて、その中に『プリセットコール』があります。よく使うコールは、そこから選ぶだけでも入れられます",
-  s9: "カードが1枚できました",
-  s9b: "再生ボタンを押して、次の場所で『カード作成』を押してください",
-  s10: "『保存して戻る』を押すと完成です(公開か下書きかは、その上のボタンで切り替えられます)。ゲストの方は、名前も入れてください。途中でやめる時は『保存せずに戻る』を選んでください",
-  s11: "できあがり！おつかれさまでした。ガイドモードは上のボタンでいつでもやめられます",
+  m0: "作り方を選びます。「♪ ノリノリながらモード」は、曲を聞きながら長押しでカードを打つ作り方。「お気に置きにいっちゃうモード」は、文言を先に用意してから置きに行く作り方です。作りたい方のボタンを押してください（あとから切り替えることもできます）",
+  n2: "再生ボタンを押して、曲を再生します。まずはよく聞いて、コールの入るところを耳でつかみましょう",
+  n3: "コールのところが来たら、口で言っている間だけ大きな『カード作成』ボタンを長押しします。離すと、その長さでカードが1つできます（短いタップだと5秒の仮カード）。そのまま聞き続けて、次のコールのところでも長押し→離してカード完成。これを繰り返して、ながらでカードを作っていきます。カード作成を止めたいところで、「一時停止」ボタンを押してください。押すと、次は作ったカードの再編集の案内に進みます",
+  n4: "ここからは再編集です。まず、直したいカードを下の一覧でタップして選択します。選ぶとカードがふわっと浮かび上がって、そのカードの位置から再生が始まるので、どの部分のカードか音で確かめられます",
+  n5: "選択中のカードの位置を直します。シークバーのつまみや「押さえて左右に動かす」で位置を動かせて、−1秒／−0.1秒／＋0.1秒／＋1秒のボタンで細かく直せます。曲を再生して「ここだ」というところで止めて、「今の再生位置へ持っていく」を押すと、その位置へ一気に移動もできます。間違えたら「戻す」で、選んだときの位置に戻せます",
+  n6: "長さも変えられます。カードを選んだ状態で、大きな『カード作成』ボタンをもう一度長押ししてください。押した瞬間に、そのカードの位置から再生が始まり、押している間カードが伸びます。ちょうどいいところで離すと、その長さに決め直せます（新しいカードは増えません）",
+  n7: "種類と文言も変えられます。カードを選んでいる間は、種類ボタン・文言の入力・プリセットが、選んだカードにそのまま適用されます。種類はボタン（コール／シンガロン／ココ好き!）で切り替え、文言は入力欄に書き直してください。プリセットは、画面いちばん下のバーの引き出しや、プリセットのチップのタップでも適用できます",
+  n8: "他のカードも直したくなったら、一覧で選び直して、同じように再編集できます。終わりにするなら「保存して戻る」を押してください（公開か下書きかは、その上のボタンで切り替えられます）。ゲストの方は、名前も入れてください。保存しないなら「保存せずに戻る」を選んでください",
+  nd: "できあがり！おつかれさまでした。ガイドモードは上のボタンでいつでもやめられます",
+  o2: "先に文言を用意します。プリセットのチップをタップするか、入力欄に文言を書いてください。種類（コール／シンガロン／ココ好き!）もここで選べます",
+  o3: "用意した文言を掴んで、左右に動かします。再生ボタンを押していなくても、掴んで動かし始めると、その位置の音が自動で流れます。指を動かして、止めてください。指を止めると、その位置からの音が流れます。その音を聞いて置く場所を確かめて、置きたい場所で指を離すと、そこにカードが置かれます。プリセットのチップか、入力欄の横の「つかむ」を押さえてください",
+  o4: "置いたカードを後から直すときは、下の一覧でタップして選びます。選ぶとカードがふわっと浮かび上がって、そのカードの位置から音が再生されるので、どの部分のカードか音で確かめられます",
+  o5: "選択中のカードは、シークバーのつまみや「押さえて左右に動かす」で位置を動かせて、−／＋ボタンで細かく直せます。曲を再生して「ここだ」というところで止めて、「今の再生位置へ持っていく」を押すと、その位置へ一気に移動もできます。間違えたら「戻す」で、選んだときの位置に戻せます。長さは、カードを選んだ状態で大きなボタンを長押しすると決め直せます",
+  o6: "次の文言も、同じように掴んで置けます。終わりにするなら「保存して戻る」を押してください（公開か下書きかは、その上のボタンで切り替えられます）。ゲストの方は、名前も入れてください。保存しないなら「保存せずに戻る」を選んでください",
+  od: "できあがり！おつかれさまでした。ガイドモードは上のボタンでいつでもやめられます",
   sp1: "まず「再生」を押してください",
   sp2: "始点にしたい場所で『ここを始点にする』を押してください",
   sp3: "終点にしたい場所で『ここを終点にする』を押してください",
   sp4: "『シェアポイントを作成』を押すと、リンクが作られます",
   sp5: "できあがり！おつかれさまでした。ガイドモードは上のボタンでいつでもやめられます"
 };
-const GNUM = {s1: 1, s2: 2, s3: 3, s4: 4, s5: 5, s6: 6, s7: 7, s8: 8, s9: 9, s9b: 2, s10: 10, s11: 10, sp1: 1, sp2: 2, sp3: 3, sp4: 4, sp5: 5};
+const GNUM = {m0: 1, n2: 2, n3: 3, n4: 4, n5: 5, n6: 6, n7: 7, n8: 8, nd: 8, o2: 2, o3: 3, o4: 4, o5: 5, o6: 6, od: 6, sp1: 1, sp2: 2, sp3: 3, sp4: 4, sp5: 5};
 const GTARGETS = {
-  s1: ["#mkPlayBtn", "#play"],
-  s2: ["#mkCreate"],
-  s3: ["#mkPlayBtn", "#play"],
-  s4: ["#mkList .mkpick"],
-  s5: ["#mkKnob"],
-  s6: ["#mkFineM", "#mkFineP"],
-  s7: ["#mkCreate"],
-  s8: ["#mkTypes button", "#mkText", "#mkDrawerBar", ".drwBtn", ".psChip"],
-  s9: [],
-  s9b: ["#mkPlayBtn", "#play", "#mkCreate"],
-  s10: ["#mkSaveBtn", "#mkPubBtn", "#mkGuestName", ".mkyameru"],
-  s11: [],
+  m0: ["#mkModeTabs .mktab"],
+  n2: ["#mkPlayBtn", "#play"],
+  n3: ["#mkCreate", "#mkPlayBtn", "#play"],
+  n4: ["#mkList .mkpick"],
+  n5: ["#mkKnob", "#mkTlKnob", "#mkPosScrub", ".posStepB", "#mkPosHere", "#mkPosRestore", "#mkFineM", "#mkFineP"],
+  n6: ["#mkCreate", "#mkList .mkpick"],
+  n7: ["#mkTypes button", "#mkText", "#mkDrawerBar", ".drwBtn", ".psChip", "#mkChips .pchip"],
+  n8: ["#mkSaveBtn", "#mkPubBtn", "#mkGuestName", ".mkyameru", "#mkList .mkpick"],
+  nd: [],
+  o2: ["#mkText", "#mkTypes button", "#mkChips .pchip", "#mkDrawerBar", ".drwBtn", ".psChip"],
+  o3: ["#mkChips .pchip", "#mkGrip"],
+  o4: ["#mkList .mkpick"],
+  o5: ["#mkKnob", "#mkTlKnob", "#mkPosScrub", ".posStepB", "#mkPosHere", "#mkPosRestore", "#mkFineM", "#mkFineP"],
+  o6: ["#mkSaveBtn", "#mkPubBtn", "#mkGuestName", ".mkyameru", "#mkChips .pchip", "#mkGrip"],
+  od: [],
   sp1: ["#spPlayBtn", "#play"],
   sp2: ["#spStep"],
   sp3: ["#spStep"],
   sp4: ["#spStep"],
   sp5: []
 };
-const GSCROLL = {s1: "#mkPlayBtn", s2: "#mkCreate", s3: "#mkPlayBtn", s4: "#mkList .mkcard", s5: "#barwrap", s6: "#mkEdit", s7: "#mkCreate", s8: "#mkEdit", s9b: "#mkCreate", s10: "#mkSaveBtn", sp1: "#spPlayBtn", sp2: "#spStep", sp3: "#spStep", sp4: "#spStep"};
-const GLOCK_SEL = "#songsel,#bar,.skb,#play,#mkPlayBtn,#spPlayBtn,.ratebtn,#mkCreate,#mkTypes button,#mkText,#mkFineM,#mkFineP,#mkDelBtn,#mkList .mkpick,#mkList .mkdel,#mkKnob,#mkVer,#mkNote,#mkRef,#mkCmt,#mkGuestName,#mkPubBtn,#mkSaveBtn,#mkPvBtn,.mkyameru,#mkDrawerBar,.drwBtn,.psChip,#spStep,.switchbtn";
+const GSCROLL = {m0: "#mkModeTabs", n2: "#mkPlayBtn", n3: "#mkCreate", n4: "#mkList", n5: "#mkPosEdit", n6: "#mkCreate", n7: "#mkTypes", n8: "#mkSaveBtn", o2: "#mkText", o3: "#mkPresets", o4: "#mkList", o5: "#mkPosEdit", o6: "#mkSaveBtn", sp1: "#spPlayBtn", sp2: "#spStep", sp3: "#spStep", sp4: "#spStep"};
+const GLOCK_SEL = "#songsel,#bar,.skb,#play,#mkPlayBtn,#spPlayBtn,.ratebtn,#mkCreate,#mkTypes button,#mkText,#mkFineM,#mkFineP,#mkDelBtn,#mkList .mkpick,#mkList .mkdel,#mkKnob,#mkVer,#mkNote,#mkRef,#mkCmt,#mkGuestName,#mkPubBtn,#mkSaveBtn,#mkPvBtn,.mkyameru,#mkDrawerBar,.drwBtn,.psChip,#spStep,.switchbtn,#mkModeTabs .mktab,#mkGrip,#mkChips .pchip,#mkPosScrub,.posStepB,#mkPosHere,#mkPosRestore,#mkSelClear,#mkTuneBtn,#tuneGain,#tuneDead,#tuneReset,#mkTlKnob";
 function applyGuide() {
   const all = document.querySelectorAll(GLOCK_SEL);
   if (!guide) { all.forEach(el => el.classList.remove("glocked", "gtarget")); return; }
@@ -1528,10 +1813,11 @@ function paintGuide() {
   const bar = $("guideBar"); if (!bar) return;
   if (!guide) { bar.style.display = "none"; applyGuide(); return; }
   bar.style.display = "block";
-  const done = guide.step === "s11" || guide.step === "sp5";
-  $("guideProg").textContent = done ? "完了しました" : "手順 " + (GNUM[guide.step] || "") + " / " + (guide.mode === "sp" ? 5 : 10);
+  const done = guide.step === "nd" || guide.step === "od" || guide.step === "sp5";
+  const tot = guide.mode === "sp" ? 5 : ((guide.step.charAt(0) === "o" || (guide.step === "m0" && mkMode === "oki")) ? 6 : 8);   // build 64: ながら版8手順 / お気に版6手順
+  $("guideProg").textContent = done ? "完了しました" : "手順 " + (GNUM[guide.step] || "") + " / " + tot;
   $("guideMsg").textContent = GMSG[guide.step] || "";
-  $("guideBtns").style.display = guide.step === "s9" ? "flex" : "none";
+  $("guideBtns").style.display = "none";   // build 64: 旧ガイドの「次のカード/保存へ」ボタンは使わない(残りの手順は操作そのもので進む)
   applyGuide();
 }
 function setGuideStep(s) {
@@ -1541,7 +1827,7 @@ function setGuideStep(s) {
   const sc = GSCROLL[s] ? document.querySelector(GSCROLL[s]) : null;
   if (sc) setTimeout(() => { try { sc.scrollIntoView({behavior: "smooth", block: "center"}); } catch (e) {} }, 90);
 }
-function startGuide(mode) { guide = {mode: mode, step: mode === "sp" ? "sp1" : "s1"}; paintGuide(); }
+function startGuide(mode) { guide = {mode: mode, step: mode === "sp" ? "sp1" : "m0"}; paintGuide(); }
 function endGuide() { guide = null; paintGuide(); }
 function guideEvent(name) {
   if (!guide) return;
@@ -1554,16 +1840,21 @@ function guideEvent(name) {
     else if (name === "cancel") endGuide();
     return;
   }
-  if (name === "play" && st === "s1") setGuideStep("s2");
-  else if (name === "card" && (st === "s2" || st === "s9b")) setGuideStep("s3");
-  else if (name === "pause" && st === "s3") setGuideStep("s4");
-  else if (name === "picked" && st === "s4") setGuideStep("s5");
-  else if (name === "knob" && st === "s5") setGuideStep("s6");
-  else if (name === "fine" && st === "s6") setGuideStep("s7");
-  else if (name === "lenDone" && st === "s7") setGuideStep("s8");
-  else if (name === "text" && st === "s8" && $("mkText").value.trim()) setGuideStep("s9");
-  else if (name === "saved" && st === "s10") setGuideStep("s11");
-  else if (name === "cancel") { endGuide(); if (st === "s10") toast("保存せずに終わりました"); }
+  /* build 64: 2モード制ガイドの遷移。ながら版の作成ループ(n3)は長押し・カード作成では進まず、「一時停止」を押したときだけ次へ進む */
+  if (name === "cancel") { endGuide(); if (st === "n8" || st === "o6") toast("保存せずに終わりました"); return; }
+  if (st === "m0" && name === "mode") setGuideStep(mkMode === "oki" ? "o2" : "n2");
+  else if (st === "n2" && name === "play") setGuideStep("n3");
+  else if (st === "n3" && name === "pause") setGuideStep("n4");
+  else if (st === "n4" && name === "picked") setGuideStep("n5");
+  else if (st === "n5" && (name === "knob" || name === "fine" || name === "tweak")) setGuideStep("n6");
+  else if (st === "n6" && name === "lenDone") setGuideStep("n7");
+  else if (st === "n7" && (name === "type" || (name === "text" && $("mkText").value.trim()))) setGuideStep("n8");
+  else if (st === "n8" && name === "saved") setGuideStep("nd");
+  else if (st === "o2" && (name === "type" || (name === "text" && $("mkText").value.trim()))) setGuideStep("o3");
+  else if (st === "o3" && name === "drop") setGuideStep("o4");
+  else if (st === "o4" && name === "picked") setGuideStep("o5");
+  else if (st === "o5" && (name === "knob" || name === "fine" || name === "tweak" || name === "lenDone")) setGuideStep("o6");
+  else if (st === "o6" && name === "saved") setGuideStep("od");
 }
 
 document.addEventListener("click", e => {
@@ -1611,6 +1902,184 @@ document.addEventListener("input", e => {
   kn.addEventListener("pointerup", end);
   kn.addEventListener("pointercancel", end);
 })();
+/* build 64: 大きなボタンの長押し(ノリノリながらモードの打ち方 / 選択中カードの長さ決め直し)。
+   短いタップ(0.25秒未満)は従来のクリック(mkMain: カード作成/長さ指定/ここで終わり)に任せ、長押しになった時だけこちらで処理し、続くクリックは mkHoldClickAt で握りつぶす。
+   長さ指定の計測中(mkLenPhase==="run")は長押しを無効にして、従来の「ここで終わり」タップだけが効くようにする */
+(function () {
+  const btn = $("mkCreate"); if (!btn) return;
+  const drawPrev = () => {
+    const h = mkHoldSt; if (!h) return;
+    const inner = $("mkTlInner"); if (!inner) return;
+    let el = $("mkTlPrev");
+    if (!el) { el = document.createElement("div"); el.id = "mkTlPrev"; inner.appendChild(el); }
+    const d = mkTlD();
+    const li = Math.max(0, MK_TL_KINDS.indexOf(h.rel ? h.rel.k : mk.type));
+    el.style.left = (h.t0 / d * 100) + "%";
+    el.style.width = Math.max(1.2, h.d / d * 100) + "%";
+    el.style.top = (li * 23 + 2) + "px";
+    el.textContent = h.d.toFixed(1) + "秒";
+  };
+  const upd = () => {
+    const h = mkHoldSt; if (!h) return;
+    const el = (performance.now() - h.at) / 1000;
+    h.d = Math.min(20, Math.max(0.5, Math.round(el * 10) / 10));   // 実際に押していた時間(壁時計)で測るので、再生のもたつきに左右されない
+    drawPrev();
+    if (h.rel) { const pt = $("mkPosTime"); if (pt) pt.textContent = fmt(h.rel.t) + "〜" + fmt(h.rel.t + h.d); }
+  };
+  const end = commit => {
+    const h = mkHoldSt; if (!h) return;
+    mkHoldSt = null;
+    clearInterval(h.timer);
+    const el = (performance.now() - h.at) / 1000;
+    const pv = $("mkTlPrev"); if (pv) pv.remove();
+    mkSetZoom(false);
+    // 短いタップ: 従来の働き(カード作成/長さ指定の開始)をここで直接実行する(ブラウザによって pointerdown の preventDefault で click が来ない場合があるため)。実行後に印を付け、続きで来るネイティブクリックは握りつぶす
+    if (el < 0.25) { if (commit) A.mkMain(); mkHoldClickAt = Date.now(); return; }
+    mkHoldClickAt = Date.now();   // 長押しとして処理したので、続くクリックは握りつぶす
+    if (h.rel) {   // 選択中カードの長さ決め直し: 0.3秒以上押した場合だけ確定(うっかり触れただけでは変えない)
+      if (commit && el >= 0.3) { h.rel.d = h.d; renderMk(); toast("「" + (h.rel.x || LAB[h.rel.k]) + "」の長さを " + h.d.toFixed(1) + " 秒に決め直しました"); guideEvent("lenDone"); }
+      else renderMk();
+      return;
+    }
+    if (!commit) return;
+    // 新規カード: 押した位置から、押していた長さで作る。種類・文言は「次に作るカード」の設定を使う
+    const sc = {t: h.t0, d: h.d, k: mk.type, x: $("mkText").value.trim()};
+    mk.scenes.push(sc); mk.scenes.sort((a, b) => a.t - b.t);
+    if (sc.x) $("mkText").value = "";
+    renderMk();
+    const L = $("mkList"); if (L) L.scrollTop = L.scrollHeight;
+    toast(fmt(sc.t) + " にカードを作りました(" + sc.d.toFixed(1) + "秒)");
+    guideEvent("card");
+  };
+  btn.addEventListener("pointerdown", e => {
+    if (screen !== "mk" || mkLenPhase === "run") return;
+    e.preventDefault();
+    try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+    const sel = (mkSel >= 0 && mk.scenes[mkSel]) ? mk.scenes[mkSel] : null;
+    let t0 = Math.round(clampT(now()) * 10) / 10;
+    if (sel) { t0 = sel.t; if (playerReady()) { playerSeek(sel.t); playerPlay(); } }   // 選択中: そのカードの位置から再生して長さを決め直す
+    mkHoldSt = {t0: t0, at: performance.now(), d: 0.5, rel: sel, timer: null};
+    mkSetZoom(true, t0);
+    mkHoldSt.timer = setInterval(upd, 50);
+    upd();
+  });
+  btn.addEventListener("pointerup", () => end(true));
+  btn.addEventListener("pointercancel", () => end(false));
+  btn.addEventListener("contextmenu", e => e.preventDefault());
+})();
+/* build 64: タイムラインのバーをタップ → そのカードを選択(選ぶと、その位置から再生が始まる)。すでに選択中のバーは、もう一度その位置から再生し直す */
+$("mkTlInner").addEventListener("click", e => {
+  const b = e.target && e.target.closest ? e.target.closest("[data-mksel]") : null;
+  if (!b) return;
+  const i = +b.getAttribute("data-mksel");
+  if (mkSel !== i) { A.mkPick(i); return; }
+  const sc = mk.scenes[i];
+  if (sc && playerReady()) { playerSeek(sc.t); playerPlay(); }
+});
+/* build 64: タイムライン内のつまみ(選択中カードの位置)。ドラッグ中はタイムラインが拡大表示になり、再生位置もついてくる */
+(function () {
+  const kn = $("mkTlKnob"); if (!kn) return;
+  let kd = null;
+  kn.addEventListener("pointerdown", e => {
+    const sc = mk.scenes[mkSel]; if (!sc) return;
+    e.preventDefault(); e.stopPropagation();
+    try { kn.setPointerCapture(e.pointerId); } catch (err) {}
+    kd = {pid: e.pointerId, sc: sc, lastSeek: null};
+    mkSetZoom(true, sc.t);
+    if (playerReady()) playerPlay();
+  });
+  kn.addEventListener("pointermove", e => {
+    if (!kd || e.pointerId !== kd.pid) return;
+    const sc = kd.sc; if (mk.scenes.indexOf(sc) < 0) return;
+    const slide = $("mkTlSlide"), r = slide.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width)));
+    const w = mkTlWin(), D = mkTlD();
+    let t = w.a + ratio * w.span;
+    t = Math.max(0, Math.min(Math.max(0, D - sc.d), Math.round(t * 10) / 10));
+    sc.t = t; mkTlCenter = t; mkTlApplyView(); paintKnob();
+    const pt = $("mkPosTime"); if (pt) pt.textContent = fmt(t) + "〜" + fmt(t + sc.d);
+    if (kd.lastSeek === null || Math.abs(t - kd.lastSeek) >= 0.15) { kd.lastSeek = t; playerSeek(t); }
+  });
+  const end = () => {
+    if (!kd) return;
+    const sc = kd.sc; kd = null;
+    mkSetZoom(false);
+    if (mk.scenes.indexOf(sc) >= 0) { mk.scenes.sort((a, b) => a.t - b.t); mkSel = mk.scenes.indexOf(sc); }
+    renderMk();
+    guideEvent("knob");
+  };
+  kn.addEventListener("pointerup", end);
+  kn.addEventListener("pointercancel", end);
+  kn.addEventListener("contextmenu", e => e.preventDefault());
+})();
+/* build 64: 選択中カードの位置スクラブ(「押さえて左右に動かす」)。新規カードのスクラブと同じ絶対位置対応・デッドゾーン・追従・指止め再生で、選択中カードの開始位置を動かす */
+(function () {
+  const btn = $("mkPosScrub"); if (!btn) return;
+  const end = e => {
+    const st = mkPosScrSt; if (!st) return;
+    if (st.settle) clearTimeout(st.settle);
+    const was = st.active, sc = st.sc;
+    mkPosScrSt = null;
+    if (!was) return;
+    if (e && e.clientX != null && mk.scenes.indexOf(sc) >= 0) sc.t = Math.max(0, Math.min(Math.max(0, mkTlD() - sc.d), Math.round(mkBandAbs(e.clientX) * 10) / 10));
+    mkSetZoom(false);
+    mk.scenes.sort((a, b) => a.t - b.t); mkSel = mk.scenes.indexOf(sc);
+    renderMk();
+    guideEvent("tweak");
+  };
+  btn.addEventListener("pointerdown", e => {
+    const sc = mk.scenes[mkSel]; if (!sc) return;
+    e.preventDefault();
+    try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+    mkPosScrSt = {pid: e.pointerId, x0: e.clientX, anchorX: e.clientX, active: false, target: sc.t, lastSeek: null, sc: sc, settle: null, lastX: e.clientX};
+  });
+  btn.addEventListener("pointermove", e => {
+    const st = mkPosScrSt; if (!st || e.pointerId !== st.pid) return;
+    const sc = st.sc; if (mk.scenes.indexOf(sc) < 0) return;
+    if (!st.active) {
+      if (Math.abs(e.clientX - st.x0) <= mkTune.dead) return;
+      st.active = true; st.anchorX = e.clientX;
+      mkSetZoom(true, sc.t);
+      if (playerReady()) playerPlay();
+    } else if (Math.abs(e.clientX - st.anchorX) <= mkTune.dead) { return; }
+    else { st.anchorX = e.clientX; }
+    const absT = mkBandAbs(e.clientX), g = mkTune.gain;
+    let target = g >= 1 ? absT : st.target + (absT - st.target) * g;
+    target = Math.max(0, Math.min(Math.max(0, mkTlD() - sc.d), Math.round(target * 10) / 10));
+    st.target = target; sc.t = target; mkTlCenter = target; mkTlApplyView(); paintKnob();
+    const pt = $("mkPosTime"); if (pt) pt.textContent = fmt(target) + "〜" + fmt(target + sc.d);
+    if (st.lastSeek === null || Math.abs(target - st.lastSeek) >= 0.15) { st.lastSeek = target; playerSeek(target); }
+    st.lastX = e.clientX;
+    if (st.settle) clearTimeout(st.settle);
+    st.settle = setTimeout(() => {
+      if (!mkPosScrSt || !mkPosScrSt.active) return;
+      const sc2 = mkPosScrSt.sc; if (mk.scenes.indexOf(sc2) < 0) return;
+      const t = Math.max(0, Math.min(Math.max(0, mkTlD() - sc2.d), Math.round(mkBandAbs(mkPosScrSt.lastX) * 10) / 10));
+      mkPosScrSt.target = t; mkPosScrSt.lastSeek = t; sc2.t = t; mkTlCenter = t; mkTlApplyView(); paintKnob();
+      const pt2 = $("mkPosTime"); if (pt2) pt2.textContent = fmt(t) + "〜" + fmt(t + sc2.d);
+      playerSeek(t); if (playerReady()) playerPlay();
+    }, 320);
+  });
+  btn.addEventListener("pointerup", end);
+  btn.addEventListener("pointercancel", () => end(null));
+  btn.addEventListener("contextmenu", e => e.preventDefault());
+})();
+/* build 64: 手打ちテキストの「つかむ」にもスクラブを付ける(種類は現在の種類ボタン、文言は入力欄の内容) */
+const mkGripEl = $("mkGrip");
+if (mkGripEl) mkBindScr(mkGripEl, () => ({k: mk.type, x: $("mkText").value.trim() || LAB[mk.type], grip: true}), false);
+/* build 64: 操作感の調整(即時反映・localStorage保存) */
+const tuneGainEl = $("tuneGain"); if (tuneGainEl) tuneGainEl.addEventListener("input", e => { mkTune.gain = parseFloat(e.target.value) || 0.5; try { localStorage.setItem("momo_drag_gain", String(mkTune.gain)); } catch (err) {} paintTune(); });
+const tuneDeadEl = $("tuneDead"); if (tuneDeadEl) tuneDeadEl.addEventListener("input", e => { mkTune.dead = Math.round(parseFloat(e.target.value) || 0); try { localStorage.setItem("momo_drag_dead", String(mkTune.dead)); } catch (err) {} paintTune(); });
+const tuneResetEl = $("tuneReset"); if (tuneResetEl) tuneResetEl.addEventListener("click", () => { mkTune.gain = 0.5; mkTune.dead = 14; try { localStorage.setItem("momo_drag_gain", "0.5"); localStorage.setItem("momo_drag_dead", "14"); } catch (err) {} paintTune(); toast("操作感を最初の値に戻しました"); });
+const mkTuneBtnEl = $("mkTuneBtn"); if (mkTuneBtnEl) mkTuneBtnEl.addEventListener("click", () => { const p = $("mkTunePanel"); const on = p.classList.toggle("on"); mkTuneBtnEl.setAttribute("aria-expanded", on ? "true" : "false"); });
+paintTune();
+/* build 64: 作成画面を開いている間だけ、タイムラインの再生ヘッドと拡大表示の追従を更新する */
+setInterval(() => {
+  if (screen !== "mk") return;
+  if (Math.abs(mkTlD() - mkTlLastD) > 1) { mkTlLastD = mkTlD(); renderMkTl(); return; }
+  if (mkTlZoom && !mkScrSt && !mkPosScrSt && !mkHoldSt) mkTlCenter = now() || 0;
+  mkTlApplyView();
+}, 250);
 document.addEventListener("fullscreenchange", () => { if (native && !document.fullscreenElement && $("mv").classList.contains("fs")) A.fs(); });
 /* build 62: ウェルカムカード。「表示しない」にチェックして閉じた場合のみ、次回から出さない */
 try { if (!localStorage.getItem("momo_welcome_hide")) $("welcome").classList.add("on"); } catch (e) {}
