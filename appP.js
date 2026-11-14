@@ -106,7 +106,19 @@ window.onYouTubeIframeAPIReady = () => {
   yt = new YT.Player("yt", {
     videoId: VID, playerVars: {playsinline: 1, controls: 0, rel: 0},
     events: {
-      onReady: () => { ytReady = true; },
+      onReady: () => { ytReady = true; applyRate(); },
+      onStateChange: e => {
+        // 動画のcue/再生開始時に、曲切替で1倍へ戻った速度を再適用する
+        if (e && [1, 2, 5].includes(e.data)) applyRate();
+      },
+      onPlaybackRateChange: e => {
+        // YouTubeが実際に適用した速度をUIへ同期する
+        const actual = Number(e && e.data);
+        if ([0.25, 0.5, 0.75, 1].includes(actual)) {
+          mkRate = actual;
+          paintRate();
+        }
+      },
       onError: () => { if (!spMode) toast("MVを表示できません。公開したURLで開いてください"); }
     }
   });
@@ -529,8 +541,44 @@ function enterSp() {
   applyRate();
   $("mvwrap").scrollIntoView({behavior: "smooth"});
 }
-/* 再生速度(1 → 0.5 → 0.25)を YouTube プレイヤーへ実際に効かせる */
-function applyRate() { try { if (yt && yt.setPlaybackRate) yt.setPlaybackRate(mkRate); } catch (e) {} paintRate(); }
+/* YouTubeの動画ごとの対応速度を確認し、実際に適用できる状態でのみ速度を設定する */
+function paintRateAvailability(rates) {
+  const sel = $("mkRateSelect");
+  if (!sel || !Array.isArray(rates)) return;
+  Array.from(sel.options).forEach(o => {
+    const rate = Number(o.value);
+    o.disabled = !rates.some(r => Math.abs(Number(r) - rate) < 0.001);
+  });
+}
+function applyRate() {
+  paintRate();
+  if (!ytReady || !yt || typeof yt.getPlayerState !== "function") return "pending";
+  let state, rates;
+  try {
+    state = yt.getPlayerState();
+    // 未開始の段階では対応速度を確定できない。cue済み/再生中になってから再試行する。
+    if (![1, 2, 3, 5].includes(state)) return "pending";
+    rates = yt.getAvailablePlaybackRates();
+  } catch (e) { return "pending"; }
+  if (!Array.isArray(rates) || !rates.length) return "pending";
+  paintRateAvailability(rates);
+  const requested = Number(mkRate);
+  if (!rates.some(r => Math.abs(Number(r) - requested) < 0.001)) {
+    let actual = 1;
+    try { if (typeof yt.getPlaybackRate === "function") actual = Number(yt.getPlaybackRate()) || 1; } catch (e) {}
+    mkRate = actual;
+    paintRate();
+    toast("この動画は" + requested + "倍速に対応していません。対応速度：" + rates.join("・") + "倍");
+    return "unsupported";
+  }
+  try {
+    yt.setPlaybackRate(requested);
+    return "requested";
+  } catch (e) {
+    toast("YouTubeへ再生速度を反映できませんでした");
+    return "error";
+  }
+}
 function paintRate() {
   document.querySelectorAll(".ratebtn").forEach(b => b.textContent = "速度 " + mkRate + "倍");
   const sel = $("mkRateSelect"); if (sel) sel.value = String(mkRate);
@@ -1629,7 +1677,14 @@ const A = {
   },
   /* build 59: 速度切替(1倍 → 0.5倍 → 0.25倍) */
   rate: () => { const R = [1, 0.5, 0.25]; mkRate = R[(R.indexOf(mkRate) + 1) % R.length]; applyRate(); toast("再生速度を " + mkRate + "倍にしました"); },
-  rateSelect: v => { const n = Number(v); if ([0.25, 0.5, 0.75, 1].includes(n)) { mkRate = n; applyRate(); toast("再生速度を " + mkRate + "倍にしました"); } },
+  rateSelect: v => {
+    const n = Number(v);
+    if (![0.25, 0.5, 0.75, 1].includes(n)) return;
+    mkRate = n;
+    const result = applyRate();
+    if (result === "pending") toast("動画の準備ができ次第、速度を適用します");
+    else if (result === "requested") toast("再生速度 " + mkRate + "倍の変更を要求しました");
+  },
   /* build 59: 保存先の切替(公開/下書き)と、保存の確定ボタン「保存して戻る」 */
   mkPubTgl: () => { mkPub = !mkPub; paintMkPub(); },
   mkSaveBack: async () => { const ok = await A.save(mkPub ? "1" : "0"); if (ok) exitMk(); },
