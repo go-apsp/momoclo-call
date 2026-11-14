@@ -604,5 +604,97 @@ gtag('config', 'G-00QSZME258');
 })();
 </script>
 
+
+<style id="indexp-guest-walkthrough">
+  #guestRefHint {
+    display:none;
+    width:100%;
+    box-sizing:border-box;
+    margin:14px 0 18px;
+    padding:13px 16px;
+    border:1px solid rgba(255,255,255,.48);
+    border-radius:0;
+    background:rgba(255,220,92,.82);
+    color:#493600;
+    box-shadow:0 3px 16px rgba(45,35,10,.16);
+    -webkit-backdrop-filter:blur(8px);
+    backdrop-filter:blur(8px);
+    font:inherit;
+    font-size:15px;
+    font-weight:800;
+    text-align:center;
+    cursor:pointer;
+  }
+  #guestRefHint.on { display:block; }
+  #guestRefHint:active { opacity:.78; }
+  #play.guest-play-focus {
+    outline:4px solid rgba(255,211,65,.95);
+    outline-offset:5px;
+    box-shadow:0 0 0 8px rgba(255,211,65,.20);
+    position:relative;
+    z-index:2;
+  }
+  #guestWalkClose {
+    float:right;
+    margin:-4px -7px 0 8px;
+    padding:2px 7px;
+    border:0;
+    background:transparent;
+    color:inherit;
+    font-size:18px;
+    line-height:1;
+  }
+</style>
+<script id="indexp-guest-walkthrough-script">
+(function () {
+  var started = false;
+  function startGuestWalkthrough() {
+    if (started) return;
+    var tryBtn = document.getElementById("trybtn");
+    var play = document.getElementById("play");
+    var row = play && play.closest(".playrow");
+    if (!tryBtn || !play || !row) return;
+    if (getComputedStyle(tryBtn).display === "none") return;
+    started = true;
+
+    var hint = document.createElement("button");
+    hint.type = "button";
+    hint.id = "guestRefHint";
+    hint.setAttribute("data-a", "refcall");
+    hint.innerHTML = '<span>参考コールを見てみる</span><span aria-hidden="true" style="float:right">›</span>';
+    row.insertAdjacentElement("afterend", hint);
+
+    window.setTimeout(function () {
+      play.scrollIntoView({behavior:"smooth", block:"center", inline:"nearest"});
+      play.classList.add("guest-play-focus");
+      window.setTimeout(function () {
+        hint.classList.add("on");
+      }, 500);
+    }, 180);
+  }
+
+  function afterWelcomeClose() {
+    window.setTimeout(startGuestWalkthrough, 900);
+    window.setTimeout(startGuestWalkthrough, 2200);
+    window.setTimeout(startGuestWalkthrough, 4200);
+  }
+
+  document.addEventListener("click", function (e) {
+    var close = e.target.closest('[data-a="wcClose"]');
+    if (close) afterWelcomeClose();
+  }, true);
+
+  var welcome = document.getElementById("welcome");
+  if (welcome) {
+    new MutationObserver(function () {
+      if (!welcome.classList.contains("on")) afterWelcomeClose();
+    }).observe(welcome, {attributes:true, attributeFilter:["class"]});
+  }
+
+  // 「今後はこのメッセージを表示しない」設定済みのゲストにも案内を出す
+  window.setTimeout(startGuestWalkthrough, 3500);
+})();
+</script>
+
 </body>
 </html>
