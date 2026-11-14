@@ -739,7 +739,6 @@ body.nori-two-step.scr-mk #mk #mkList .mkdel { display:none !important; }
       const t0 = Math.round(Math.max(0, now()) * 10) / 10;
       hold = {pointerId:e.pointerId, t0, at:performance.now()};
       try { list.setPointerCapture(e.pointerId); } catch (err) {}
-      e.preventDefault();
     });
     const finishHold = e => {
       if (!hold || (e && e.pointerId !== hold.pointerId)) return;
