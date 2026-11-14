@@ -588,9 +588,37 @@ gtag('config', 'G-00QSZME258');
   floating.setAttribute("aria-label", "推しコールを作ってみる（制作ガイド）");
   document.body.appendChild(floating);
 
+  var seenKey = "momo_indexp_trybtn_seen_v1";
+  var shownThisPage = false;
+  var leftTopAfterShowing = false;
+
+  function hasSeenBefore() {
+    try { return localStorage.getItem(seenKey) === "1"; }
+    catch (e) { return false; }
+  }
+  function markAsSeen() {
+    try { localStorage.setItem(seenKey, "1"); } catch (e) {}
+  }
   function syncVisibility() {
+    var inEditor = document.body.classList.contains("scr-mk") ||
+      document.body.classList.contains("scr-sp");
+    if (inEditor) {
+      if (shownThisPage) leftTopAfterShowing = true;
+      floating.style.display = "none";
+      return;
+    }
+    if (shownThisPage && leftTopAfterShowing) {
+      floating.style.display = "none";
+      return;
+    }
     var visible = window.getComputedStyle(original).display !== "none";
-    floating.style.display = visible ? "block" : "none";
+    if (!visible || hasSeenBefore()) {
+      floating.style.display = "none";
+      return;
+    }
+    markAsSeen();
+    shownThisPage = true;
+    floating.style.display = "block";
   }
   new MutationObserver(syncVisibility).observe(original, {
     attributes: true,
