@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ももクロコール共有(テスト中)</title>
-<link rel="stylesheet" href="style.css?v=64">
+<link rel="stylesheet" href="style.css?v=65">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
 <script>
@@ -216,6 +216,32 @@ gtag('config', 'G-00QSZME258');
   <div style="text-align:center;font-size:10px;color:#8e91b8">build 64</div>
   <div style="text-align:center"><button data-a="wcShow" style="font-size:10px;color:#8e91b8;text-decoration:underline;background:none;border:0;cursor:pointer">ようこそカードを再表示</button></div>
 
+</div>
+
+<div id="mkCardDialog" aria-hidden="true">
+  <section class="mkdlg" role="dialog" aria-modal="true" aria-labelledby="mkDialogTitle">
+    <div id="mkDialogTextStep" class="mkdlgStep">
+      <h2 id="mkDialogTitle">カードの内容を編集</h2>
+      <p class="mkdlgNote">このカードに表示する種類と文言を決めてください。</p>
+      <div id="mkDialogTypes" class="types">
+        <button type="button" data-a="mkDialogType" data-i="call" class="sel">コール</button>
+        <button type="button" data-a="mkDialogType" data-i="sing">シンガロン</button>
+        <button type="button" data-a="mkDialogType" data-i="koko">ココ好き!</button>
+      </div>
+      <input type="text" id="mkDialogText" maxlength="30" placeholder="内容（例：ハイ!ハイ!）" autocomplete="off">
+      <div class="mkdlgBtns">
+        <button type="button" class="mkdlgCancel" data-a="mkDialogCancel">キャンセル</button>
+        <button type="button" class="mkdlgOK" data-a="mkDialogTextOK">OK</button>
+      </div>
+    </div>
+    <div id="mkDialogLengthStep" class="mkdlgStep" style="display:none">
+      <h2>表示する長さを決める</h2>
+      <p id="mkDialogLengthNote" class="mkdlgNote">カードの開始位置から曲を再生しています。表示を終わらせたいところで「ここで終わり」を押してください。</p>
+      <button type="button" id="mkDialogEndBtn" class="mkdlgEnd" data-a="mkDialogEnd">ここで終わり</button>
+      <button type="button" id="mkDialogLengthOK" class="mkdlgOK mkdlgLengthOK" data-a="mkDialogLengthOK" style="display:none">OK</button>
+      <button type="button" class="mkdlgCancel mkdlgCancelWide" data-a="mkDialogCancel">キャンセル（元の長さのまま）</button>
+    </div>
+  </section>
 </div>
 
 <div id="ov"><div class="in">
