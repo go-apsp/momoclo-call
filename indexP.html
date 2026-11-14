@@ -888,20 +888,15 @@ gtag('config', 'G-00QSZME258');
   #noriSeekRow button { min-height:46px; border-radius:13px; font-size:13px; }
   #noriMultiBtn { width:100%; min-height:44px; border:1.5px solid #a66bff; border-radius:14px; background:#282344; color:#d7c0ff; font:inherit; font-weight:900; }
   #noriMultiBtn:disabled { opacity:.42; }
-  #noriControls { display:flex; flex-direction:column; gap:10px; width:100%; }
-  #noriControls .nori-call-input { order:1; }
-  #noriControls #mkList { order:2; width:calc(100% - 16px); max-width:464px; margin:0 auto; }
-  #noriControls #mkModeTabs { order:3; width:calc(100% - 16px); max-width:464px; margin:4px auto 0; }
-  #noriControls #mkModeDesc { order:4; width:calc(100% - 16px); max-width:464px; margin:0 auto; }
   body.scr-mk.nori-simple #mkTlBox { display:flex; width:calc(100% - 16px); max-width:464px; margin:8px auto; box-sizing:border-box; }
   body.scr-mk.nori-simple #mkTlBox.tlfloat { position:fixed; left:8px; right:8px; bottom:calc(10px + env(safe-area-inset-bottom)); width:auto; }
   body.scr-mk.nori-simple #mk { padding-top:8px; }
   body.scr-mk.nori-simple #mk .mknori { display:none !important; }
   body.scr-mk.nori-simple #mk .mkoki { display:none !important; }
-  body.scr-mk.nori-simple #noriControls .nori-call-input { display:block; width:calc(100% - 16px); max-width:464px; margin:10px auto; box-sizing:border-box; }
-  body.scr-mk.nori-simple #noriControls .nori-call-input .types { display:flex !important; }
-  body.scr-mk.nori-simple #noriControls .nori-call-input .mkTextRow { display:flex !important; width:100%; min-height:48px; }
-  body.scr-mk.nori-simple #noriControls .nori-call-input #mkText { display:block !important; visibility:visible !important; width:100%; min-width:0; min-height:48px; font-size:16px; }
+  body.scr-mk.nori-simple #mk .nori-call-input { display:block; width:calc(100% - 16px); max-width:464px; margin:10px auto; box-sizing:border-box; }
+  body.scr-mk.nori-simple #mk .nori-call-input .types { display:flex !important; }
+  body.scr-mk.nori-simple #mk .nori-call-input .mkTextRow { display:flex !important; width:100%; min-height:48px; }
+  body.scr-mk.nori-simple #mk .nori-call-input #mkText { display:block !important; visibility:visible !important; width:100%; min-width:0; min-height:48px; font-size:16px; }
   body.scr-mk.nori-simple #mk .nori-edit-panel { display:none; }
   body.scr-mk.nori-simple.nori-edit-open #mk .nori-edit-panel { display:flex; flex-direction:column; gap:10px; }
   @media (max-width:360px) {
@@ -986,6 +981,7 @@ gtag('config', 'G-00QSZME258');
     callLabel.style.cssText = "display:block;font-weight:800;margin:2px 0 6px;";
     callInputPanel.appendChild(callLabel);
     [document.getElementById("mkTypes"), mk.querySelector(".mkTextRow")].filter(Boolean).forEach(node => move(node,callInputPanel));
+    mk.appendChild(callInputPanel);
 
     const editPanel = document.createElement("div");
     editPanel.className = "nori-edit-panel";
@@ -996,11 +992,6 @@ gtag('config', 'G-00QSZME258');
     ].filter(Boolean);
     editNodes.forEach(node => move(node,editPanel));
     mk.appendChild(editPanel);
-
-    // ノリノリながらモードでは、編集ボタンの直下に文字入力、その下にカード一覧、最後にモード切替を並べる
-    const mkList = document.getElementById("mkList");
-    const modeDesc = document.getElementById("mkModeDesc");
-    const noriFlow = [callInputPanel,mkList,tabs,modeDesc].filter(Boolean);
 
     const originalTlParent = mkTlBox.parentNode;
     const originalTlNext = mkTlBox.nextSibling;
@@ -1022,7 +1013,6 @@ gtag('config', 'G-00QSZME258');
           seekButtons.forEach(b => move(b,seekRow));
           const anchor = mkTlBox.nextSibling;
           mvwrap.parentNode.insertBefore(controls,anchor);
-          noriFlow.forEach(node => move(node,controls));
         }
         if (oldPlay) oldPlay.style.display = "";
         const mkPlay = document.getElementById("mkPlayBtn");
