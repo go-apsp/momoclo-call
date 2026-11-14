@@ -49,6 +49,9 @@ body:not(.scr-mk) #mkRateSelect{display:none}
 #mkTlBox.tlfloat.tlshow{opacity:1;transform:translateY(0)}
 /* 作成ボタンのタッチをブラウザのスクロール／ジェスチャーに奪われないようにする */
 body.scr-mk .pads #penbtn{touch-action:none;-webkit-user-select:none;user-select:none}
+
+/* B案：作成画面ではYouTube映像だけを黒幕で隠す。iframeと音声再生は維持する */
+body.scr-mk #yt::after{content:"";position:absolute;inset:0;z-index:1;background:rgba(0,0,0,.94);pointer-events:none}
 </style>
 </head>
 <body>
