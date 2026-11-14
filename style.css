@@ -525,3 +525,29 @@ body.scr-mk #trybtn,body.scr-sp #trybtn{display:none!important}
 #mkApplyNote{margin:0;font-size:12px;font-weight:700;line-height:1.6;color:var(--mut)}
 #mkApplyNote:empty{display:none}
 @media (prefers-reduced-motion:reduce){#mkTlInner{transition:none}#mkCreate:active{transform:none}}
+
+
+/* build 65: ノリノリながらモードはカード一覧を基本画面にし、編集はモーダル内で行う */
+body.scr-mk.mk-nori #mkTypes,
+body.scr-mk.mk-nori .mkTextRow,
+body.scr-mk.mk-nori #mkEdit,
+body.scr-mk.mk-nori #mkPosEdit,
+body.scr-mk.mk-nori #mkApplyNote{display:none!important}
+#mkCardDialog{position:fixed;inset:0;z-index:120;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(8,9,20,.62)}
+#mkCardDialog.on{display:flex}
+#mkCardDialog .mkdlg{width:100%;max-width:440px;max-height:88vh;max-height:88dvh;overflow:auto;padding:20px 16px;border-radius:20px;background:#262a4a;border:1.5px solid #8e91b8;box-shadow:0 16px 48px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:14px;color:#f4f4fb}
+#mkCardDialog .mkdlgStep{display:flex;flex-direction:column;gap:14px}
+#mkCardDialog h2{margin:0;font-size:18px;font-weight:900}
+#mkCardDialog .mkdlgNote{margin:0;color:#cfd2f2;font-size:13px;line-height:1.7}
+#mkCardDialog .types{display:flex;gap:6px}
+#mkCardDialog .types button{flex:1;min-width:0;height:46px;border-radius:23px;border:2px solid #8e91b8;background:#14152b;color:#f4f4fb;font-size:12px;font-weight:900}
+#mkCardDialog .types button.sel{background:#f4f4fb;color:#14152b;border-color:#f4f4fb}
+#mkDialogText{width:100%;height:54px;border-radius:12px;border:2px solid #8e91b8;background:#14152b;color:#fff;padding:0 14px;font:inherit;font-size:16px;opacity:1}
+.mkdlgBtns{display:flex;gap:10px;justify-content:flex-end}
+.mkdlgBtns button,.mkdlgCancelWide,.mkdlgLengthOK{min-height:48px;padding:0 20px;border-radius:24px;font-weight:900;font-size:14px}
+.mkdlgCancel{background:#3a3f6b;color:#f4f4fb;border:1px solid #8e91b8}
+.mkdlgOK{background:#ff7ab8;color:#2a0c1c;border:1px solid #ff7ab8}
+.mkdlgEnd{width:100%;min-height:76px;border-radius:38px;background:#4dc9ff;color:#0b2233;font-size:20px;font-weight:900;border:0}
+.mkdlgEnd:disabled{opacity:.65}
+.mkdlgLengthOK{width:100%;background:#ff7ab8;color:#2a0c1c;border:1px solid #ff7ab8}
+.mkdlgCancelWide{width:100%;background:#3a3f6b;color:#f4f4fb;border:1px solid #8e91b8}
