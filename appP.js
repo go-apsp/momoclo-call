@@ -465,6 +465,7 @@ function paintPvBtn() { const b = $("mkPvBtn"); if (b) b.textContent = mkPv ? "�
 /* 画面切替: プレイヤー(#mvwrap・iframe)はDOM上で一切動かさず、他のUIの表示/非表示だけで切り替える */
 function setScreen(name) {
   screen = name;
+  const penEntry = $("penbtn"); if (penEntry) penEntry.textContent = name === "mk" ? "カード作成" : "ペンライト";
   document.body.classList.toggle("scr-mk", name === "mk");
   const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = name === "mk" ? "none" : "";
   document.body.classList.toggle("scr-sp", name === "sp");
@@ -1187,6 +1188,40 @@ function checkSpHash() {
 $("spA").addEventListener("input", paintSpVals);
 $("spB").addEventListener("input", paintSpVals);
 
+let mkContentStep = 1, mkContentDraftText = "", mkContentDraftType = "call";
+function paintMkContentPanel() {
+  const panel = $("mkContentPanel"); if (!panel) return;
+  $("mkContentTextStep").style.display = mkContentStep === 1 ? "block" : "none";
+  $("mkContentTypeStep").style.display = mkContentStep === 2 ? "block" : "none";
+  $("mkContentTypeStep").querySelectorAll("[data-a='mkContentChoose']").forEach(b => b.classList.toggle("sel", b.dataset.i === mkContentDraftType));
+}
+function openMkContentPanel() {
+  mkContentStep = 1;
+  mkContentDraftText = $("mkText").value.trim();
+  mkContentDraftType = mk.type || "call";
+  $("mkContentTextInput").value = mkContentDraftText;
+  $("mkContentPanel").style.display = "flex";
+  paintMkContentPanel();
+  $("mkContentTextInput").focus();
+}
+function closeMkContentPanel() { $("mkContentPanel").style.display = "none"; }
+function nextMkContentStep() {
+  const value = $("mkContentTextInput").value.trim();
+  if (!value) return toast("コールの内容を入力してください");
+  mkContentDraftText = value;
+  mkContentStep = 2;
+  paintMkContentPanel();
+}
+function confirmMkContent() {
+  mk.type = mkContentDraftType;
+  $("mkText").value = mkContentDraftText;
+  document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === mkContentDraftType));
+  closeMkContentPanel();
+  guideEvent("text");
+  guideEvent("type");
+  toast("カードの内容を設定しました");
+}
+
 const A = {
   login: async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { toast("ログインできませんでした"); } },
   logout: async () => { await signOut(auth); A.menu(); toast("ログアウトしました"); },
@@ -1273,7 +1308,7 @@ const A = {
     if (playerState() === 2 && now() > 1) { playerPlay(); return; }
     runIntro();
   },
-  pen: () => $("pen").classList.toggle("on"),
+  pen: () => { if (screen === "mk") { openMkContentPanel(); return; } $("pen").classList.toggle("on"); },
   penColor: (i, b) => { $("pen").style.color = PEN[i][1]; document.documentElement.style.setProperty("--pc", PEN[i][1]); document.querySelectorAll("#dots button").forEach(x => x.classList.toggle("sel", x === b)); },
   help: () => toast("このタイミングで一緒にコールやシンガロンができます"),
   waku: async () => {
@@ -1541,6 +1576,11 @@ const A = {
   endMk: () => { guideEvent("cancel"); exitMk(); },
   /* build 58: 作成ボタン。状態で働きが変わる(カード作成 → 長さを決める / 再編集=長さ測り直しの開始) */
   /* build 59: 大きなボタン。状態で働きが変わる(カード作成 → 長さ指定 → ここで終わり) */
+  mkContentTextNext: () => nextMkContentStep(),
+  mkContentChoose: i => { if (["call","sing","koko"].includes(i)) { mkContentDraftType = i; paintMkContentPanel(); } },
+  mkContentBack: () => { mkContentStep = 1; paintMkContentPanel(); },
+  mkContentConfirm: () => confirmMkContent(),
+  mkContentCancel: () => closeMkContentPanel(),
   mkMain: () => {
     if (Date.now() - mkHoldClickAt < 500) return;   // build 64: 長押しで処理済みのクリックは握りつぶす(二重作成・二重の長さ指定を防ぐ)
     if (mkLenPhase === "run") {   // 長さ指定の決定: 今の再生位置で、選択中カードの長さが決まる
