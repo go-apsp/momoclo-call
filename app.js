@@ -76,6 +76,7 @@ let PRESETS = [], psLoaded = false, psListShown = false;   // build 60: プリ�
 let mkMode = "nori";            // 作成モード "nori"(♪ノリノリながら) | "oki"(お気に置きにいっちゃう)。localStorageに保存し、次回も同じモードで開く
 try { const m64 = localStorage.getItem("momo_mkmode"); if (m64 === "oki" || m64 === "nori") mkMode = m64; } catch (e) {}
 let mkSelOrigT = null;          // カードを選んだときの開始位置(位置編集の「戻す」用)
+let mkDialogStage = null, mkDialogScene = null, mkDialogOriginalDuration = null, mkDialogType = "call", mkDialogMeasuredDuration = null;
 let mkHoldClickAt = 0;          // 大きなボタンを長押しで処理した時刻(続くクリック=mhMain を握りつぶすため)
 let mkScrSt = null, mkPosScrSt = null, mkHoldSt = null;   // スクラブ(新規)/位置スクラブ/長押し の進行中状態(タイムライン追従の判定にも使う)
 let mkTune = {gain: 0.5, dead: 14};   // 操作感: 反応の鈍さ(指の絶対位置への追従速度) / 手ブレ抑制(小さい動きを無視する幅。既定はモックと同じ14相当)。localStorage保存
@@ -456,6 +457,62 @@ setInterval(() => { if (me && prof) checkPending(true); }, 60000);
 /* ---------- 作成(build 58: 再生画面のまま切り替える制作モード) ---------- */
 /* ---------- 作成(build 59: 画面切り替え式の作成画面。プレイヤーは移動しない) ---------- */
 function renderMk() { $("mkList").innerHTML = UI.mkCards(mk.scenes, mkSel); paintMkBtn(); paintKnob(); paintPosEdit(); renderMkTl(); applyGuide(); }
+function paintMkDialog() {
+  const ov = $("mkCardDialog"); if (!ov) return;
+  ov.classList.toggle("on", !!mkDialogStage);
+  ov.setAttribute("aria-hidden", mkDialogStage ? "false" : "true");
+  $("mkDialogTextStep").style.display = mkDialogStage === "text" ? "flex" : "none";
+  $("mkDialogLengthStep").style.display = mkDialogStage === "length" ? "flex" : "none";
+  if (mkDialogStage === "text") {
+    $("mkDialogText").value = mkDialogScene ? (mkDialogScene.x || "") : "";
+    document.querySelectorAll("#mkDialogTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === mkDialogType));
+  }
+  if (mkDialogStage === "length") {
+    const end = $("mkDialogEndBtn"), ok = $("mkDialogLengthOK");
+    end.disabled = mkDialogMeasuredDuration != null;
+    end.textContent = mkDialogMeasuredDuration == null ? "ここで終わり" : "終点を記録しました";
+    ok.style.display = mkDialogMeasuredDuration == null ? "none" : "block";
+    $("mkDialogLengthNote").textContent = mkDialogMeasuredDuration == null
+      ? "カードの開始位置から曲を再生しています。表示を終わらせたいところで「ここで終わり」を押してください。"
+      : "終点を記録しました。長さを確定する場合は「OK」を押してください。やり直す場合はキャンセルして、もう一度カードを開いてください。";
+  }
+}
+function closeMkDialog(pause) {
+  if (pause && playerReady()) playerPause();
+  mkDialogStage = null; mkDialogScene = null; mkDialogOriginalDuration = null; mkDialogMeasuredDuration = null;
+  mkSel = -1; mkLenPhase = null; mkSelOrigT = null;
+  paintMkDialog(); renderMk();
+}
+function openMkDialog(scene) {
+  if (!scene) return;
+  if (playerReady()) playerPause();
+  mkDialogScene = scene;
+  mkDialogOriginalDuration = scene.d;
+  mkDialogMeasuredDuration = null;
+  mkDialogType = scene.k || "call";
+  mkSel = mk.scenes.indexOf(scene);
+  mkSelOrigT = scene.t;
+  mkLenPhase = null;
+  mkDialogStage = "text";
+  paintMkDialog(); renderMk();
+}
+function beginMkDialogLength() {
+  const sc = mkDialogScene;
+  if (!sc || mk.scenes.indexOf(sc) < 0) return closeMkDialog(false);
+  if (!playerReady()) {
+    toast(spMode ? "Spotifyプレイヤーの準備ができていません。文言は保存しました。" : "動画プレイヤーの準備ができていません。文言は保存しました。");
+    closeMkDialog(false);
+    return;
+  }
+  sc.x = $("mkDialogText").value.trim();
+  sc.k = mkDialogType;
+  mkDialogOriginalDuration = sc.d;
+  mkDialogMeasuredDuration = null;
+  mkDialogStage = "length";
+  mkLenPhase = "run";
+  paintMkDialog(); renderMk();
+  playerSeek(sc.t); playerPlay();
+}
 function paintPvBtn() { const b = $("mkPvBtn"); if (b) b.textContent = mkPv ? "プレビューを止める" : "プレビュー"; }
 /* 画面切替: プレイヤー(#mvwrap・iframe)はDOM上で一切動かさず、他のUIの表示/非表示だけで切り替える */
 function setScreen(name) {
@@ -547,6 +604,7 @@ const MKMODE_TLNOTE = {
   oki: "掴んで動かしている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。指の横の位置が、そのまま曲の位置になります。"
 };
 function paintMkMode() {
+  document.body.classList.toggle("mk-nori", mkMode === "nori");
   document.querySelectorAll("#mkModeTabs .mktab").forEach(b => b.classList.toggle("sel", b.dataset.mkmode === mkMode));
   const nori = mkMode === "nori";
   document.querySelectorAll("#mk .mknori").forEach(el => { el.style.display = nori ? "" : "none"; });
@@ -1558,7 +1616,7 @@ const A = {
     }
     // カード作成: 再生中でも停止中でも、今の位置に仮の長さ5秒で1枚作る。種類・文言は「次に作るカード」の設定(種類ボタン・入力欄)を使う(build 64: 仕様5)
     const t = Math.round(clampT(now()));
-    const sc = {t: t, d: 5, k: mk.type, x: $("mkText").value.trim()};
+    const sc = {t: t, d: 5, k: mk.type, x: mkMode === "nori" ? "" : $("mkText").value.trim()};
     mk.scenes.push(sc);
     mk.scenes.sort((a, b) => a.t - b.t);
     if (sc.x) $("mkText").value = "";
@@ -1597,8 +1655,9 @@ const A = {
   /* build 58: 埋め込みパネルのカードをタップ → そのカードの中身を編集(もう一度タップで終了) */
   mkPick: i => {
     i = +i;
-    if (mkSel === i) { mkSel = -1; mkLenPhase = null; mkSelOrigT = null; renderMk(); return; }
     const sc = mk.scenes[i]; if (!sc) return;
+    if (mkMode === "nori") { openMkDialog(sc); guideEvent("picked"); return; }
+    if (mkSel === i) { mkSel = -1; mkLenPhase = null; mkSelOrigT = null; renderMk(); return; }
     mkSel = i; mkLenPhase = null; mkSelOrigT = sc.t;   // build 64: 「戻す」用に、選んだときの位置を覚える
     mk.type = sc.k;
     document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === sc.k));
@@ -1607,6 +1666,41 @@ const A = {
     if (playerReady()) { playerSeek(sc.t); playerPlay(); }   // build 64: 選んだカードの位置から再生して、どの部分か音で確かめられる
     const pe = $("mkPosEdit"); if (pe) pe.scrollIntoView({behavior: "smooth", block: "nearest"});
     guideEvent("picked");
+  },
+  mkDialogType: k => {
+    if (!["call", "sing", "koko"].includes(k)) return;
+    mkDialogType = k;
+    document.querySelectorAll("#mkDialogTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === k));
+  },
+  mkDialogTextOK: () => {
+    if (mkDialogStage !== "text" || !mkDialogScene) return;
+    mkDialogScene.x = $("mkDialogText").value.trim();
+    mkDialogScene.k = mkDialogType;
+    renderMk();
+    guideEvent("text");
+    beginMkDialogLength();
+  },
+  mkDialogEnd: () => {
+    const sc = mkDialogScene;
+    if (mkDialogStage !== "length" || !sc || mk.scenes.indexOf(sc) < 0 || mkDialogMeasuredDuration != null) return;
+    const d = Math.round((now() - sc.t) * 10) / 10;
+    mkDialogMeasuredDuration = Math.max(0.5, Math.min(20, d));
+    mkLenPhase = null;
+    playerPause();
+    paintMkDialog();
+  },
+  mkDialogLengthOK: () => {
+    const sc = mkDialogScene;
+    if (mkDialogStage !== "length" || !sc || mkDialogMeasuredDuration == null) return;
+    sc.d = mkDialogMeasuredDuration;
+    const d = sc.d, t = sc.t;
+    closeMkDialog(false);
+    toast(fmt(t) + " のカードの長さを " + d.toFixed(1) + " 秒にしました");
+    guideEvent("lenDone");
+  },
+  mkDialogCancel: () => {
+    if (mkDialogStage === "length" && mkDialogScene && mkDialogOriginalDuration != null) mkDialogScene.d = mkDialogOriginalDuration;
+    closeMkDialog(true);
   },
   /* build 64: 作成の2モード切替と、選択中カードの位置編集(今の再生位置へ / 戻す / 選択解除) */
   mkMode: m => setMkMode(m),
@@ -1858,9 +1952,11 @@ function guideEvent(name) {
 }
 
 document.addEventListener("click", e => {
+  if (e.target === $("mkCardDialog") && mkDialogStage) { A.mkDialogCancel(); return; }
   const b = e.target.closest("[data-a]");
   if (b && A[b.dataset.a]) A[b.dataset.a](b.dataset.i, b);
 });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && mkDialogStage) A.mkDialogCancel(); });
 document.addEventListener("change", e => { const b = e.target.closest("[data-c]"); if (b && A[b.dataset.c]) A[b.dataset.c](b.value, b); });
 $("intro").addEventListener("click", () => { if ($("intro").style.display === "block") skipIntro(); });
 $("cpos").addEventListener("input", e => { $("cards").style.bottom = 10 + +e.target.value + "px"; });
