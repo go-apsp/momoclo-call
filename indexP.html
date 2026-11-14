@@ -692,6 +692,8 @@ gtag('config', 'G-00QSZME258');
       if (hintTimer) window.clearTimeout(hintTimer);
     }
     var hintTimer = null;
+    // ゲスト向け案内の開始から10秒でカードと再生ボタンの強調を終了
+    hintTimer = window.setTimeout(dismissGuestHint, 10000);
     // カードをタップした場合も案内表示だけ終了（data-a="refcall" の既存動作はそのまま）
     hint.addEventListener("click", dismissGuestHint);
 
@@ -700,8 +702,6 @@ gtag('config', 'G-00QSZME258');
       play.classList.add("guest-play-focus");
       window.setTimeout(function () {
         hint.classList.add("on");
-        // 表示開始から10秒でカードと再生ボタンの強調を終了
-        hintTimer = window.setTimeout(dismissGuestHint, 10000);
       }, 500);
     }, 180);
   }
