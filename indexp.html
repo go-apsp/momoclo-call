@@ -203,7 +203,6 @@ body.scr-mk .pads #penbtn{touch-action:none;-webkit-user-select:none;user-select
       <div class="fineRow"><span>位置</span><button id="mkFineM" data-a="mkFine" data-i="-0.1">−0.1秒</button><button id="mkFineP" data-a="mkFine" data-i="0.1">＋0.1秒</button></div>
       <button id="mkDelBtn" data-a="mkDelSel">このカードを削除</button>
     </div>
-    <div id="mkList"></div>
     <!-- build 64: カード再編集(両モード共通)。カードを選んだ時だけ出ます -->
     <div id="mkPosEdit" style="display:none">
       <div class="mkpe-head"><span id="mkPosTitle">選択中のカード</span><span id="mkPosTime"></span></div>
@@ -240,6 +239,10 @@ body.scr-mk .pads #penbtn{touch-action:none;-webkit-user-select:none;user-select
     <button id="mkPvBtn" data-a="pvToggle">プレビュー</button>
     <button id="mkSaveBtn" data-a="mkSaveBack">保存して戻る</button>
     <button class="mkyameru" data-a="endMk">保存せずに戻る</button>
+    </div>
+    <div class="mk-card-list">
+      <h3 style="margin:4px 0 0;font-size:14px">コールカード一覧</h3>
+      <div id="mkList"></div>
     </div>
     </div>
   </section>
