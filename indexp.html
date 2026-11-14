@@ -44,6 +44,8 @@ body.scr-mk .pads #penbtn{display:block!important}
 #mkTlBox{display:none!important;opacity:0;transform:translateY(12px);transition:opacity .22s ease,transform .22s ease;pointer-events:none}
 #mkTlBox.tlfloat{display:flex!important;opacity:0;pointer-events:auto}
 #mkTlBox.tlfloat.tlshow{opacity:1;transform:translateY(0)}
+/* 作成ボタンのタッチをブラウザのスクロール／ジェスチャーに奪われないようにする */
+body.scr-mk .pads #penbtn{touch-action:none;-webkit-user-select:none;user-select:none}
 </style>
 </head>
 <body>
