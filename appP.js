@@ -1189,23 +1189,27 @@ function checkSpHash() {
 $("spA").addEventListener("input", paintSpVals);
 $("spB").addEventListener("input", paintSpVals);
 
-let mkContentStep = 1, mkContentDraftText = "", mkContentDraftType = "call";
+let mkContentStep = 1, mkContentDraftText = "", mkContentDraftType = "call", mkContentTarget = null;
 function paintMkContentPanel() {
   const panel = $("mkContentPanel"); if (!panel) return;
   $("mkContentTextStep").style.display = mkContentStep === 1 ? "block" : "none";
   $("mkContentTypeStep").style.display = mkContentStep === 2 ? "block" : "none";
   $("mkContentTypeStep").querySelectorAll("[data-a='mkContentChoose']").forEach(b => b.classList.toggle("sel", b.dataset.i === mkContentDraftType));
 }
-function openMkContentPanel() {
+function openMkContentPanel(target) {
   mkContentStep = 1;
-  mkContentDraftText = $("mkText").value.trim();
-  mkContentDraftType = mk.type || "call";
+  mkContentTarget = target || null;
+  mkContentDraftText = mkContentTarget ? (mkContentTarget.x || "") : $("mkText").value.trim();
+  mkContentDraftType = mkContentTarget ? (mkContentTarget.k || "call") : (mk.type || "call");
   $("mkContentTextInput").value = mkContentDraftText;
   $("mkContentPanel").style.display = "flex";
   paintMkContentPanel();
   $("mkContentTextInput").focus();
 }
-function closeMkContentPanel() { $("mkContentPanel").style.display = "none"; }
+function closeMkContentPanel() {
+  $("mkContentPanel").style.display = "none";
+  mkContentTarget = null;
+}
 function nextMkContentStep() {
   const value = $("mkContentTextInput").value.trim();
   if (!value) return toast("コールの内容を入力してください");
@@ -1217,6 +1221,11 @@ function confirmMkContent() {
   mk.type = mkContentDraftType;
   $("mkText").value = mkContentDraftText;
   document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === mkContentDraftType));
+  if (mkContentTarget) {
+    mkContentTarget.x = mkContentDraftText;
+    mkContentTarget.k = mkContentDraftType;
+    renderMk();
+  }
   closeMkContentPanel();
   guideEvent("text");
   guideEvent("type");
@@ -1646,8 +1655,15 @@ const A = {
   /* build 58: 埋め込みパネルのカードをタップ → そのカードの中身を編集(もう一度タップで終了) */
   mkPick: i => {
     i = +i;
-    if (mkSel === i) { mkSel = -1; mkLenPhase = null; mkSelOrigT = null; renderMk(); return; }
     const sc = mk.scenes[i]; if (!sc) return;
+    if (mkMode === "nori") {
+      mkSel = i;
+      mkLenPhase = null;
+      mkSelOrigT = sc.t;
+      openMkContentPanel(sc);
+      return;
+    }
+    if (mkSel === i) { mkSel = -1; mkLenPhase = null; mkSelOrigT = null; renderMk(); return; }
     mkSel = i; mkLenPhase = null; mkSelOrigT = sc.t;   // build 64: 「戻す」用に、選んだときの位置を覚える
     mk.type = sc.k;
     document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === sc.k));
