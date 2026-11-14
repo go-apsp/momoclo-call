@@ -49,6 +49,17 @@ body:not(.scr-mk) #mkRateSelect{display:none}
 #mkTlBox.tlfloat.tlshow{opacity:1;transform:translateY(0)}
 /* 作成ボタンのタッチをブラウザのスクロール／ジェスチャーに奪われないようにする */
 body.scr-mk .pads #penbtn{touch-action:none;-webkit-user-select:none;user-select:none}
+body.scr-mk #play{touch-action:none;-webkit-user-select:none;user-select:none}
+#mkTlZoomBox{display:none;flex-direction:column;gap:5px;padding:7px;border-radius:10px;background:rgba(255,210,63,.08);border:1px solid rgba(255,210,63,.55)}
+#mkTlZoomBox .mktl-head{font-size:11px}
+#mkTlZoomRange{margin-left:auto;color:#ffd23f;font-size:10px;font-weight:800}
+#mkTlZoomView{display:flex;gap:6px}
+#mkTlZoomLabs{flex:0 0 52px;display:flex;flex-direction:column;font-size:9px;font-weight:900;color:#cfd2f2}
+#mkTlZoomLabs span{height:20px;margin-bottom:3px;display:flex;align-items:center}
+#mkTlZoomLabs span:last-child{height:20px;margin-bottom:0}
+#mkTlZoomSlide{position:relative;flex:1;overflow:hidden;border-radius:8px;background:rgba(255,255,255,.07);min-height:92px}
+#mkTlZoomInner{position:absolute;inset:0;width:100%}
+#mkTlZoomMark{position:absolute;left:50%;top:0;bottom:0;width:2px;background:#ffd23f;box-shadow:0 0 7px #ffd23f;pointer-events:none;z-index:4}
 
 /* B案：作成画面ではYouTube映像だけを黒幕で隠す。iframeと音声再生は維持する */
 body.scr-mk #yt::after{content:"";position:absolute;inset:0;z-index:1;background:rgba(0,0,0,.94);pointer-events:none}
@@ -275,6 +286,13 @@ body.scr-mk #play.place-idle{opacity:.48;filter:saturate(.45)}
     <!-- ノリノリながら：カード作成ボタンを押している間だけ画面下部に固定オーバーレイ表示 -->
     <div id="mkTlBox">
       <div class="mktl-head"><span>タイムライン</span><span id="mkTlMode">全体表示</span><span id="mkTlPos"></span></div>
+      <div id="mkTlZoomBox" aria-live="off">
+        <div class="mktl-head"><span>拡大タイムライン</span><span id="mkTlZoomRange">指の位置を拡大</span></div>
+        <div id="mkTlZoomView">
+          <div id="mkTlZoomLabs"><span>コール</span><span>シンガロン</span><span>ココ好き!</span><span></span></div>
+          <div id="mkTlZoomSlide"><div id="mkTlZoomInner"></div><div id="mkTlZoomMark"></div></div>
+        </div>
+      </div>
       <div id="mkTlView">
         <div id="mkTlLabs"><span>コール</span><span>シンガロン</span><span>ココ好き!</span><span></span></div>
         <div id="mkTlSlide"><div id="mkTlInner"></div><div id="mkTlPlay"></div><div id="mkTlKnob" role="slider" aria-label="選択中のカードの位置つまみ" aria-valuemin="0" aria-valuemax="240" aria-valuenow="0"></div></div>
