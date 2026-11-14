@@ -75,7 +75,7 @@ let mkSel = -1;                 // 作成画面: 選択中の場面インデッ�
 let mkLenPhase = null;          // 作成画面: 長さ指定の計測中は "run"
 let spStep = 0;                 // シェアポイント作成の段階 0=始点を決める 1=終点を決める 2=作成する
 let mkPub = true;               // 作成画面: 保存先(公開=true / 下書き=false)。確定は「保存して戻る」
-let mkRate = 1;                 // 作成画面・シェアポイント作成画面: 再生速度(1 → 0.5 → 0.25)
+let mkRate = 1;                 // 作成画面・シェアポイント作成画面: 再生速度
 let PRESETS = [], psLoaded = false, psListShown = false;   // build 60: プリセットコール(presetsコレクション。管理画面で登録)
 /* ---------- build 64: 作成の2モード制 / 長押し / シーク連動スクラブ / 拡大タイムライン / 位置再編集 ---------- */
 let mkMode = "nori";            // 作成モード "nori"(♪ノリノリながら) | "oki"(お気に置きにいっちゃう)。localStorageに保存し、次回も同じモードで開く
@@ -247,7 +247,6 @@ function loop(ts) {
   $("fsplay").textContent = pl ? "一時停止" : "再生";
   const pb = $("play");   // build 59: 大きな再生ボタンは常に「再生/一時停止」のまま(長さ指定は作成画面の大きなボタンが担当)
   pb.textContent = pl ? "一時停止" : "再生"; pb.classList.remove("meas");
-  const mp1 = $("mkPlayBtn"); if (mp1) mp1.textContent = pl ? "⏸ 一時停止" : "▶ 再生";
   const mp2 = $("spPlayBtn"); if (mp2) mp2.textContent = pl ? "⏸ 一時停止" : "▶ 再生";
   if (screen === "mk") paintKnob();
   if (st === 0 && sess) { sess = null; paintApply(); }   // 曲が終わったら、次回の再生でリセット
@@ -532,7 +531,10 @@ function enterSp() {
 }
 /* 再生速度(1 → 0.5 → 0.25)を YouTube プレイヤーへ実際に効かせる */
 function applyRate() { try { if (yt && yt.setPlaybackRate) yt.setPlaybackRate(mkRate); } catch (e) {} paintRate(); }
-function paintRate() { document.querySelectorAll(".ratebtn").forEach(b => b.textContent = "速度 " + mkRate + "倍"); }
+function paintRate() {
+  document.querySelectorAll(".ratebtn").forEach(b => b.textContent = "速度 " + mkRate + "倍");
+  const sel = $("mkRateSelect"); if (sel) sel.value = String(mkRate);
+}
 
 /* ---------- build 60: プリセットコール(作成画面下部の引き出しから、選択中カードへ種類+文言を適用) ---------- */
 async function loadPresets() {
@@ -1626,7 +1628,8 @@ const A = {
     guideEvent("card");
   },
   /* build 59: 速度切替(1倍 → 0.5倍 → 0.25倍) */
-  rate: () => { const R = [1, 0.5, 0.25]; mkRate = R[(R.indexOf(mkRate) + 1) % R.length]; applyRate(); toast("再生速度を " + mkRate + "倍にしました"); },
+  rate: () => { const R = [1, 0.75, 0.5, 0.25]; mkRate = R[(R.indexOf(mkRate) + 1) % R.length]; applyRate(); toast("再生速度を " + mkRate + "倍にしました"); },
+  rateSelect: v => { const n = Number(v); if ([0.25, 0.5, 0.75, 1].includes(n)) { mkRate = n; applyRate(); toast("再生速度を " + mkRate + "倍にしました"); } },
   /* build 59: 保存先の切替(公開/下書き)と、保存の確定ボタン「保存して戻る」 */
   mkPubTgl: () => { mkPub = !mkPub; paintMkPub(); },
   mkSaveBack: async () => { const ok = await A.save(mkPub ? "1" : "0"); if (ok) exitMk(); },
@@ -1846,8 +1849,8 @@ const GMSG = {
 const GNUM = {m0: 1, n2: 2, n3: 3, n4: 4, n5: 5, n6: 6, n7: 7, n8: 8, nd: 8, o2: 2, o3: 3, o4: 4, o5: 5, o6: 6, od: 6, sp1: 1, sp2: 2, sp3: 3, sp4: 4, sp5: 5};
 const GTARGETS = {
   m0: ["#mkModeTabs .mktab"],
-  n2: ["#mkPlayBtn", "#play"],
-  n3: ["#mkCreate", "#mkPlayBtn", "#play"],
+  n2: ["#play"],
+  n3: ["#mkCreate", "#play"],
   n4: ["#mkList .mkpick"],
   n5: ["#mkKnob", "#mkTlKnob", "#mkPosScrub", ".posStepB", "#mkPosHere", "#mkPosRestore", "#mkFineM", "#mkFineP"],
   n6: ["#mkCreate", "#mkList .mkpick"],
@@ -1866,8 +1869,8 @@ const GTARGETS = {
   sp4: ["#spStep"],
   sp5: []
 };
-const GSCROLL = {m0: "#mkModeTabs", n2: "#mkPlayBtn", n3: "#mkCreate", n4: "#mkList", n5: "#mkPosEdit", n6: "#mkCreate", n7: "#mkTypes", n8: "#mkSaveBtn", o2: "#mkText", o3: "#mkPresets", o4: "#mkList", o5: "#mkPosEdit", o6: "#mkSaveBtn", sp1: "#spPlayBtn", sp2: "#spStep", sp3: "#spStep", sp4: "#spStep"};
-const GLOCK_SEL = "#songsel,#bar,.skb,#play,#mkPlayBtn,#spPlayBtn,.ratebtn,#mkCreate,#mkTypes button,#mkText,#mkFineM,#mkFineP,#mkDelBtn,#mkList .mkpick,#mkList .mkdel,#mkKnob,#mkVer,#mkNote,#mkRef,#mkCmt,#mkGuestName,#mkPubBtn,#mkSaveBtn,#mkPvBtn,.mkyameru,#mkDrawerBar,.drwBtn,.psChip,#spStep,.switchbtn,#mkModeTabs .mktab,#mkGrip,#mkChips .pchip,#mkPosScrub,.posStepB,#mkPosHere,#mkPosRestore,#mkSelClear,#mkTuneBtn,#tuneGain,#tuneDead,#tuneReset,#mkTlKnob";
+const GSCROLL = {m0: "#mkModeTabs", n2: "#play", n3: "#mkCreate", n4: "#mkList", n5: "#mkPosEdit", n6: "#mkCreate", n7: "#mkTypes", n8: "#mkSaveBtn", o2: "#mkText", o3: "#mkPresets", o4: "#mkList", o5: "#mkPosEdit", o6: "#mkSaveBtn", sp1: "#spPlayBtn", sp2: "#spStep", sp3: "#spStep", sp4: "#spStep"};
+const GLOCK_SEL = "#songsel,#bar,.skb,#play,#spPlayBtn,.ratebtn,#mkRateSelect,#mkCreate,#mkTypes button,#mkText,#mkFineM,#mkFineP,#mkDelBtn,#mkList .mkpick,#mkList .mkdel,#mkKnob,#mkVer,#mkNote,#mkRef,#mkCmt,#mkGuestName,#mkPubBtn,#mkSaveBtn,#mkPvBtn,.mkyameru,#mkDrawerBar,.drwBtn,.psChip,#spStep,.switchbtn,#mkModeTabs .mktab,#mkGrip,#mkChips .pchip,#mkPosScrub,.posStepB,#mkPosHere,#mkPosRestore,#mkSelClear,#mkTuneBtn,#tuneGain,#tuneDead,#tuneReset,#mkTlKnob";
 function applyGuide() {
   const all = document.querySelectorAll(GLOCK_SEL);
   if (!guide) { all.forEach(el => el.classList.remove("glocked", "gtarget")); return; }
