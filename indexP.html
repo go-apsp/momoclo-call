@@ -612,7 +612,7 @@ gtag('config', 'G-00QSZME258');
       return;
     }
     var visible = window.getComputedStyle(original).display !== "none";
-    if (!visible || hasSeenBefore()) {
+    if (!visible || (!shownThisPage && hasSeenBefore())) {
       floating.style.display = "none";
       return;
     }
