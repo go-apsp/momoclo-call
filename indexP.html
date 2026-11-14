@@ -134,6 +134,15 @@ gtag('config', 'G-00QSZME258');
       <button type="button" class="mktab" data-a="mkMode" data-i="oki" data-mkmode="oki">お気に置きにいっちゃうモード</button>
     </div>
     <p id="mkModeDesc"></p>
+    <section id="mkSteps" aria-label="コール作成の流れ">
+      <div class="mksteps-title">はじめてでも大丈夫！作成はこの4ステップ</div>
+      <ol class="mksteps-list">
+        <li><b>曲を再生</b><span>まずは曲を聴いて、コールを入れたいところを探します。</span></li>
+        <li><b>入れる位置を決める</b><span>ノリノリながらモードは再生中に「カード作成」。お気に置きにいっちゃうモードはプリセットを押さえて左右に動かし、音を聴きながら位置を探します。</span></li>
+        <li><b>カードを編集</b><span>できたカードをタップして、文字や長さを整えます。</span></li>
+        <li><b>保存</b><span>作り終えたら、下の保存操作へ進みます。</span></li>
+      </ol>
+    </section>
     <div class="subctl">
       <button id="mkPlayBtn" data-a="play">▶ 再生</button>
       <button class="ratebtn" data-a="rate">速度 1倍</button>
@@ -548,6 +557,15 @@ gtag('config', 'G-00QSZME258');
   #welcome {
     z-index: 10000 !important;
   }
+
+    /* build 65: 作成手順を画面上部にまとめて表示 */
+    #mkSteps{margin:12px 0 16px;padding:12px;border:1px solid rgba(255,255,255,.18);border-radius:12px;background:rgba(255,255,255,.055)}
+    #mkSteps .mksteps-title{font-weight:700;font-size:14px;margin:0 0 10px}
+    #mkSteps .mksteps-list{list-style:none;counter-reset:mkstep;margin:0;padding:0;display:grid;gap:9px}
+    #mkSteps .mksteps-list li{counter-increment:mkstep;display:grid;grid-template-columns:28px minmax(0,1fr);column-gap:8px;align-items:start}
+    #mkSteps .mksteps-list li:before{content:counter(mkstep);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#f5c4df;color:#54223e;font-weight:800;font-size:13px}
+    #mkSteps .mksteps-list b{display:block;font-size:13px;line-height:1.5}
+    #mkSteps .mksteps-list span{grid-column:2;color:inherit;opacity:.78;font-size:12px;line-height:1.55;margin-top:1px}
 </style>
 
 <style id="indexp-floating-cta">
