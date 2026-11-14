@@ -54,6 +54,11 @@ try { si = Math.min(+localStorage.getItem("momo_song") || 0, SONGS.length - 1); 
 let VID = SONGS[si].vid;
 const {LAB, OSHI, PEN, esc, fmt, colorOf} = UI;
 
+/* 両モード共通: カード内容(種類・文言)を組み立てる。時刻・表示時間は各モード側で決める */
+function mkCardContent(type, text) {
+  return {k: type, x: String(text == null ? "" : text)};
+}
+
 const auth = getAuth(initializeApp(firebaseConfig)), db = getFirestore(auth.app);
 const $ = id => document.getElementById(id);
 function toast(s, ms) { const t = $("toast"); t.textContent = s; t.classList.add("on"); clearTimeout(toast.id); toast.id = setTimeout(() => t.classList.remove("on"), ms || 2400); }
@@ -724,7 +729,7 @@ function mkScrEnd(commit, upX) {
     if (commit) {
       if (upX != null) sc.target = mkBandAbs(upX);
       const t = Math.max(0, Math.min(mkTlD() - 0.5, Math.round(sc.target * 10) / 10));
-      const nc = {t: t, d: 5, k: sc.src.k, x: sc.src.x};   // 置いたカードの長さは仮の5秒(本番の作り方に合わせる。後から長さ指定で直せる)
+      const nc = {t: t, d: 5, ...mkCardContent(sc.src.k, sc.src.x)};   // 置いたカードの長さは仮の5秒(本番の作り方に合わせる。後から長さ指定で直せる)
       mk.scenes.push(nc); mk.scenes.sort((a, b) => a.t - b.t);
       if (sc.src.grip) $("mkText").value = "";
       renderMk();
@@ -1561,7 +1566,7 @@ const A = {
     }
     // カード作成: 再生中でも停止中でも、今の位置に仮の長さ5秒で1枚作る。種類・文言は「次に作るカード」の設定(種類ボタン・入力欄)を使う(build 64: 仕様5)
     const t = Math.round(clampT(now()));
-    const sc = {t: t, d: 5, k: mk.type, x: $("mkText").value.trim()};
+    const sc = {t: t, d: 5, ...mkCardContent(mk.type, $("mkText").value.trim())};
     mk.scenes.push(sc);
     mk.scenes.sort((a, b) => a.t - b.t);
     if (sc.x) $("mkText").value = "";
@@ -1665,7 +1670,7 @@ const A = {
   },
   addScene: () => {   // 旧UIの「この位置に追加」用(build 58で要素は廃止。新方式は mkMain。互換のため残す)
     const durEl = $("mkDur");
-    mk.scenes.push({t: Math.round(clampT(now())), d: (durEl ? parseFloat(durEl.value) : NaN) || 6, k: mk.type, x: $("mkText").value.trim() || LAB[mk.type]});
+    mk.scenes.push({t: Math.round(clampT(now())), d: (durEl ? parseFloat(durEl.value) : NaN) || 6, ...mkCardContent(mk.type, $("mkText").value.trim() || LAB[mk.type])});
     mk.scenes.sort((a, b) => a.t - b.t); $("mkText").value = ""; renderMk();
   },
   pvScene: i => {
@@ -1946,7 +1951,7 @@ document.addEventListener("input", e => {
     }
     if (!commit) return;
     // 新規カード: 押した位置から、押していた長さで作る。種類・文言は「次に作るカード」の設定を使う
-    const sc = {t: h.t0, d: h.d, k: mk.type, x: $("mkText").value.trim()};
+    const sc = {t: h.t0, d: h.d, ...mkCardContent(mk.type, $("mkText").value.trim())};
     mk.scenes.push(sc); mk.scenes.sort((a, b) => a.t - b.t);
     if (sc.x) $("mkText").value = "";
     renderMk();
