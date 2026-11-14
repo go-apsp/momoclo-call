@@ -23,6 +23,23 @@ gtag('config', 'G-00QSZME258');
 <meta name="twitter:description" content="見る…？">
 <meta name="twitter:image" content="https://go-apsp.github.io/momoclo-call/ogp.jpg">
   <style id="playback-ui-restore">body:not(.scr-mk):not(.scr-sp) .pads{display:flex!important}</style>
+
+<style id="mkContentPanelStyles">
+body.scr-mk .pads{display:flex!important}
+body.scr-mk .pads>*:not(#penbtn){display:none!important}
+body.scr-mk .pads #penbtn{display:block!important}
+#mkContentPanel{position:fixed;inset:0;z-index:10050;display:none;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;background:rgba(0,0,0,.58)}
+#mkContentPanel .mkcp-card{width:min(100%,420px);box-sizing:border-box;padding:24px 20px;border:1px solid rgba(255,255,255,.18);border-radius:20px;background:rgba(10,10,18,.94);box-shadow:0 18px 55px rgba(0,0,0,.48);color:#fff}
+#mkContentPanel h3{margin:0 0 18px;font-size:20px;text-align:center}
+#mkContentPanel input{width:100%;box-sizing:border-box;padding:13px 14px;border:1px solid rgba(255,255,255,.3);border-radius:12px;background:rgba(255,255,255,.1);color:#fff;font:inherit;font-size:17px}
+#mkContentPanel .mkcp-types{display:grid;grid-template-columns:1fr;gap:10px}
+#mkContentPanel button{min-height:46px;padding:10px 14px;border:1px solid rgba(255,255,255,.22);border-radius:12px;background:rgba(255,255,255,.10);color:#fff;font:inherit;font-weight:800}
+#mkContentPanel button.sel{border-color:#ff8fc0;background:rgba(255,105,170,.28)}
+#mkContentPanel .mkcp-actions{display:flex;gap:10px;margin-top:18px}
+#mkContentPanel .mkcp-actions button{flex:1}
+#mkContentPanel .mkcp-primary{background:#e94f91;border-color:#e94f91}
+#mkContentPanel .mkcp-step{display:none}
+</style>
 </head>
 <body>
 <script>
@@ -137,6 +154,24 @@ gtag('config', 'G-00QSZME258');
     <div class="subctl">
       <button id="mkPlayBtn" data-a="play">▶ 再生</button>
       <button class="ratebtn" data-a="rate">速度 1倍</button>
+    </div>
+    <div id="mkContentPanel" role="dialog" aria-modal="true" aria-label="カード内容の設定">
+      <div class="mkcp-card">
+        <div id="mkContentTextStep" class="mkcp-step">
+          <h3>叫ぶコールは？</h3>
+          <input id="mkContentTextInput" type="text" maxlength="30" placeholder="例：ハイ！ハイ！" autocomplete="off">
+          <div class="mkcp-actions"><button type="button" data-a="mkContentCancel">キャンセル</button><button type="button" class="mkcp-primary" data-a="mkContentTextNext">決定</button></div>
+        </div>
+        <div id="mkContentTypeStep" class="mkcp-step">
+          <h3>種類を選んでね</h3>
+          <div class="mkcp-types">
+            <button type="button" data-a="mkContentChoose" data-i="call">コール</button>
+            <button type="button" data-a="mkContentChoose" data-i="sing">シンガロン</button>
+            <button type="button" data-a="mkContentChoose" data-i="koko">ココ好き!</button>
+          </div>
+          <div class="mkcp-actions"><button type="button" data-a="mkContentBack">戻る</button><button type="button" class="mkcp-primary" data-a="mkContentConfirm">決定</button></div>
+        </div>
+      </div>
     </div>
     <div id="mkLegacyPanel" style="display:none!important">
     <!-- build 64: 拡大タイムライン。ドラッグ中・長押し中は約30秒表示になり、画面下部に浮いて出続けます(元の位置には同じ高さの空きを残します) -->
