@@ -851,7 +851,7 @@ function mkScrMove(e) {
     }
     if (playerReady()) playerPlay();
   } else if (Math.abs(e.clientX - scr.anchorX) <= dead) { return; }
-  else { scr.anchorX = e.clientX; }
+  else { scr.anchorX = e.clientX; if (scr.src.fromPlaceButton) scr.moved = true; }
   const absT = mkBandAbs(e.clientX);
   const g = mkTune.gain;
   let target = g >= 1 ? absT : scr.target + (absT - scr.target) * g;
@@ -881,6 +881,7 @@ function mkScrEnd(commit, upX) {
   if (sc.active) {
     mkSetZoom(false);
     if (sc.src.fromPlaceButton) mkPlaceZoomHide();
+    if (sc.src.fromPlaceButton && !sc.moved) return;
     if (commit) {
       if (upX != null) sc.target = mkBandAbs(upX);
       const t = Math.max(0, Math.min(mkTlD() - 0.5, Math.round(sc.target * 10) / 10));
