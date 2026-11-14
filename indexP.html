@@ -886,7 +886,8 @@ gtag('config', 'G-00QSZME258');
   #noriSpeedMenu { display:none; position:absolute; z-index:120; right:0; top:calc(100% + 6px); width:124px; padding:6px; border:1px solid #8e91b8; border-radius:12px; background:#202342; box-shadow:0 8px 24px #0008; }
   #noriSpeedMenu.open { display:grid; gap:5px; }
   #noriSpeedMenu button { min-height:38px; border:1px solid #62688f; border-radius:8px; background:#30345b; color:#fff; font:inherit; font-weight:800; }
-  #noriSeekRow { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; }
+  #noriSeekRow { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:7px; }
+   #noriSeekRow #play { min-height:46px; border-radius:13px; font-size:14px; font-weight:900; }
   #noriSeekRow button { min-height:46px; border-radius:13px; font-size:13px; }
   #noriMultiBtn { width:100%; min-height:44px; border:1.5px solid #a66bff; border-radius:14px; background:#282344; color:#d7c0ff; font:inherit; font-weight:900; }
   #noriMultiBtn:disabled { opacity:.42; }
@@ -1004,10 +1005,11 @@ gtag('config', 'G-00QSZME258');
           const anchor = mkTlBox.nextSibling;
           mvwrap.parentNode.insertBefore(controls,anchor);
         }
-        if (oldPlay) oldPlay.style.display = "none";
+        if (oldPlay) oldPlay.style.display = "";
         const mkPlay = document.getElementById("mkPlayBtn");
         if (mkPlay) mkPlay.style.display = "none";
-        multiBtn.disabled = editNodes.length === 0 || !document.getElementById("mkList").children.length;
+        const currentList = document.getElementById("mkList");
+         multiBtn.disabled = !currentList || !currentList.children.length;
       } else {
         document.body.classList.remove("nori-edit-open");
         controls.remove();
