@@ -162,24 +162,6 @@ body.scr-mk .pads #penbtn{touch-action:none;-webkit-user-select:none;user-select
       <button id="mkPlayBtn" data-a="play">▶ 再生</button>
       <button class="ratebtn" data-a="rate">速度 1倍</button>
     </div>
-    <div id="mkContentPanel" role="dialog" aria-modal="true" aria-label="カード内容の設定">
-      <div class="mkcp-card">
-        <div id="mkContentTextStep" class="mkcp-step">
-          <h3>叫ぶコールは？</h3>
-          <input id="mkContentTextInput" type="text" maxlength="30" placeholder="例：ハイ！ハイ！" autocomplete="off">
-          <div class="mkcp-actions"><button type="button" data-a="mkContentCancel">キャンセル</button><button type="button" class="mkcp-primary" data-a="mkContentTextNext">決定</button></div>
-        </div>
-        <div id="mkContentTypeStep" class="mkcp-step">
-          <h3>種類を選んでね</h3>
-          <div class="mkcp-types">
-            <button type="button" data-a="mkContentChoose" data-i="call">コール</button>
-            <button type="button" data-a="mkContentChoose" data-i="sing">シンガロン</button>
-            <button type="button" data-a="mkContentChoose" data-i="koko">ココ好き!</button>
-          </div>
-          <div class="mkcp-actions"><button type="button" data-a="mkContentBack">戻る</button><button type="button" class="mkcp-primary" data-a="mkContentConfirm">決定</button></div>
-        </div>
-      </div>
-    </div>
     <div id="mkLegacyPanel" style="display:none!important">
     <div class="mknori" id="mkBigWrap" style="display:none!important">
       <button id="mkCreate" data-a="mkMain">カード作成</button>
@@ -240,6 +222,24 @@ body.scr-mk .pads #penbtn{touch-action:none;-webkit-user-select:none;user-select
     <button id="mkSaveBtn" data-a="mkSaveBack">保存して戻る</button>
     <button class="mkyameru" data-a="endMk">保存せずに戻る</button>
     </div>
+    </div>
+    <div id="mkContentPanel" role="dialog" aria-modal="true" aria-label="カード内容の設定">
+      <div class="mkcp-card">
+        <div id="mkContentTextStep" class="mkcp-step">
+          <h3>叫ぶコールは？</h3>
+          <input id="mkContentTextInput" type="text" maxlength="30" placeholder="例：ハイ！ハイ！" autocomplete="off">
+          <div class="mkcp-actions"><button type="button" data-a="mkContentCancel">キャンセル</button><button type="button" class="mkcp-primary" data-a="mkContentTextNext">決定</button></div>
+        </div>
+        <div id="mkContentTypeStep" class="mkcp-step">
+          <h3>種類を選んでね</h3>
+          <div class="mkcp-types">
+            <button type="button" data-a="mkContentChoose" data-i="call">コール</button>
+            <button type="button" data-a="mkContentChoose" data-i="sing">シンガロン</button>
+            <button type="button" data-a="mkContentChoose" data-i="koko">ココ好き!</button>
+          </div>
+          <div class="mkcp-actions"><button type="button" data-a="mkContentBack">戻る</button><button type="button" class="mkcp-primary" data-a="mkContentConfirm">決定</button></div>
+        </div>
+      </div>
     </div>
     <div class="mk-card-list">
       <h3 style="margin:4px 0 0;font-size:14px">コールカード一覧</h3>
