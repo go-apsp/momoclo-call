@@ -609,6 +609,12 @@ function paintMkMode() {
   const nori = mkMode === "nori";
   document.querySelectorAll("#mk .mknori").forEach(el => { el.style.display = nori ? "" : "none"; });
   document.querySelectorAll("#mk .mkoki").forEach(el => { el.style.display = nori ? "none" : ""; });
+  // ノリノリながらモードの通常画面には入力欄を出さず、カードタップ後のモーダルだけで入力する
+  ["mkTypes", "mkEdit", "mkPosEdit", "mkApplyNote"].forEach(id => {
+    const el = $(id); if (el) el.style.display = nori ? "none" : "";
+  });
+  const textRow = document.querySelector("#mk .mkTextRow");
+  if (textRow) textRow.style.display = nori ? "none" : "";
   const d = $("mkModeDesc"); if (d) d.textContent = MKMODE_DESC[mkMode];
   const n = $("mkTlNote"); if (n) n.textContent = MKMODE_TLNOTE[mkMode];
 }
