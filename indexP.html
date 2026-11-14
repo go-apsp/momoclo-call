@@ -863,5 +863,200 @@ gtag('config', 'G-00QSZME258');
 })();
 </script>
 
+
+<style id="indexp-nori-layout-v1">
+  body.scr-mk.nori-simple #mkModeDesc,
+  body.scr-mk.nori-simple #mkBigWrap,
+  body.scr-mk.nori-simple #mk .gstart,
+  body.scr-mk.nori-simple #mkApplyNote,
+  body.scr-mk.nori-simple #mkTypes,
+  body.scr-mk.nori-simple .mkTextRow,
+  body.scr-mk.nori-simple #mkEdit,
+  body.scr-mk.nori-simple #mkList,
+  body.scr-mk.nori-simple #mkPosEdit { display:none !important; }
+  body.scr-mk.nori-simple #mkDrawer { display:none !important; }
+  body.scr-mk.nori-simple.nori-edit-open #mkDrawer { display:block !important; }
+  #noriControls { display:none; width:100%; max-width:480px; margin:10px auto 14px; padding:0 8px; box-sizing:border-box; }
+  body.scr-mk.nori-simple #noriControls { display:flex; flex-direction:column; gap:9px; }
+  #noriMainRow { display:flex; align-items:stretch; gap:8px; width:100%; }
+  #noriMainRow #mkCreate { flex:1; width:auto; min-width:0; height:76px; border-radius:18px; font-size:22px; touch-action:none; }
+  #noriSpeedWrap { position:relative; flex:0 0 92px; }
+  #noriSpeedBtn { width:100%; height:76px; border:2px solid #ffd23f; border-radius:16px; background:#262a4a; color:#ffd23f; font:inherit; font-weight:900; font-size:14px; }
+  #noriSpeedMenu { display:none; position:absolute; z-index:120; right:0; top:calc(100% + 6px); width:124px; padding:6px; border:1px solid #8e91b8; border-radius:12px; background:#202342; box-shadow:0 8px 24px #0008; }
+  #noriSpeedMenu.open { display:grid; gap:5px; }
+  #noriSpeedMenu button { min-height:38px; border:1px solid #62688f; border-radius:8px; background:#30345b; color:#fff; font:inherit; font-weight:800; }
+  #noriSeekRow { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; }
+  #noriSeekRow button { min-height:46px; border-radius:13px; font-size:13px; }
+  #noriMultiBtn { width:100%; min-height:44px; border:1.5px solid #a66bff; border-radius:14px; background:#282344; color:#d7c0ff; font:inherit; font-weight:900; }
+  #noriMultiBtn:disabled { opacity:.42; }
+  body.scr-mk.nori-simple #mkTlBox { display:flex; width:calc(100% - 16px); max-width:464px; margin:8px auto; box-sizing:border-box; }
+  body.scr-mk.nori-simple #mkTlBox.tlfloat { position:fixed; left:8px; right:8px; bottom:calc(10px + env(safe-area-inset-bottom)); width:auto; }
+  body.scr-mk.nori-simple #mk { padding-top:8px; }
+  body.scr-mk.nori-simple #mk .mknori { display:none !important; }
+  body.scr-mk.nori-simple #mk .mkoki { display:none !important; }
+  body.scr-mk.nori-simple #mk .nori-edit-panel { display:none; }
+  body.scr-mk.nori-simple.nori-edit-open #mk .nori-edit-panel { display:flex; flex-direction:column; gap:10px; }
+  @media (max-width:360px) {
+    #noriMainRow #mkCreate { height:70px; font-size:19px; }
+    #noriSpeedWrap { flex-basis:82px; }
+    #noriSpeedBtn { height:70px; font-size:12px; }
+    #noriSeekRow { gap:5px; }
+    #noriSeekRow button { font-size:11px; }
+  }
+</style>
+<script id="indexp-nori-layout-v1-script">
+(function () {
+  function init() {
+    const mk = document.getElementById("mk");
+    const tabs = document.getElementById("mkModeTabs");
+    const mvwrap = document.getElementById("mvwrap");
+    const mkCreate = document.getElementById("mkCreate");
+    const mkTlBox = document.getElementById("mkTlBox");
+    const playrow = document.querySelector(".playrow");
+    if (!mk || !tabs || !mvwrap || !mkCreate || !mkTlBox || !playrow) return;
+
+    const moved = [];
+    function move(node, parent, before) {
+      if (!node || !node.parentNode) return;
+      const marker = document.createComment("nori-layout-placeholder");
+      node.parentNode.insertBefore(marker, node);
+      moved.push({node:node, marker:marker});
+      parent.insertBefore(node, before || null);
+    }
+    function restore() {
+      moved.slice().reverse().forEach(item => {
+        if (item.marker.parentNode) item.marker.parentNode.replaceChild(item.node, item.marker);
+      });
+      moved.length = 0;
+    }
+
+    const controls = document.createElement("div");
+    controls.id = "noriControls";
+    const mainRow = document.createElement("div");
+    mainRow.id = "noriMainRow";
+    const speedWrap = document.createElement("div");
+    speedWrap.id = "noriSpeedWrap";
+    const speedBtn = document.createElement("button");
+    speedBtn.type = "button";
+    speedBtn.id = "noriSpeedBtn";
+    speedBtn.textContent = "速度 1倍 ▾";
+    const speedMenu = document.createElement("div");
+    speedMenu.id = "noriSpeedMenu";
+    speedMenu.setAttribute("role","group");
+    speedMenu.setAttribute("aria-label","再生速度");
+    ["1","0.5","0.25"].forEach(rate => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = rate + "倍";
+      b.dataset.rate = rate;
+      speedMenu.appendChild(b);
+    });
+    speedWrap.append(speedBtn,speedMenu);
+    mainRow.append(mkCreate,speedWrap);
+    const seekRow = document.createElement("div");
+    seekRow.id = "noriSeekRow";
+    const multiBtn = document.createElement("button");
+    multiBtn.type = "button";
+    multiBtn.id = "noriMultiBtn";
+    multiBtn.textContent = "カード編集";
+    controls.append(mainRow,seekRow,multiBtn);
+
+    const oldPlay = document.getElementById("play");
+    const seekButtons = Array.from(playrow.querySelectorAll('[data-a="pseek"]'));
+    const rateProxy = document.createElement("button");
+    rateProxy.type = "button";
+    rateProxy.className = "ratebtn";
+    rateProxy.dataset.a = "rate";
+    rateProxy.style.display = "none";
+    document.body.appendChild(rateProxy);
+
+    const editPanel = document.createElement("div");
+    editPanel.className = "nori-edit-panel";
+    const editNodes = [
+      document.getElementById("mkApplyNote"),
+      document.getElementById("mkTypes"),
+      mk.querySelector(".mkTextRow"),
+      document.getElementById("mkEdit"),
+      document.getElementById("mkList"),
+      document.getElementById("mkPosEdit")
+    ].filter(Boolean);
+    editNodes.forEach(node => move(node,editPanel));
+    mk.appendChild(editPanel);
+
+    const originalTlParent = mkTlBox.parentNode;
+    const originalTlNext = mkTlBox.nextSibling;
+    const tlMarker = document.createComment("nori-timeline-placeholder");
+    originalTlParent.insertBefore(tlMarker,mkTlBox);
+    mvwrap.parentNode.insertBefore(mkTlBox,mvwrap.nextSibling);
+
+    function currentMode() {
+      const selected = tabs.querySelector(".mktab.sel");
+      return selected ? selected.dataset.mkmode : "nori";
+    }
+    function applyMode() {
+      const nori = currentMode() === "nori";
+      document.body.classList.toggle("nori-simple",nori);
+      if (nori) {
+        if (!controls.isConnected) {
+          const anchor = mkTlBox.nextSibling;
+          mvwrap.parentNode.insertBefore(controls,anchor);
+        }
+        seekButtons.forEach(b => seekRow.appendChild(b));
+        if (oldPlay) oldPlay.style.display = "none";
+        const mkPlay = document.getElementById("mkPlayBtn");
+        if (mkPlay) mkPlay.style.display = "none";
+        multiBtn.disabled = editNodes.length === 0 || !document.getElementById("mkList").children.length;
+      } else {
+        document.body.classList.remove("nori-edit-open");
+        controls.remove();
+        restore();
+        if (oldPlay) oldPlay.style.display = "";
+        const mkPlay = document.getElementById("mkPlayBtn");
+        if (mkPlay) mkPlay.style.display = "";
+        if (tlMarker.parentNode) tlMarker.parentNode.replaceChild(mkTlBox,tlMarker);
+        else if (originalTlParent) originalTlParent.insertBefore(mkTlBox,originalTlNext);
+      }
+    }
+    speedBtn.addEventListener("click", () => speedMenu.classList.toggle("open"));
+    speedMenu.addEventListener("click", e => {
+      const b = e.target.closest("button[data-rate]");
+      if (!b) return;
+      const wanted = b.dataset.rate;
+      for (let i=0;i<4;i++) {
+        const label = rateProxy.textContent.replace("速度","").replace("倍","").trim();
+        if (label === wanted) break;
+        rateProxy.click();
+      }
+      speedBtn.textContent = "速度 " + wanted + "倍 ▾";
+      speedMenu.classList.remove("open");
+    });
+    document.addEventListener("click", e => {
+      if (!speedWrap.contains(e.target)) speedMenu.classList.remove("open");
+    });
+    multiBtn.addEventListener("click", () => {
+      const open = document.body.classList.toggle("nori-edit-open");
+      multiBtn.textContent = open ? "編集を閉じる" : "カード編集";
+      if (open) {
+        const list = document.getElementById("mkList");
+        if (list) list.style.display = "";
+        editPanel.scrollIntoView({behavior:"smooth",block:"nearest"});
+      }
+    });
+    const list = document.getElementById("mkList");
+    if (list) new MutationObserver(() => {
+      multiBtn.disabled = !list.children.length;
+      if (!list.children.length) {
+        document.body.classList.remove("nori-edit-open");
+        multiBtn.textContent = "カード編集";
+      }
+    }).observe(list,{childList:true,subtree:true});
+    new MutationObserver(applyMode).observe(tabs,{subtree:true,attributes:true,attributeFilter:["class"]});
+    applyMode();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded",init,{once:true});
+  else init();
+})();
+</script>
+
 </body>
 </html>
