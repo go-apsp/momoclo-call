@@ -587,7 +587,7 @@ function paintPosEdit() {
 
 /* ---------- build 64: 作成画面のタイムライン(通常は曲全体。ドラッグ中/長押し中は現在位置を中心に約30秒へ拡大し、画面下部に浮かせて出し続ける。元の位置にはプレースホルダを残す) ---------- */
 const MK_TL_KINDS = ["call", "sing", "koko"];
-let mkTlZoom = false, mkTlCenter = 0, mkTlLastD = 0, mkTlPh = null;
+let mkTlZoom = false, mkTlCenter = 0, mkTlLastD = 0;
 function mkTlD() { return Math.max(1, dur() || 240); }
 function mkTlWin() {
   const d = mkTlD();
@@ -649,11 +649,10 @@ function mkTlApplyView() {
 function mkTlSetFloat(on) {
   const box = $("mkTlBox"); if (!box) return;
   if (on) {
-    if (!mkTlPh) { mkTlPh = document.createElement("div"); mkTlPh.setAttribute("aria-hidden", "true"); mkTlPh.style.height = box.offsetHeight + "px"; box.parentNode.insertBefore(mkTlPh, box); }
     box.classList.add("tlfloat");
+    requestAnimationFrame(() => { if (mkHoldSt) box.classList.add("tlshow"); });
   } else {
-    box.classList.remove("tlfloat");
-    if (mkTlPh) { mkTlPh.remove(); mkTlPh = null; }
+    box.classList.remove("tlshow", "tlfloat");
   }
 }
 function mkSetZoom(on, c) {
@@ -1308,7 +1307,7 @@ const A = {
     if (playerState() === 2 && now() > 1) { playerPlay(); return; }
     runIntro();
   },
-  pen: () => { if (screen === "mk") { openMkContentPanel(); return; } $("pen").classList.toggle("on"); },
+  pen: () => { if (screen === "mk") { if (mkMode === "nori") return; openMkContentPanel(); return; } $("pen").classList.toggle("on"); },
   penColor: (i, b) => { $("pen").style.color = PEN[i][1]; document.documentElement.style.setProperty("--pc", PEN[i][1]); document.querySelectorAll("#dots button").forEach(x => x.classList.toggle("sel", x === b)); },
   help: () => toast("このタイミングで一緒にコールやシンガロンができます"),
   waku: async () => {
@@ -1950,11 +1949,11 @@ document.addEventListener("input", e => {
   kn.addEventListener("pointerup", end);
   kn.addEventListener("pointercancel", end);
 })();
-/* build 64: 大きなボタンの長押し(ノリノリながらモードの打ち方 / 選択中カードの長さ決め直し)。
+/* build 64: ノリノリながらモードのカード作成ボタン長押し。
    短いタップ(0.25秒未満)は従来のクリック(mkMain: カード作成/長さ指定/ここで終わり)に任せ、長押しになった時だけこちらで処理し、続くクリックは mkHoldClickAt で握りつぶす。
    長さ指定の計測中(mkLenPhase==="run")は長押しを無効にして、従来の「ここで終わり」タップだけが効くようにする */
 (function () {
-  const btn = $("mkCreate"); if (!btn) return;
+  const btn = $("penbtn"); if (!btn) return;
   const drawPrev = () => {
     const h = mkHoldSt; if (!h) return;
     const inner = $("mkTlInner"); if (!inner) return;
@@ -2000,13 +1999,14 @@ document.addEventListener("input", e => {
     guideEvent("card");
   };
   btn.addEventListener("pointerdown", e => {
-    if (screen !== "mk" || mkLenPhase === "run") return;
+    if (screen !== "mk" || mkMode !== "nori" || mkLenPhase === "run") return;
     e.preventDefault();
     try { btn.setPointerCapture(e.pointerId); } catch (err) {}
-    const sel = (mkSel >= 0 && mk.scenes[mkSel]) ? mk.scenes[mkSel] : null;
-    let t0 = Math.round(clampT(now()) * 10) / 10;
-    if (sel) { t0 = sel.t; if (playerReady()) { playerSeek(sel.t); playerPlay(); } }   // 選択中: そのカードの位置から再生して長さを決め直す
-    mkHoldSt = {t0: t0, at: performance.now(), d: 0.5, rel: sel, timer: null};
+    const t0 = Math.round(clampT(now()) * 10) / 10;
+    // このボタンは常に新規カード作成。選択中カードの長さ編集には流用しない
+    mkSel = -1; mkSelOrigT = null;
+    renderMk();
+    mkHoldSt = {t0: t0, at: performance.now(), d: 0.5, rel: null, timer: null};
     mkSetZoom(true, t0);
     mkHoldSt.timer = setInterval(upd, 50);
     upd();
