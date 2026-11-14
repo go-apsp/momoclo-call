@@ -38,7 +38,7 @@ gtag('config', 'G-00QSZME258');
 })();
 </script>
 <div id="app">
-    <button id="tryMakeOshiBand" type="button" data-a="startMk" style="position:fixed;top:0;left:0;right:0;z-index:60;width:100%;box-sizing:border-box;margin:0;padding:12px 14px;border:0;border-radius:0;background:rgba(255,121,184,.42);color:#fff;text-align:center;font-family:inherit;font-weight:900;font-size:16px;line-height:1.4;letter-spacing:.03em;box-shadow:0 3px 12px rgba(0,0,0,.20);cursor:pointer">推しコールを作ってみる</button>
+    <button id="tryMakeOshiBand" type="button" data-a="startMk" onclick="document.getElementById('mkModeContent').style.display='none'" style="position:fixed;top:0;left:0;right:0;z-index:60;width:100%;box-sizing:border-box;margin:0;padding:12px 14px;border:0;border-radius:0;background:rgba(255,121,184,.42);color:#fff;text-align:center;font-family:inherit;font-weight:900;font-size:16px;line-height:1.4;letter-spacing:.03em;box-shadow:0 3px 12px rgba(0,0,0,.20);cursor:pointer">推しコールを作ってみる</button>
 
     <div id="share">
     <a class="shBtn shX" href="https://twitter.com/intent/tweet?text=%E6%9C%AA%E5%AE%8C%E6%88%90%E3%81%AA%E3%82%B3%E3%83%BC%E3%83%AB%E3%82%A6%E3%82%A7%E3%83%96%E3%82%A2%E3%83%97%E3%83%AA%20%E8%A6%8B%E3%82%8B%E2%80%A6%EF%BC%9F&url=https%3A//go-apsp.github.io/momoclo-call/" target="_blank" rel="noopener">Xでシェア</a>
@@ -54,7 +54,7 @@ gtag('config', 'G-00QSZME258');
     </div>
     <div id="menu">
       <button data-a="openOv">みんなの<span style="color:var(--pink)">推し</span>コール</button>
-      <button id="mkbtn" data-a="startMk" style="display:none">推しコールを作る</button>
+      <button id="mkbtn" data-a="startMk" onclick="document.getElementById('mkModeContent').style.display='none'" style="display:none">推しコールを作る</button>
       <button id="oshibtn" data-a="editProf" style="display:none">推し・アイコンの変更</button>
       <button id="reviewBtn" data-a="review" style="display:none">感想の承認待ち</button>
       <button id="logout" data-a="logout" style="display:none">ログアウト</button>
@@ -132,9 +132,10 @@ gtag('config', 'G-00QSZME258');
     <button class="gstart" data-a="guideStart">ガイドモードで作成</button>
     <!-- build 64: 作成の2モード制。表示する操作UIは選択中のモード分だけ。切替えても作りかけのカードは保持される -->
     <div id="mkModeTabs" role="group" aria-label="作り方のモードを選ぶ">
-      <button type="button" class="mktab sel" data-a="mkMode" data-i="nori" data-mkmode="nori">♪ ノリノリながらモード</button>
-      <button type="button" class="mktab" data-a="mkMode" data-i="oki" data-mkmode="oki">お気に置きにいっちゃうモード</button>
+      <button type="button" class="mktab sel" data-a="mkMode" data-i="nori" data-mkmode="nori" onclick="document.getElementById('mkModeContent').style.display='flex'">♪ ノリノリながらモード</button>
+      <button type="button" class="mktab" data-a="mkMode" data-i="oki" data-mkmode="oki" onclick="document.getElementById('mkModeContent').style.display='flex'">お気に置きにいっちゃうモード</button>
     </div>
+    <div id="mkModeContent" style="display:none;flex-direction:column;gap:10px">
     <p id="mkModeDesc"></p>
     <div class="subctl">
       <button id="mkPlayBtn" data-a="play">▶ 再生</button>
