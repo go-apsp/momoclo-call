@@ -489,7 +489,7 @@ function paintMkBtn() {
     if (hint) hint.textContent = fmt(sc.t) + " のカードを選択中です。「長さ指定」を押すか、このボタンを長押しすると、その位置から再生して長さを決め直せます。シークバーのつまみや下の位置編集でも直せます。もう一度カードを押すと選択を終わります。";
   } else {
     b.textContent = "カード作成";
-    if (hint) hint.textContent = "再生しながらタップすると5秒のカード、長押しすると押している長さのカードができます(0.5〜20秒)。止まっている時は今の位置にできます。できたカードをタップすると中身や長さを直せます。";
+    if (hint) hint.textContent = "カード作成ボタンを押している間、タイムラインにカードの長さが表示されます。指を離すと、その長さでカードが確定します(0.5〜20秒)。";
   }
   paintMkPub();
 }
@@ -1951,9 +1951,7 @@ document.addEventListener("input", e => {
   kn.addEventListener("pointerup", end);
   kn.addEventListener("pointercancel", end);
 })();
-/* build 64: ノリノリながらモードのカード作成ボタン長押し。
-   短いタップ(0.25秒未満)は従来のクリック(mkMain: カード作成/長さ指定/ここで終わり)に任せ、長押しになった時だけこちらで処理し、続くクリックは mkHoldClickAt で握りつぶす。
-   長さ指定の計測中(mkLenPhase==="run")は長押しを無効にして、従来の「ここで終わり」タップだけが効くようにする */
+/* ノリノリながら：押している間だけタイムラインを表示し、指を離した時点で必ず新規カードを確定 */
 (function () {
   const btn = $("penbtn"); if (!btn) return;
   const drawPrev = () => {
@@ -1962,7 +1960,7 @@ document.addEventListener("input", e => {
     let el = $("mkTlPrev");
     if (!el) { el = document.createElement("div"); el.id = "mkTlPrev"; inner.appendChild(el); }
     const d = mkTlD();
-    const li = Math.max(0, MK_TL_KINDS.indexOf(h.rel ? h.rel.k : mk.type));
+    const li = Math.max(0, MK_TL_KINDS.indexOf(mk.type));
     el.style.left = (h.t0 / d * 100) + "%";
     el.style.width = Math.max(1.2, h.d / d * 100) + "%";
     el.style.top = (li * 23 + 2) + "px";
@@ -1970,30 +1968,24 @@ document.addEventListener("input", e => {
   };
   const upd = () => {
     const h = mkHoldSt; if (!h) return;
-    const el = (performance.now() - h.at) / 1000;
-    h.d = Math.min(20, Math.max(0.5, Math.round(el * 10) / 10));   // 実際に押していた時間(壁時計)で測るので、再生のもたつきに左右されない
+    const elapsed = (performance.now() - h.at) / 1000;
+    h.d = Math.min(20, Math.max(0.5, Math.round(elapsed * 10) / 10));
     drawPrev();
-    if (h.rel) { const pt = $("mkPosTime"); if (pt) pt.textContent = fmt(h.rel.t) + "〜" + fmt(h.rel.t + h.d); }
   };
-  const end = commit => {
+  const end = e => {
     const h = mkHoldSt; if (!h) return;
+    if (e && e.pointerId != null && h.pid != null && e.pointerId !== h.pid) return;
     mkHoldSt = null;
     clearInterval(h.timer);
-    const el = (performance.now() - h.at) / 1000;
+    const elapsed = (performance.now() - h.at) / 1000;
+    const d = Math.min(20, Math.max(0.5, Math.round(elapsed * 10) / 10));
     const pv = $("mkTlPrev"); if (pv) pv.remove();
     mkSetZoom(false);
-    // 短いタップ: 従来の働き(カード作成/長さ指定の開始)をここで直接実行する(ブラウザによって pointerdown の preventDefault で click が来ない場合があるため)。実行後に印を付け、続きで来るネイティブクリックは握りつぶす
-    if (el < 0.25) { if (commit) A.mkMain(); mkHoldClickAt = Date.now(); return; }
-    mkHoldClickAt = Date.now();   // 長押しとして処理したので、続くクリックは握りつぶす
-    if (h.rel) {   // 選択中カードの長さ決め直し: 0.3秒以上押した場合だけ確定(うっかり触れただけでは変えない)
-      if (commit && el >= 0.3) { h.rel.d = h.d; renderMk(); toast("「" + (h.rel.x || LAB[h.rel.k]) + "」の長さを " + h.d.toFixed(1) + " 秒に決め直しました"); guideEvent("lenDone"); }
-      else renderMk();
-      return;
-    }
-    if (!commit) return;
-    // 新規カード: 押した位置から、押していた長さで作る。種類・文言は「次に作るカード」の設定を使う
-    const sc = {t: h.t0, d: h.d, ...mkCardContent(mk.type, $("mkText").value.trim())};
-    mk.scenes.push(sc); mk.scenes.sort((a, b) => a.t - b.t);
+    mkHoldClickAt = Date.now();
+    // pointerup／pointercancelのどちらでも、押下が終わった時点でカードを確定する
+    const sc = {t: h.t0, d: d, ...mkCardContent(mk.type, $("mkText").value.trim())};
+    mk.scenes.push(sc);
+    mk.scenes.sort((a, b) => a.t - b.t);
     if (sc.x) $("mkText").value = "";
     renderMk();
     const L = $("mkList"); if (L) L.scrollTop = L.scrollHeight;
@@ -2001,20 +1993,24 @@ document.addEventListener("input", e => {
     guideEvent("card");
   };
   btn.addEventListener("pointerdown", e => {
-    if (screen !== "mk" || mkMode !== "nori" || mkLenPhase === "run") return;
+    if (screen !== "mk" || mkMode !== "nori") return;
+    if (mkHoldSt) return;
     e.preventDefault();
-    try { btn.setPointerCapture(e.pointerId); } catch (err) {}
-    const t0 = Math.round(clampT(now()) * 10) / 10;
-    // このボタンは常に新規カード作成。選択中カードの長さ編集には流用しない
+    // 選択中カードや旧「長さ指定」状態に左右されず、毎回新規カード作成にする
+    mkLenPhase = null;
     mkSel = -1; mkSelOrigT = null;
     renderMk();
-    mkHoldSt = {t0: t0, at: performance.now(), d: 0.5, rel: null, timer: null};
+    const t0 = Math.round(clampT(now()) * 10) / 10;
+    mkHoldSt = {pid: e.pointerId, t0: t0, at: performance.now(), d: 0.5, timer: null};
+    try { btn.setPointerCapture(e.pointerId); } catch (err) {}
     mkSetZoom(true, t0);
     mkHoldSt.timer = setInterval(upd, 50);
     upd();
   });
-  btn.addEventListener("pointerup", () => end(true));
-  btn.addEventListener("pointercancel", () => end(false));
+  // windowで受けることで、指がボタンの外へ動いた場合も終了操作を取りこぼさない
+  window.addEventListener("pointerup", end, true);
+  // ブラウザ側の割り込みでpointercancelになった場合も、押下終了としてカードを確定する
+  window.addEventListener("pointercancel", end, true);
   btn.addEventListener("contextmenu", e => e.preventDefault());
 })();
 /* build 64: タイムラインのバーをタップ → そのカードを選択(選ぶと、その位置から再生が始まる)。すでに選択中のバーは、もう一度その位置から再生し直す */
