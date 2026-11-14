@@ -698,14 +698,21 @@ gtag('config', 'G-00QSZME258');
 <script id="indexp-guest-walkthrough-script">
 (function () {
   var started = false;
+  var hintSeenKey = "momo_indexp_guest_ref_hint_seen_v1";
   function startGuestWalkthrough() {
     if (started) return;
+    // 参考コール案内は初回だけ表示。別ページから戻った場合や再読み込みでは出さない。
+    try {
+      if (localStorage.getItem(hintSeenKey) === "1") return;
+    } catch (e) {}
+
     var tryBtn = document.getElementById("trybtn");
     var play = document.getElementById("play");
     var row = play && play.closest(".playrow");
     if (!tryBtn || !play || !row) return;
     if (getComputedStyle(tryBtn).display === "none") return;
     started = true;
+    try { localStorage.setItem(hintSeenKey, "1"); } catch (e) {}
 
     var hint = document.createElement("button");
     hint.type = "button";
