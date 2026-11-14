@@ -461,6 +461,7 @@ function paintPvBtn() { const b = $("mkPvBtn"); if (b) b.textContent = mkPv ? "ã
 function setScreen(name) {
   screen = name;
   document.body.classList.toggle("scr-mk", name === "mk");
+  const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = name === "mk" ? "none" : "";
   document.body.classList.toggle("scr-sp", name === "sp");
   $("mk").style.display = name === "mk" ? "flex" : "none";
   $("spPanel").style.display = name === "sp" ? "flex" : "none";
