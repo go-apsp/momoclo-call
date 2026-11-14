@@ -1001,6 +1001,7 @@ gtag('config', 'G-00QSZME258');
       if (nori) {
         if (!controls.isConnected) {
           move(mkCreate,mainRow);
+          move(oldPlay,seekRow);
           seekButtons.forEach(b => move(b,seekRow));
           const anchor = mkTlBox.nextSibling;
           mvwrap.parentNode.insertBefore(controls,anchor);
