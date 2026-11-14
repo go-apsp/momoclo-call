@@ -69,20 +69,6 @@ gtag('config', 'G-00QSZME258');
     <button id="bigCallBtn" class="modebtn" data-a="bigCall">コール大きく</button>
     <button id="tlFsBtn" class="modebtn" data-a="tlNow">タイムライン全画面</button>
   </div>
-  <section id="mk">
-    <h2>推しコールを作る <span class="mkmode">作成画面</span></h2>
-    <button class="gstart" data-a="guideStart">ガイドモードで作成</button>
-    <!-- build 64: 作成の2モード制。表示する操作UIは選択中のモード分だけ。切替えても作りかけのカードは保持される -->
-    <div id="mkModeTabs" role="group" aria-label="作り方のモードを選ぶ">
-      <button type="button" class="mktab sel" data-a="mkMode" data-i="nori" data-mkmode="nori">♪ ノリノリながらモード</button>
-      <button type="button" class="mktab" data-a="mkMode" data-i="oki" data-mkmode="oki">お気に置きにいっちゃうモード</button>
-    </div>
-    <p id="mkModeDesc"></p>
-    <div class="subctl">
-      <button id="mkPlayBtn" data-a="play">▶ 再生</button>
-      <button class="ratebtn" data-a="rate">速度 1倍</button>
-    </div>
-    <!-- build 64: 拡大タイムライン。ドラッグ中・長押し中は約30秒表示になり、画面下部に浮いて出続けます(元の位置には同じ高さの空きを残します) -->
   <div id="mvwrap">
   <div id="mv">
     <div id="yt"></div>
@@ -124,6 +110,37 @@ gtag('config', 'G-00QSZME258');
     <button class="skb" data-a="pseek" data-i="10">+10秒</button>
     <button class="skb" data-a="pseek" data-i="30">+30秒</button>
   </div>
+  <div id="pEv"></div>
+  <div id="spPanel" style="display:none">
+    <div class="spHead"><b>シェアポイント作成</b></div>
+    <button class="gstart" data-a="guideStartSp">ガイドモードで作成</button>
+    <div class="spFor" id="spFor"></div>
+    <div class="subctl">
+      <button id="spPlayBtn" data-a="play">▶ 再生</button>
+      <button class="ratebtn" data-a="rate">速度 1倍</button>
+    </div>
+    <button id="spStep" data-a="spStep">ここを始点にする</button>
+    <div class="spValsLine">始点 <b id="spAv">0:00</b> 〜 終点 <b id="spBv">0:30</b></div>
+    <input type="hidden" id="spA" value="0">
+    <input type="hidden" id="spB" value="30">
+    <div id="spResult"></div>
+    <button class="switchbtn" data-a="spClose">もどる</button>
+  </div>
+
+  <section id="mk">
+    <h2>推しコールを作る <span class="mkmode">作成画面</span></h2>
+    <button class="gstart" data-a="guideStart">ガイドモードで作成</button>
+    <!-- build 64: 作成の2モード制。表示する操作UIは選択中のモード分だけ。切替えても作りかけのカードは保持される -->
+    <div id="mkModeTabs" role="group" aria-label="作り方のモードを選ぶ">
+      <button type="button" class="mktab sel" data-a="mkMode" data-i="nori" data-mkmode="nori">♪ ノリノリながらモード</button>
+      <button type="button" class="mktab" data-a="mkMode" data-i="oki" data-mkmode="oki">お気に置きにいっちゃうモード</button>
+    </div>
+    <p id="mkModeDesc"></p>
+    <div class="subctl">
+      <button id="mkPlayBtn" data-a="play">▶ 再生</button>
+      <button class="ratebtn" data-a="rate">速度 1倍</button>
+    </div>
+    <!-- build 64: 拡大タイムライン。ドラッグ中・長押し中は約30秒表示になり、画面下部に浮いて出続けます(元の位置には同じ高さの空きを残します) -->
     <div id="mkTlBox">
       <div class="mktl-head"><span>タイムライン</span><span id="mkTlMode">全体表示</span><span id="mkTlPos"></span></div>
       <div id="mkTlView">
@@ -133,7 +150,7 @@ gtag('config', 'G-00QSZME258');
       <p class="mktl-note" id="mkTlNote">長押ししている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。打ったカードの開始〜終了も表示されます。</p>
     </div>
     <div class="mknori" id="mkBigWrap">
-      <button id="mkCreate" data-a="mkMain" style="display:none">カード作成</button>
+      <button id="mkCreate" data-a="mkMain">カード作成</button>
       <div id="mkHint">再生しながら押すと、その位置にカードができます(長さは仮の5秒)。できたカードをタップすると中身や長さを直せます。</div>
     </div>
     <!-- build 64: お気に置きにいっちゃうモード。プリセットチップか「つかむ」を押さえて左右へ動かすと、シーク連動スクラブで置く場所を探ります -->
@@ -195,23 +212,6 @@ gtag('config', 'G-00QSZME258');
 
   <button id="ovbtn" data-a="openOv">みんなの<span>推し</span>コール</button>
   <button id="trybtn" data-a="guideStart" style="display:none">推しコールを作ってみる</button>
-  <div id="pEv"></div>
-  <div id="spPanel" style="display:none">
-    <div class="spHead"><b>シェアポイント作成</b></div>
-    <button class="gstart" data-a="guideStartSp">ガイドモードで作成</button>
-    <div class="spFor" id="spFor"></div>
-    <div class="subctl">
-      <button id="spPlayBtn" data-a="play">▶ 再生</button>
-      <button class="ratebtn" data-a="rate">速度 1倍</button>
-    </div>
-    <button id="spStep" data-a="spStep">ここを始点にする</button>
-    <div class="spValsLine">始点 <b id="spAv">0:00</b> 〜 終点 <b id="spBv">0:30</b></div>
-    <input type="hidden" id="spA" value="0">
-    <input type="hidden" id="spB" value="30">
-    <div id="spResult"></div>
-    <button class="switchbtn" data-a="spClose">もどる</button>
-  </div>
-
   <div id="info"></div>
   <button id="mkvBtn" data-a="mkv">ももクリDelivery特集<span class="newStamp">NEW</span></button>
   <div id="freearea"></div>
