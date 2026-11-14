@@ -649,8 +649,10 @@ function mkTlApplyView() {
 function mkTlSetFloat(on) {
   const box = $("mkTlBox"); if (!box) return;
   if (on) {
+    // タイムラインを浮かべるのは、ノリノリながらモードの新規カード長押し中だけ
+    if (screen !== "mk" || mkMode !== "nori" || !mkHoldSt) return;
     box.classList.add("tlfloat");
-    requestAnimationFrame(() => { if (mkHoldSt) box.classList.add("tlshow"); });
+    requestAnimationFrame(() => { if (mkHoldSt && screen === "mk" && mkMode === "nori") box.classList.add("tlshow"); });
   } else {
     box.classList.remove("tlshow", "tlfloat");
   }
