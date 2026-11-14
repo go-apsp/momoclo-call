@@ -131,10 +131,6 @@ gtag('config', 'G-00QSZME258');
     <h2>推しコールを作る <span class="mkmode">作成画面</span></h2>
     <button class="gstart" data-a="guideStart">ガイドモードで作成</button>
     <!-- build 64: 作成の2モード制。表示する操作UIは選択中のモード分だけ。切替えても作りかけのカードは保持される -->
-    <div id="mkModeTabs" role="group" aria-label="作り方のモードを選ぶ">
-      <button type="button" class="mktab sel" data-a="mkMode" data-i="nori" data-mkmode="nori" onclick="document.getElementById('mkModeContent').style.display='flex'">♪ ノリノリながらモード</button>
-      <button type="button" class="mktab" data-a="mkMode" data-i="oki" data-mkmode="oki" onclick="document.getElementById('mkModeContent').style.display='flex'">お気に置きにいっちゃうモード</button>
-    </div>
     <div id="mkModeContent" style="display:none;flex-direction:column;gap:10px">
     <p id="mkModeDesc"></p>
     <div class="subctl">
@@ -476,10 +472,12 @@ gtag('config', 'G-00QSZME258');
 
 <div id="mkDrawer">
   <div id="mkDrawerBody">
-    <div class="drwBtns"><button class="drwBtn" data-a="psOpen">プリセットコール</button></div>
-    <div id="psList" style="display:none"></div>
+    <div id="mkModeTabs" role="group" aria-label="作り方のモードを選ぶ">
+      <button type="button" class="mktab sel" data-a="mkMode" data-i="nori" data-mkmode="nori" onclick="document.getElementById('mkModeContent').style.display='flex';document.getElementById('mkDrawer').classList.remove('open');document.getElementById('mkDrawerBar').setAttribute('aria-expanded','false')">♪ ノリノリながらモード</button>
+      <button type="button" class="mktab" data-a="mkMode" data-i="oki" data-mkmode="oki" onclick="document.getElementById('mkModeContent').style.display='flex';document.getElementById('mkDrawer').classList.remove('open');document.getElementById('mkDrawerBar').setAttribute('aria-expanded','false')">お気に置きにいっちゃうモード</button>
+    </div>
   </div>
-  <button id="mkDrawerBar" data-a="psDrawer" aria-expanded="false">ツール<span class="drwHint">タップで開く</span></button>
+  <button id="mkDrawerBar" data-a="psDrawer" aria-expanded="false">作成モード<span class="drwHint">タップして開く</span></button>
 </div>
 
 <!-- build 62: ウェルカムカード(トップを開いたとき最上レイヤーに表示) -->
