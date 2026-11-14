@@ -365,7 +365,7 @@ async function loadCalls() {
 function applyRef(c) {
   wakuHold = null;
   refPlay = true; randPlay = false; act = null; curRef = c; sess = null; paintApply();
-  EV = c.scenes.map(x => ({...x})).sort((a, b) => a.t - b.t);
+  EV = mkPlaybackScenes(c.scenes).map(x => ({...x})).sort((a, b) => a.t - b.t);
   $("who").innerHTML = '<div class="st">♪ ' + esc(SONGS[si].title) + '</div><div class="wn">参考コール' + (c.versionName ? "<i>" + esc(c.versionName) + "</i>" : "") + "</div>";
   $("info").textContent = "";
   $("panelbody").innerHTML = "参考コールで再生中です";
@@ -376,9 +376,9 @@ function applyAct() {
   wakuHold = null;
   curRef = null;
   const c = calls.find(x => x.id === act);
-  EV = c ? c.scenes.map(x => ({...x, mine: !!me && c.ownerUid === me.uid})).sort((a, b) => a.t - b.t) : [];
+  EV = c ? mkPlaybackScenes(c.scenes).map(x => ({...x, mine: !!me && c.ownerUid === me.uid})).sort((a, b) => a.t - b.t) : [];
   UI.who(SONGS[si].title, c ? c.ownerName : "", c ? c.versionName : "", isAuthorLinkable(c));   // build 63: ゲスト作のときは「この作者の他の推しコール」ボタンを出さない
-  $("info").textContent = c ? "" : "まだ推しコールがありません。ログインして作ってみましょう";
+  $("info").textContent = c ? (EV.length ? "" : "配置済みのカードはまだありません") : "まだ推しコールがありません。ログインして作ってみましょう";
   UI.total(calls.filter(x => x.public).reduce((n, x) => n + (x.used || 0), 0)); $("panelbody").innerHTML = UI.panel(c);
   if (act && act !== evFor) { evFor = act; if (!cmts[act]) loadCmts(act).then(() => renderPEv()); }
   renderPEv();
@@ -471,7 +471,42 @@ setInterval(() => { if (me && prof) checkPending(true); }, 60000);
 
 /* ---------- 作成(build 58: 再生画面のまま切り替える制作モード) ---------- */
 /* ---------- 作成(build 59: 画面切り替え式の作成画面。プレイヤーは移動しない) ---------- */
-function renderMk() { $("mkList").innerHTML = UI.mkCards(mk.scenes, mkSel); paintMkBtn(); paintKnob(); paintPosEdit(); renderMkTl(); applyGuide(); }
+function mkIsPlaced(sc) { return !!sc && sc.placed !== false && sc.t !== null && sc.t !== undefined && Number.isFinite(Number(sc.t)); }
+function mkPlaybackScenes(scenes) { return (scenes || []).filter(mkIsPlaced); }
+function mkSortScenes() {
+  mk.scenes.sort((a, b) => {
+    const ap = mkIsPlaced(a), bp = mkIsPlaced(b);
+    if (ap !== bp) return ap ? -1 : 1;
+    if (!ap) return 0;
+    return Number(a.t) - Number(b.t);
+  });
+}
+function mkCardsHtml(scenes, sel) {
+  if (!scenes.length) return '<div style="font-size:12px;color:var(--mut);padding:8px 2px">まだカードがありません。カード作成ボタンから内容を作成できます。</div>';
+  const entries = scenes.map((e, i) => ({e, i}));
+  const placed = entries.filter(o => mkIsPlaced(o.e));
+  const unplaced = entries.filter(o => !mkIsPlaced(o.e));
+  const card = o => {
+    const e = o.e, i = o.i, isPlaced = mkIsPlaced(e);
+    return '<div class="mkcard' + (i === sel ? " sel" : "") + (!isPlaced ? " mkcard-unplaced" : "") + '">'
+      + '<button class="mkpick' + (!isPlaced ? " mk-unplaced-drag" : "") + '" data-a="mkPick" data-i="' + i + '"' + (!isPlaced ? ' title="押さえてタイムラインへドラッグして配置"' : '') + '>'
+      + '<span class="mkt">' + (isPlaced ? fmt(e.t) : "未配置") + '</span><span class="mkk">' + LAB[e.k] + '</span><span class="mkx">' + esc(e.x) + '</span><span class="mkd">' + (isPlaced ? e.d + "秒" : "ドラッグして配置") + '</span></button>'
+      + '<button class="mkdel" aria-label="削除" data-a="delScene" data-i="' + i + '">×</button></div>';
+  };
+  return (placed.length ? '<div style="font-size:11px;color:var(--mut);padding:5px 2px 2px">配置済み（曲時間順）</div>' + placed.map(card).join("") : "")
+    + (unplaced.length ? '<div style="font-size:11px;color:var(--mut);padding:8px 2px 2px">未配置（作成順）</div>' + unplaced.map(card).join("") : "");
+}
+function renderMk() {
+  const list = $("mkList");
+  list.innerHTML = mkCardsHtml(mk.scenes, mkSel);
+  list.querySelectorAll(".mk-unplaced-drag").forEach(el => {
+    mkBindScr(el, () => {
+      const sc = mk.scenes[+el.dataset.i];
+      return sc && !mkIsPlaced(sc) ? {k: sc.k, x: sc.x, scene: sc} : null;
+    }, false);
+  });
+  paintMkBtn(); paintKnob(); paintPosEdit(); renderMkTl(); applyGuide();
+}
 function paintPvBtn() { const b = $("mkPvBtn"); if (b) b.textContent = mkPv ? "プレビューを止める" : "プレビュー"; }
 /* 画面切替: プレイヤー(#mvwrap・iframe)はDOM上で一切動かさず、他のUIの表示/非表示だけで切り替える */
 function setScreen(name) {
@@ -489,7 +524,7 @@ function paintMkPub() { const b = $("mkPubBtn"); if (b) b.textContent = mkPub ? 
 function paintMkBtn() {
   const b = $("mkCreate"); if (!b) return;
   const hint = $("mkHint");
-  const ed = $("mkEdit"); if (ed) ed.style.display = (mkSel >= 0 && mk.scenes[mkSel]) ? "flex" : "none";
+  const ed = $("mkEdit"); if (ed) ed.style.display = (mkSel >= 0 && mkIsPlaced(mk.scenes[mkSel])) ? "flex" : "none";
   b.classList.remove("go", "edit");
   if (mkLenPhase === "run" && mkSel >= 0 && mk.scenes[mkSel]) {
     b.textContent = "ここで終わり"; b.classList.add("go");
@@ -624,7 +659,7 @@ function setMkMode(m) {
 /* ---------- build 64: 選択中カードの位置編集パネルと、種類・文言の適用先の表示 ---------- */
 function paintPosEdit() {
   const box = $("mkPosEdit"); if (!box) return;
-  const sc = (mkSel >= 0 && mk.scenes[mkSel]) ? mk.scenes[mkSel] : null;
+  const sc = (mkSel >= 0 && mkIsPlaced(mk.scenes[mkSel])) ? mk.scenes[mkSel] : null;
   const note = $("mkApplyNote");
   if (note) note.textContent = sc
     ? "いま選択中のカード「" + (sc.x || LAB[sc.k]) + "」を編集中です。種類ボタン・文言の入力・プリセットは、このカードに適用されます。"
@@ -652,7 +687,7 @@ function renderMkTl() {
   const d = mkTlD();
   let html = "";
   MK_TL_KINDS.forEach(k => {
-    const bars = mk.scenes.filter(s => s.k === k).map(s => {
+    const bars = mk.scenes.filter(s => mkIsPlaced(s) && s.k === k).map(s => {
       const l = Math.max(0, s.t / d * 100), w = Math.max(0.8, s.d / d * 100), idx = mk.scenes.indexOf(s), sel2 = idx === mkSel;
       return '<div class="mktl-bar mb-' + k + (sel2 ? " selb2" : "") + '" data-mksel="' + idx + '" style="left:' + l + '%;width:' + w + '%" title="' + fmt(s.t) + "〜" + fmt(s.t + s.d) + " " + LAB[k] + " " + esc(s.x) + '"><span>' + fmt(s.t) + "〜" + fmt(s.t + s.d) + " " + esc(s.x) + "</span></div>";
     }).join("");
@@ -700,7 +735,8 @@ function mkTlSetFloat(on) {
   const box = $("mkTlBox"); if (!box) return;
   if (on) {
     // タイムラインを浮かべるのは、ノリノリながらモードの新規カード長押し中だけ
-    if (screen !== "mk" || mkMode !== "nori" || !mkHoldSt) return;
+    const canFloat = screen === "mk" && (mkMode === "nori" ? !!mkHoldSt : !!(mkScrSt && mkScrSt.active));
+    if (!canFloat) return;
     box.classList.add("tlfloat");
     requestAnimationFrame(() => { if (mkHoldSt && screen === "mk" && mkMode === "nori") box.classList.add("tlshow"); });
   } else {
@@ -725,7 +761,7 @@ function mkBandAbs(clientX) {
   r = Math.max(0, Math.min(1, r));
   return r * mkTlD();
 }
-let mkGhost = null;
+let mkGhost = null, mkSuppressPickUntil = 0;
 function mkGhostEl() { if (!mkGhost) { mkGhost = document.createElement("div"); mkGhost.id = "dragGhost"; document.body.appendChild(mkGhost); } return mkGhost; }
 function mkShowGhost(e, src, t) {
   const g = mkGhostEl();
@@ -781,11 +817,20 @@ function mkScrEnd(commit, upX) {
     if (commit) {
       if (upX != null) sc.target = mkBandAbs(upX);
       const t = Math.max(0, Math.min(mkTlD() - 0.5, Math.round(sc.target * 10) / 10));
-      const nc = {t: t, d: 5, ...mkCardContent(sc.src.k, sc.src.x)};   // 置いたカードの長さは仮の5秒(本番の作り方に合わせる。後から長さ指定で直せる)
-      mk.scenes.push(nc); mk.scenes.sort((a, b) => a.t - b.t);
-      if (sc.src.grip) $("mkText").value = "";
-      renderMk();
-      toast("「" + (nc.x || LAB[nc.k]) + "」を " + fmt(t) + " に置きました");
+      if (sc.src.scene && mk.scenes.includes(sc.src.scene)) {
+        const target = sc.src.scene;
+        target.t = t; target.placed = true;
+        mkSortScenes(); mkSel = mk.scenes.indexOf(target); mkSelOrigT = target.t;
+        mkSuppressPickUntil = Date.now() + 650;
+        renderMk();
+        toast("「" + (target.x || LAB[target.k]) + "」を " + fmt(t) + " に配置しました");
+      } else {
+        const nc = {t: t, d: 5, placed: true, ...mkCardContent(sc.src.k, sc.src.x)};
+        mk.scenes.push(nc); mkSortScenes();
+        if (sc.src.grip) $("mkText").value = "";
+        renderMk();
+        toast("「" + (nc.x || LAB[nc.k]) + "」を " + fmt(t) + " に置きました");
+      }
       guideEvent("drop");
     }
     return;
@@ -1159,7 +1204,7 @@ async function openSpPage(id, a, b) {
     return;
   }
   const sg = SONGS.find(s => s.vid === c.videoId);
-  const sc = (c.scenes || []).filter(s => s.t + s.d > a && s.t < b).sort((x, y) => x.t - y.t);
+  const sc = mkPlaybackScenes(c.scenes).filter(s => s.t + s.d > a && s.t < b).sort((x, y) => x.t - y.t);
   body.innerHTML = '<div class="spPgT">♪ ' + esc(sg ? sg.title : "") + "</div>"
     + '<div class="spPgMeta">' + esc(c.ownerName) + "さんの推しコール" + (c.versionName ? " 「" + esc(c.versionName) + "」" : "") + "<br>範囲: " + fmt(a) + " 〜 " + fmt(b) + "</div>"
     + '<div id="spAutoNote" class="spPgMeta" style="display:none">自動再生中です。音が出ない場合は、画面をどこかタップしてください</div>'
@@ -1274,12 +1319,23 @@ function confirmMkContent() {
   if (mkContentTarget) {
     mkContentTarget.x = mkContentDraftText;
     mkContentTarget.k = mkContentDraftType;
-    renderMk();
+  } else if (screen === "mk" && mkMode === "oki") {
+    const sc = {t: null, d: 5, placed: false, ...mkCardContent(mkContentDraftType, mkContentDraftText)};
+    mk.scenes.push(sc);
+    mkSortScenes();
+    mkSel = -1; mkSelOrigT = null;
+    $("mkText").value = "";
   }
   closeMkContentPanel();
+  renderMk();
+  if (!mkContentTarget && mkMode === "oki") {
+    const list = $("mkList"); if (list) list.scrollTop = list.scrollHeight;
+    toast("未配置カードを作成しました。カードを押さえてタイムラインへドラッグすると配置できます");
+  } else {
+    toast("カードの内容を設定しました");
+  }
   guideEvent("text");
   guideEvent("type");
-  toast("カードの内容を設定しました");
 }
 
 const A = {
@@ -1483,10 +1539,10 @@ const A = {
   },
   apply: () => { if (sess) saveWaku(sess); },
   pickIcon: i => { pickI = +i; UI.sheetIcons(pickI); },
-  tl: id => { const c = calls.find(x => x.id === id); if (!c) return; tlId = id; tlZoom = false; tlD = Math.max(dur() || 0, c.scenes.reduce((m, s) => Math.max(m, s.t + s.d), 0), 1); $("tlBody").innerHTML = UI.timeline(c, tlD, false); $("tlov").style.display = "block"; },
-  tlZoom: () => { const sc = mkPv ? mkPv.scenes : EV; const c = tlId === "__cur__" ? {id: "__cur__", ownerName: refPlay ? "参考コール" : randPlay ? "ランダム再生" : "プレビュー", versionName: (curRef && curRef.versionName) || "", scenes: sc} : calls.find(x => x.id === tlId); if (!c) return; tlZoom = !tlZoom; $("tlBody").innerHTML = UI.timeline(c, tlD, tlZoom); },
+  tl: id => { const raw = calls.find(x => x.id === id); if (!raw) return; const c = {...raw, scenes: mkPlaybackScenes(raw.scenes)}; if (!c.scenes.length) return toast("この推しコールには配置済みカードがありません"); tlId = id; tlZoom = false; tlD = Math.max(dur() || 0, c.scenes.reduce((m, s) => Math.max(m, s.t + s.d), 0), 1); $("tlBody").innerHTML = UI.timeline(c, tlD, false); $("tlov").style.display = "block"; },
+  tlZoom: () => { const sc = mkPv ? mkPv.scenes : EV; const raw = tlId === "__cur__" ? {id: "__cur__", ownerName: refPlay ? "参考コール" : randPlay ? "ランダム再生" : "プレビュー", versionName: (curRef && curRef.versionName) || "", scenes: sc} : calls.find(x => x.id === tlId); const c = raw ? {...raw, scenes: mkPlaybackScenes(raw.scenes)} : null; if (!c) return; tlZoom = !tlZoom; $("tlBody").innerHTML = UI.timeline(c, tlD, tlZoom); },
   closeTl: () => { $("tlov").style.display = "none"; tlId = null; tlZoom = false; },
-  tlMark: i => { const sc = mkPv ? mkPv.scenes : EV; const c = tlId === "__cur__" ? {scenes: sc} : calls.find(x => x.id === tlId); if (!c || !c.scenes) return; const s2 = c.scenes[+i]; if (s2) $("tlInfo").textContent = fmt(s2.t) + " " + LAB[s2.k] + " 「" + s2.x + "」"; },
+  tlMark: i => { const sc = mkPv ? mkPv.scenes : EV; const raw = tlId === "__cur__" ? {scenes: sc} : calls.find(x => x.id === tlId); const c = raw ? {...raw, scenes: mkPlaybackScenes(raw.scenes)} : null; if (!c || !c.scenes) return; const s2 = c.scenes[+i]; if (s2) $("tlInfo").textContent = fmt(s2.t) + " " + LAB[s2.k] + " 「" + s2.x + "」"; },
   refcall: async () => {
     A.closeOv();
     try { const snap = await getDocs(query(collection(db, "refs"), where("videoId", "==", VID))); refCalls = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(r => r.draft !== true); }
@@ -1506,7 +1562,7 @@ const A = {
     const pubs = calls.filter(c => c.public);
     if (!pubs.length) return toast("公開中の推しコールがまだありません");
     const byT = new Map();
-    pubs.forEach(c => (c.scenes || []).forEach(sc => { const k = Math.round(sc.t); if (!byT.has(k)) byT.set(k, []); byT.get(k).push(sc); }));
+    pubs.forEach(c => mkPlaybackScenes(c.scenes).forEach(sc => { const k = Math.round(sc.t); if (!byT.has(k)) byT.set(k, []); byT.get(k).push(sc); }));
     const scenes = [...byT.keys()].sort((a, b) => a - b).map(t => { const arr = byT.get(t); return {...arr[Math.floor(Math.random() * arr.length)], t}; });
     if (!scenes.length) return toast("場面がまだありません");
     randPlay = true; refPlay = false; act = null; curRef = null; sess = null; paintApply();
@@ -1640,7 +1696,7 @@ const A = {
   mkContentChoose: i => { if (["call","sing","koko"].includes(i)) { mkContentDraftType = i; paintMkContentPanel(); } },
   mkContentBack: () => { mkContentStep = 1; paintMkContentPanel(); },
   mkContentConfirm: () => confirmMkContent(),
-  mkContentCancel: () => closeMkContentPanel(),
+  mkContentCancel: () => { const target = mkContentTarget; closeMkContentPanel(); if (target && target.placed === false) { mkSel = -1; mkSelOrigT = null; renderMk(); } },
   mkMain: () => {
     if (Date.now() - mkHoldClickAt < 500) return;   // build 64: 長押しで処理済みのクリックは握りつぶす(二重作成・二重の長さ指定を防ぐ)
     if (mkLenPhase === "run") {   // 長さ指定の決定: 今の再生位置で、選択中カードの長さが決まる
@@ -1666,9 +1722,9 @@ const A = {
     }
     // カード作成: 再生中でも停止中でも、今の位置に仮の長さ5秒で1枚作る。種類・文言は「次に作るカード」の設定(種類ボタン・入力欄)を使う(build 64: 仕様5)
     const t = Math.round(clampT(now()));
-    const sc = {t: t, d: 5, ...mkCardContent(mk.type, $("mkText").value.trim())};
+    const sc = {t: t, d: 5, placed: true, ...mkCardContent(mk.type, $("mkText").value.trim())};
     mk.scenes.push(sc);
-    mk.scenes.sort((a, b) => a.t - b.t);
+    mkSortScenes();
     if (sc.x) $("mkText").value = "";
     renderMk();
     const L = $("mkList"); if (L) L.scrollTop = L.scrollHeight;
@@ -1712,8 +1768,14 @@ const A = {
 
   /* build 58: 埋め込みパネルのカードをタップ → そのカードの中身を編集(もう一度タップで終了) */
   mkPick: i => {
+    if (Date.now() < mkSuppressPickUntil) return;
     i = +i;
     const sc = mk.scenes[i]; if (!sc) return;
+    if (mkMode === "oki" && sc.placed === false) {
+      mkSel = i; mkLenPhase = null; mkSelOrigT = null;
+      openMkContentPanel(sc);
+      return;
+    }
     if (mkMode === "nori") {
       mkSel = i;
       mkLenPhase = null;
@@ -1738,7 +1800,7 @@ const A = {
     const D = Math.max(dur() || 0, 1);
     let v = Math.round(now() * 10) / 10;
     v = Math.max(0, Math.min(Math.max(0, D - sc.d), v));
-    if (v !== sc.t) { sc.t = v; mk.scenes.sort((a, b) => a.t - b.t); mkSel = mk.scenes.indexOf(sc); renderMk(); }
+    if (v !== sc.t) { sc.t = v; mkSortScenes(); mkSel = mk.scenes.indexOf(sc); renderMk(); }
     toast("「" + (sc.x || LAB[sc.k]) + "」を今の再生位置(" + fmt(sc.t) + ")へ持ってきました");
     guideEvent("tweak");
   },
@@ -1746,7 +1808,7 @@ const A = {
     const sc = mk.scenes[mkSel]; if (!sc || mkSelOrigT == null) return;
     const D = Math.max(dur() || 0, 1);
     let v = Math.max(0, Math.min(Math.max(0, D - sc.d), mkSelOrigT));
-    if (v !== sc.t) { sc.t = v; mk.scenes.sort((a, b) => a.t - b.t); mkSel = mk.scenes.indexOf(sc); renderMk(); }
+    if (v !== sc.t) { sc.t = v; mkSortScenes(); mkSel = mk.scenes.indexOf(sc); renderMk(); }
     if (playerReady()) { playerSeek(sc.t); playerPlay(); }
     toast("選んだときの位置(" + fmt(mkSelOrigT) + ")に戻しました");
     guideEvent("tweak");
@@ -1785,21 +1847,23 @@ const A = {
   },
   addScene: () => {   // 旧UIの「この位置に追加」用(build 58で要素は廃止。新方式は mkMain。互換のため残す)
     const durEl = $("mkDur");
-    mk.scenes.push({t: Math.round(clampT(now())), d: (durEl ? parseFloat(durEl.value) : NaN) || 6, ...mkCardContent(mk.type, $("mkText").value.trim() || LAB[mk.type])});
-    mk.scenes.sort((a, b) => a.t - b.t); $("mkText").value = ""; renderMk();
+    mk.scenes.push({t: Math.round(clampT(now())), d: (durEl ? parseFloat(durEl.value) : NaN) || 6, placed: true, ...mkCardContent(mk.type, $("mkText").value.trim() || LAB[mk.type])});
+    mkSortScenes(); $("mkText").value = ""; renderMk();
   },
   pvScene: i => {
     const sc = mk.scenes[+i]; if (!sc) return;
+    if (!mkIsPlaced(sc)) return toast("未配置カードは、タイムラインに配置してからプレビューできます");
     if (!playerReady()) return toast(spMode ? "Spotifyプレイヤーの準備ができていません" : "動画の準備ができていません");
-    mkPv = {scenes: mk.scenes.map(x => ({...x})), until: sc.t + sc.d + 3};
+    mkPv = {scenes: mkPlaybackScenes(mk.scenes).map(x => ({...x})), until: sc.t + sc.d + 3};
     playerSeek(sc.t); playerPlay();
     $("mv").scrollIntoView({behavior: "smooth"});
     toast("場面のプレビュー中(" + fmt(sc.t) + "〜" + fmt(sc.t + sc.d + 3) + ")");
   },
   pvAll: () => {
-    if (!mk.scenes.length) return toast("場面を追加してください");
+    const sorted = mkPlaybackScenes(mk.scenes).map(x => ({...x})).sort((a, b) => a.t - b.t);
+    if (!sorted.length) return toast("プレビューできる配置済みカードがありません");
     if (!playerReady()) return toast(spMode ? "Spotifyプレイヤーの準備ができていません" : "動画の準備ができていません");
-    const sorted = mk.scenes.map(x => ({...x})).sort((a, b) => a.t - b.t), first = sorted[0], lastS = sorted[sorted.length - 1];
+    const first = sorted[0], lastS = sorted[sorted.length - 1];
     mkPv = {scenes: sorted, until: lastS.t + lastS.d + 3};
     playerSeek(first.t); playerPlay();
     $("mv").scrollIntoView({behavior: "smooth"});
@@ -1812,7 +1876,7 @@ const A = {
     const D = Math.max(dur() || 0, 1);
     let t = Math.round((sc.t + parseFloat(dt)) * 10) / 10;
     t = Math.max(0, Math.min(Math.max(0, D - sc.d), t));
-    if (t !== sc.t) { sc.t = t; mk.scenes.sort((a, b) => a.t - b.t); mkSel = mk.scenes.indexOf(sc); renderMk(); }
+    if (t !== sc.t) { sc.t = t; mkSortScenes(); mkSel = mk.scenes.indexOf(sc); renderMk(); }
     guideEvent("fine");
   },
   /* build 62: プレビュー(トグル式)。作りかけのカード群を再生画面と同じ見え方で通し再生し、止めても編集状態は保持される */
@@ -2015,7 +2079,7 @@ document.addEventListener("input", e => {
     t = Math.max(0, Math.min(Math.max(0, D - sc.d), t));
     if (t === sc.t) return;
     sc.t = t;
-    mk.scenes.sort((a, b) => a.t - b.t);
+    mkSortScenes();
     mkSel = mk.scenes.indexOf(sc);
     renderMk();
   };
@@ -2057,9 +2121,9 @@ document.addEventListener("input", e => {
     mkSetZoom(false);
     mkHoldClickAt = Date.now();
     // pointerup／pointercancelのどちらでも、押下が終わった時点でカードを確定する
-    const sc = {t: h.t0, d: d, ...mkCardContent(mk.type, $("mkText").value.trim())};
+    const sc = {t: h.t0, d: d, placed: true, ...mkCardContent(mk.type, $("mkText").value.trim())};
     mk.scenes.push(sc);
-    mk.scenes.sort((a, b) => a.t - b.t);
+    mkSortScenes();
     if (sc.x) $("mkText").value = "";
     renderMk();
     const L = $("mkList"); if (L) L.scrollTop = L.scrollHeight;
@@ -2124,7 +2188,7 @@ $("mkTlInner").addEventListener("click", e => {
     if (!kd) return;
     const sc = kd.sc; kd = null;
     mkSetZoom(false);
-    if (mk.scenes.indexOf(sc) >= 0) { mk.scenes.sort((a, b) => a.t - b.t); mkSel = mk.scenes.indexOf(sc); }
+    if (mk.scenes.indexOf(sc) >= 0) { mkSortScenes(); mkSel = mk.scenes.indexOf(sc); }
     renderMk();
     guideEvent("knob");
   };
@@ -2143,7 +2207,7 @@ $("mkTlInner").addEventListener("click", e => {
     if (!was) return;
     if (e && e.clientX != null && mk.scenes.indexOf(sc) >= 0) sc.t = Math.max(0, Math.min(Math.max(0, mkTlD() - sc.d), Math.round(mkBandAbs(e.clientX) * 10) / 10));
     mkSetZoom(false);
-    mk.scenes.sort((a, b) => a.t - b.t); mkSel = mk.scenes.indexOf(sc);
+    mkSortScenes(); mkSel = mk.scenes.indexOf(sc);
     renderMk();
     guideEvent("tweak");
   };
