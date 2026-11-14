@@ -39,6 +39,11 @@ body.scr-mk .pads #penbtn{display:block!important}
 #mkContentPanel .mkcp-actions button{flex:1}
 #mkContentPanel .mkcp-primary{background:#e94f91;border-color:#e94f91}
 #mkContentPanel .mkcp-step{display:none}
+
+/* ノリノリながら：押下中だけ表示する固定タイムライン。通常時はDOMを隠し、レイアウト領域を占有しない */
+#mkTlBox{display:none!important;opacity:0;transform:translateY(12px);transition:opacity .22s ease,transform .22s ease;pointer-events:none}
+#mkTlBox.tlfloat{display:flex!important;opacity:0;pointer-events:auto}
+#mkTlBox.tlfloat.tlshow{opacity:1;transform:translateY(0)}
 </style>
 </head>
 <body>
@@ -174,15 +179,6 @@ body.scr-mk .pads #penbtn{display:block!important}
       </div>
     </div>
     <div id="mkLegacyPanel" style="display:none!important">
-    <!-- build 64: 拡大タイムライン。ドラッグ中・長押し中は約30秒表示になり、画面下部に浮いて出続けます(元の位置には同じ高さの空きを残します) -->
-    <div id="mkTlBox">
-      <div class="mktl-head"><span>タイムライン</span><span id="mkTlMode">全体表示</span><span id="mkTlPos"></span></div>
-      <div id="mkTlView">
-        <div id="mkTlLabs"><span>コール</span><span>シンガロン</span><span>ココ好き!</span><span></span></div>
-        <div id="mkTlSlide"><div id="mkTlInner"></div><div id="mkTlPlay"></div><div id="mkTlKnob" role="slider" aria-label="選択中のカードの位置つまみ" aria-valuemin="0" aria-valuemax="240" aria-valuenow="0"></div></div>
-      </div>
-      <p class="mktl-note" id="mkTlNote">長押ししている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。打ったカードの開始〜終了も表示されます。</p>
-    </div>
     <div class="mknori" id="mkBigWrap" style="display:none!important">
       <button id="mkCreate" data-a="mkMain">カード作成</button>
       <div id="mkHint">再生しながら押すと、その位置にカードができます(長さは仮の5秒)。できたカードをタップすると中身や長さを直せます。</div>
@@ -255,6 +251,16 @@ body.scr-mk .pads #penbtn{display:block!important}
   <div style="text-align:center"><button data-a="wcShow" style="font-size:10px;color:#8e91b8;text-decoration:underline;background:none;border:0;cursor:pointer">ようこそカードを再表示</button></div>
 
 </div>
+
+    <!-- build 64: 拡大タイムライン。ドラッグ中・長押し中は約30秒表示になり、画面下部に浮いて出続けます(元の位置には同じ高さの空きを残します) -->
+    <div id="mkTlBox">
+      <div class="mktl-head"><span>タイムライン</span><span id="mkTlMode">全体表示</span><span id="mkTlPos"></span></div>
+      <div id="mkTlView">
+        <div id="mkTlLabs"><span>コール</span><span>シンガロン</span><span>ココ好き!</span><span></span></div>
+        <div id="mkTlSlide"><div id="mkTlInner"></div><div id="mkTlPlay"></div><div id="mkTlKnob" role="slider" aria-label="選択中のカードの位置つまみ" aria-valuemin="0" aria-valuemax="240" aria-valuenow="0"></div></div>
+      </div>
+      <p class="mktl-note" id="mkTlNote">長押ししている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。打ったカードの開始〜終了も表示されます。</p>
+    </div>
 
 <div id="ov"><div class="in">
   <div class="oh"><span>みんなの<b>推し</b>コール</span><button class="ico" aria-label="閉じる" data-a="closeOv"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M6 6l14 14M20 6L6 20" fill="none" stroke="#f4f4fb" stroke-width="2.4" stroke-linecap="round"/></svg></button></div>
