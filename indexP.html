@@ -542,5 +542,65 @@ gtag('config', 'G-00QSZME258');
 <script src="app.js?v=64" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
+
+<style id="indexp-floating-cta">
+  #trybtnFloating {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 80;
+    display: none;
+    width: max-content;
+    max-width: calc(100vw - 28px);
+    margin: 0;
+    padding: 10px 19px;
+    border: 1px solid rgba(255,255,255,.42);
+    border-radius: 999px;
+    background: rgba(255, 75, 133, .78);
+    color: #fff;
+    box-shadow: 0 3px 16px rgba(45, 15, 40, .2);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    opacity: .82;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.35;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  #trybtnFloating:active { opacity: 1; }
+  body.scr-mk #trybtnFloating,
+  body.scr-sp #trybtnFloating { display: none !important; }
+</style>
+<script>
+(function () {
+  var original = document.getElementById("trybtn");
+  if (!original) return;
+  var floating = document.createElement("button");
+  floating.type = "button";
+  floating.id = "trybtnFloating";
+  floating.dataset.a = original.dataset.a || "guideStart";
+  floating.textContent = original.textContent;
+  floating.setAttribute("aria-label", "推しコールを作ってみる（制作ガイド）");
+  document.body.appendChild(floating);
+
+  function syncVisibility() {
+    var visible = window.getComputedStyle(original).display !== "none";
+    floating.style.display = visible ? "block" : "none";
+  }
+  new MutationObserver(syncVisibility).observe(original, {
+    attributes: true,
+    attributeFilter: ["style", "class"]
+  });
+  new MutationObserver(syncVisibility).observe(document.body, {
+    attributes: true,
+    attributeFilter: ["class"]
+  });
+  syncVisibility();
+})();
+</script>
+
 </body>
 </html>
