@@ -28,6 +28,8 @@ gtag('config', 'G-00QSZME258');
 body.scr-mk .pads{display:flex!important}
 body.scr-mk .pads>*:not(#penbtn){display:none!important}
 body.scr-mk .pads #penbtn{display:block!important}
+#mkRateSelect{display:block;width:100%;height:48px;box-sizing:border-box;margin:8px 0 12px;padding:0 14px;border:1px solid rgba(255,255,255,.24);border-radius:10px;background:#252943;color:#fff;font:inherit;font-size:16px;font-weight:800}
+#mkRateSelect option{background:#252943;color:#fff}
 #mkContentPanel{position:fixed;inset:0;z-index:10050;display:none;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;background:rgba(0,0,0,.58)}
 #mkContentPanel .mkcp-card{width:min(100%,420px);box-sizing:border-box;padding:24px 20px;border:1px solid rgba(255,255,255,.18);border-radius:20px;background:rgba(10,10,18,.94);box-shadow:0 18px 55px rgba(0,0,0,.48);color:#fff}
 #mkContentPanel h3{margin:0 0 18px;font-size:20px;text-align:center}
@@ -135,6 +137,12 @@ body.scr-mk .pads #penbtn{touch-action:none;-webkit-user-select:none;user-select
     <button class="skb" data-a="pseek" data-i="10">+10秒</button>
     <button class="skb" data-a="pseek" data-i="30">+30秒</button>
   </div>
+  <select id="mkRateSelect" data-c="rateSelect" aria-label="再生速度">
+    <option value="0.25">速度 0.25倍速</option>
+    <option value="0.5">速度 0.5倍速</option>
+    <option value="0.75">速度 0.75倍速</option>
+    <option value="1" selected>速度 1倍速</option>
+  </select>
   <div id="pEv"></div>
   <div id="spPanel" style="display:none">
     <div class="spHead"><b>シェアポイント作成</b></div>
@@ -158,10 +166,6 @@ body.scr-mk .pads #penbtn{touch-action:none;-webkit-user-select:none;user-select
     <!-- build 64: 作成の2モード制。表示する操作UIは選択中のモード分だけ。切替えても作りかけのカードは保持される -->
     <div id="mkModeContent" style="display:none;flex-direction:column;gap:10px">
     <p id="mkModeDesc" style="display:none!important"></p>
-    <div class="subctl">
-      <button id="mkPlayBtn" data-a="play">▶ 再生</button>
-      <button class="ratebtn" data-a="rate">速度 1倍</button>
-    </div>
     <div id="mkLegacyPanel" style="display:none!important">
     <div class="mknori" id="mkBigWrap" style="display:none!important">
       <button id="mkCreate" data-a="mkMain">カード作成</button>
