@@ -547,12 +547,13 @@ gtag('config', 'G-00QSZME258');
   #trybtnFloating {
     position: fixed;
     top: calc(env(safe-area-inset-top, 0px) + 12px);
-    left: 50%;
-    transform: translateX(-50%);
+    left: 0;
+    transform: none;
     z-index: 80;
     display: none;
-    width: max-content;
-    max-width: calc(100vw - 28px);
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
     margin: 0;
     padding: 10px 19px;
     border: 1px solid rgba(255,255,255,.42);
