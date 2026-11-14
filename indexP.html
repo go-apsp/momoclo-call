@@ -686,11 +686,22 @@ gtag('config', 'G-00QSZME258');
     hint.innerHTML = '<span>参考コールを見てみる</span><span aria-hidden="true" style="float:right">›</span>';
     document.body.appendChild(hint);
 
+    function dismissGuestHint() {
+      hint.classList.remove("on");
+      play.classList.remove("guest-play-focus");
+      if (hintTimer) window.clearTimeout(hintTimer);
+    }
+    var hintTimer = null;
+    // カードをタップした場合も案内表示だけ終了（data-a="refcall" の既存動作はそのまま）
+    hint.addEventListener("click", dismissGuestHint);
+
     window.setTimeout(function () {
       play.scrollIntoView({behavior:"smooth", block:"center", inline:"nearest"});
       play.classList.add("guest-play-focus");
       window.setTimeout(function () {
         hint.classList.add("on");
+        // 表示開始から10秒でカードと再生ボタンの強調を終了
+        hintTimer = window.setTimeout(dismissGuestHint, 10000);
       }, 500);
     }, 180);
   }
