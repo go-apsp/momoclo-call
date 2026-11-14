@@ -734,7 +734,7 @@ function mkTlApplyView() {
 function mkTlSetFloat(on) {
   const box = $("mkTlBox"); if (!box) return;
   if (on) {
-    // タイムラインを浮かべるのは、ノリノリながらモードの新規カード長押し中だけ
+    // ノリノリながらの長押し中、または置きに行くモードのカード／プリセットのドラッグ中だけ浮かべる
     const canFloat = screen === "mk" && (mkMode === "nori" ? !!mkHoldSt : !!(mkScrSt && mkScrSt.active));
     if (!canFloat) return;
     box.classList.add("tlfloat");
@@ -1084,7 +1084,7 @@ async function renderAuthorSheet() {
     return '<div class="authorItem' + (cur ? " cur" : "") + '">'
       + '<div class="asong">♪ ' + esc(song ? song.title : "曲名不明") + "</div>"
       + '<div class="atitle">' + esc(c.ownerName) + "さんの推しコール" + (c.versionName ? '<span class="tag">' + esc(c.versionName) + "</span>" : "") + (c.public ? "" : '<span class="tag">下書き</span>') + "</div>"
-      + '<div class="ameta">♥ ' + (c.hearts || 0) + " / 湧き " + (c.used || 0) + "回 ・ 場面 " + ((c.scenes || []).length) + "個" + (cur ? " ・ 再生中" : "") + "</div>"
+      + '<div class="ameta">♥ ' + (c.hearts || 0) + " / 湧き " + (c.used || 0) + "回 ・ 場面 " + mkPlaybackScenes(c.scenes).length + "個" + (cur ? " ・ 再生中" : "") + "</div>"
       + (cur
         ? '<button class="aplay curbtn" data-a="authorClose">再生中です</button>'
         : '<button class="aplay" data-a="authorPlay" data-i="' + c.id + '">これで再生</button>')
