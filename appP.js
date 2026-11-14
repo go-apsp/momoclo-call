@@ -748,6 +748,41 @@ function mkTlApplyView() {
     } else kn.style.display = "none";
   }
 }
+function mkPlaceZoomRender(center) {
+  const box = $("mkTlZoomBox"), inner = $("mkTlZoomInner");
+  if (!box || !inner) return;
+  const d = mkTlD(), span = Math.min(30, d);
+  const c = Math.max(0, Math.min(d, Number(center) || 0));
+  const a = Math.max(0, Math.min(Math.max(0, d - span), c - span / 2));
+  const z = {a: a, span: span};
+  let out = "";
+  MK_TL_KINDS.forEach(k => {
+    const bars = mk.scenes.filter(s => mkIsPlaced(s) && s.k === k).map(s => {
+      const left = (s.t - z.a) / z.span * 100;
+      const width = Math.max(0.8, s.d / z.span * 100);
+      const idx = mk.scenes.indexOf(s), selected = idx === mkSel;
+      return '<div class="mktl-bar mb-' + k + (selected ? " selb2" : "") + '" style="left:' + left + '%;width:' + width + '%" title="' + fmt(s.t) + "〜" + fmt(s.t + s.d) + " " + esc(s.x) + '"><span>' + fmt(s.t) + "〜" + fmt(s.t + s.d) + " " + esc(s.x) + "</span></div>";
+    }).join("");
+    out += '<div class="mktl-lane">' + bars + "</div>";
+  });
+  let ticks = "";
+  const first = Math.ceil(z.a);
+  for (let t = first; t <= z.a + z.span; t++) {
+    const x = (t - z.a) / z.span * 100, big = t % 5 === 0;
+    ticks += '<div class="mktl-tick' + (big ? " big" : "") + '" style="left:' + x + '%"></div>';
+    if (big) ticks += '<span class="mktl-tlab" style="left:' + x + '%">' + fmt(t) + "</span>";
+  }
+  out += '<div class="mktl-ticks">' + ticks + "</div>";
+  inner.innerHTML = out;
+  const range = $("mkTlZoomRange");
+  if (range) range.textContent = fmt(z.a) + "〜" + fmt(z.a + z.span) + "（約30秒）";
+  box.style.display = "flex";
+}
+function mkPlaceZoomHide() {
+  const box = $("mkTlZoomBox");
+  if (box) box.style.display = "none";
+}
+
 function mkTlSetFloat(on) {
   const box = $("mkTlBox"); if (!box) return;
   if (on) {
@@ -806,16 +841,24 @@ function mkScrMove(e) {
   if (!scr.active) {
     if (Math.abs(e.clientX - scr.x0) <= dead) return;
     scr.active = true; scr.anchorX = e.clientX;
-    mkSetZoom(true, scr.seek0);
-    mkShowGhost(e, scr.src, scr.seek0);
-    if (playerReady()) playerPlay();   // 再生を押していなくても、掴んで動かし始めるとその位置の音がプレビューで流れる
-  } else if (Math.abs(e.clientX - scr.anchorX) <= dead) { return; }   // 手ブレ抑制: 前回位置を更新した地点から dead(px) 未満の動きは無視
+    if (scr.src.fromPlaceButton) {
+      mkTlSetFloat(true);
+      mkPlaceZoomRender(scr.seek0);
+      mkShowGhost(e, scr.src, scr.seek0);
+    } else {
+      mkSetZoom(true, scr.seek0);
+      mkShowGhost(e, scr.src, scr.seek0);
+    }
+    if (playerReady()) playerPlay();
+  } else if (Math.abs(e.clientX - scr.anchorX) <= dead) { return; }
   else { scr.anchorX = e.clientX; }
   const absT = mkBandAbs(e.clientX);
   const g = mkTune.gain;
-  let target = g >= 1 ? absT : scr.target + (absT - scr.target) * g;   // 反応の鈍さ: gain が小さいほど、再生位置は指の絶対位置へゆっくり近づく
+  let target = g >= 1 ? absT : scr.target + (absT - scr.target) * g;
   target = Math.max(0, Math.min(mkTlD(), target));
-  scr.target = target; mkTlCenter = target; mkTlApplyView();
+  scr.target = target;
+  if (scr.src.fromPlaceButton) mkPlaceZoomRender(target);
+  else { mkTlCenter = target; mkTlApplyView(); }
   mkMoveGhost(e, target);
   if (scr.lastSeek === null || Math.abs(target - scr.lastSeek) >= 0.15) { scr.lastSeek = target; playerSeek(Math.round(target * 10) / 10); }
   scr.lastX = e.clientX; scr.lastY = e.clientY;
@@ -823,7 +866,9 @@ function mkScrMove(e) {
   scr.settle = setTimeout(() => {   // 指を止めたら(約320ms)、指の絶対位置から再生して聞き直せる
     if (!mkScrSt || !mkScrSt.active) return;
     const t = Math.max(0, Math.min(mkTlD(), Math.round(mkBandAbs(mkScrSt.lastX) * 10) / 10));
-    mkScrSt.target = t; mkScrSt.lastSeek = t; mkTlCenter = t; mkTlApplyView();
+    mkScrSt.target = t; mkScrSt.lastSeek = t;
+    if (mkScrSt.src.fromPlaceButton) mkPlaceZoomRender(t);
+    else { mkTlCenter = t; mkTlApplyView(); }
     mkMoveGhost({clientX: mkScrSt.lastX, clientY: mkScrSt.lastY}, t);
     playerSeek(t); if (playerReady()) playerPlay();
   }, 320);
@@ -835,6 +880,7 @@ function mkScrEnd(commit, upX) {
   if (mkGhost) mkGhost.classList.remove("on", "round");
   if (sc.active) {
     mkSetZoom(false);
+    if (sc.src.fromPlaceButton) mkPlaceZoomHide();
     if (commit) {
       if (upX != null) sc.target = mkBandAbs(upX);
       const t = Math.max(0, Math.min(mkTlD() - 0.5, Math.round(sc.target * 10) / 10));
@@ -909,6 +955,10 @@ function bindMkPlaceButton() {
     const sc = mkSel >= 0 ? mk.scenes[mkSel] : null;
     if (!sc || mkIsPlaced(sc)) { e.preventDefault(); return; }
     mkScrStart(e, {k: sc.k, x: sc.x, scene: sc, fromPlaceButton: true}, b);
+    mkScrSt.active = true;
+    mkShowGhost(e, mkScrSt.src, mkScrSt.seek0);
+    mkTlSetFloat(true);
+    mkPlaceZoomRender(mkScrSt.seek0);
   });
   b.addEventListener("pointermove", e => { if (mkScrSt && mkScrSt.src.fromPlaceButton) mkScrMove(e); });
   b.addEventListener("pointerup", e => { if (mkScrSt && mkScrSt.src.fromPlaceButton) mkScrEnd(true, e.clientX); });
