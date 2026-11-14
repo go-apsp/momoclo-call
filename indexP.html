@@ -766,8 +766,14 @@ gtag('config', 'G-00QSZME258');
     }).observe(welcome, {attributes:true, attributeFilter:["class"]});
   }
 
-  // 「今後はこのメッセージを表示しない」設定済みのゲストにも案内を出す
-  window.setTimeout(startGuestWalkthrough, 3500);
+  // ウェルカム画面が表示中なら、その間は案内の10秒タイマーを開始しない。
+  // ウェルカム画面を使わない設定の訪問者に限り、初期表示後に案内を開始する。
+  window.setTimeout(function () {
+    var currentWelcome = document.getElementById("welcome");
+    if (!currentWelcome || !currentWelcome.classList.contains("on")) {
+      startGuestWalkthrough();
+    }
+  }, 3500);
 })();
 </script>
 
