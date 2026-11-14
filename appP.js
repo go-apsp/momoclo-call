@@ -738,7 +738,10 @@ function mkTlSetFloat(on) {
     const canFloat = screen === "mk" && (mkMode === "nori" ? !!mkHoldSt : !!(mkScrSt && mkScrSt.active));
     if (!canFloat) return;
     box.classList.add("tlfloat");
-    requestAnimationFrame(() => { if (mkHoldSt && screen === "mk" && mkMode === "nori") box.classList.add("tlshow"); });
+    requestAnimationFrame(() => {
+      const stillCanFloat = screen === "mk" && (mkMode === "nori" ? !!mkHoldSt : !!(mkScrSt && mkScrSt.active));
+      if (stillCanFloat) box.classList.add("tlshow");
+    });
   } else {
     box.classList.remove("tlshow", "tlfloat");
   }
@@ -833,6 +836,13 @@ function mkScrEnd(commit, upX) {
       }
       guideEvent("drop");
     }
+    return;
+  }
+  if (commit && sc.src.scene && !sc.active && mk.scenes.includes(sc.src.scene)) {
+    const target = sc.src.scene;
+    mkSel = mk.scenes.indexOf(target); mkLenPhase = null; mkSelOrigT = null;
+    mkSuppressPickUntil = Date.now() + 650;
+    openMkContentPanel(target);
     return;
   }
   if (commit && sc.src.chip) {   // チップのただのタップ(ドラッグしなかった)
@@ -1313,6 +1323,7 @@ function nextMkContentStep() {
   paintMkContentPanel();
 }
 function confirmMkContent() {
+  const isNewOkiCard = !mkContentTarget && screen === "mk" && mkMode === "oki";
   mk.type = mkContentDraftType;
   $("mkText").value = mkContentDraftText;
   document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === mkContentDraftType));
@@ -1328,7 +1339,7 @@ function confirmMkContent() {
   }
   closeMkContentPanel();
   renderMk();
-  if (!mkContentTarget && mkMode === "oki") {
+  if (isNewOkiCard) {
     const list = $("mkList"); if (list) list.scrollTop = list.scrollHeight;
     toast("未配置カードを作成しました。カードを押さえてタイムラインへドラッグすると配置できます");
   } else {
