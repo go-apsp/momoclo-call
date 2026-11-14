@@ -1,0 +1,527 @@
+:root{--bg:#14152b;--panel:#262a4a;--ink:#f4f4fb;--pink:#ff7ab8;--mut:#a9acd0}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif}
+#app{max-width:480px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:14px;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+header{display:flex;justify-content:space-between;align-items:center;height:44px;position:relative}
+h1{font-size:17px;font-weight:900;margin:0;line-height:1.15}h1 b{color:var(--pink)}h1 small{display:block;font-size:10px;font-weight:700;color:var(--mut)}
+.row{display:flex;align-items:center;gap:4px}
+.pill{min-width:44px;height:44px;border-radius:22px;border:2px solid var(--pink);padding:0 12px;font-weight:700;font-size:12px}
+.ico{width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+#me{width:44px;height:44px;border-radius:50%;border:4px solid #fff;background:var(--bg);padding:0;display:flex;align-items:center;justify-content:center}
+.av svg,#me svg{width:22px;height:22px}
+#menu{position:absolute;right:0;top:50px;width:240px;padding:8px;border-radius:16px;background:rgba(38,42,74,.6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1.5px solid rgba(255,122,184,.45);display:none;z-index:38}
+#menu button{display:block;width:100%;height:52px;border-radius:12px;font-weight:900;text-align:left;padding:0 14px;margin-top:6px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.2)}
+#menu button:first-child{margin:0;background:rgba(255,122,184,.16);border:0}
+#mv{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:linear-gradient(160deg,#3a1d5c,#1a2a5e 55%,#5c1d3f)}
+#yt,#yt iframe{position:absolute;inset:0;width:100%;height:100%}
+.crowd{position:absolute;left:0;right:0;bottom:46px;text-align:center;font-size:20px;opacity:.55;pointer-events:none}
+#cards{position:absolute;left:0;right:0;bottom:10px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;padding:0 8px;pointer-events:none}
+.cd{padding:8px 14px;border-radius:16px;background:linear-gradient(135deg,rgba(255,93,143,.32),rgba(255,140,66,.28));border:1px solid rgba(255,170,130,.45);text-align:center;animation:pop .25s;max-width:94%}
+#kokos{position:absolute;top:15%;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 8px;pointer-events:none;z-index:6}
+.cd small{display:block;font-size:calc(11px*var(--s));font-weight:700;color:#ffd2e6}
+.cd strong{font-size:calc(21px*var(--s));font-weight:900;text-shadow:0 0 10px var(--pink);overflow-wrap:anywhere}
+.cd em{display:block;font-size:9px;font-style:normal;opacity:.75;margin-top:2px}
+@keyframes pop{from{transform:scale(.85);opacity:0}}
+#mvwrap{position:relative;z-index:2}
+#nexts{position:absolute;left:0;right:0;top:0;display:flex;flex-direction:row;justify-content:center;align-items:flex-start;gap:10px;pointer-events:none;z-index:30}
+body.nofs #nexts{position:fixed;top:0;left:0;right:0;z-index:34}
+.nx{min-width:148px;max-width:46vw;padding:7px 14px 15px;color:#fff;text-align:center;transform-origin:top center;transform:translateY(-75%);clip-path:polygon(0 0,100% 0,100% calc(100% - 13px),50% 100%,0 calc(100% - 13px));filter:drop-shadow(0 3px 5px rgba(0,0,0,.35))}
+.nx small{display:block;font-size:10px;font-weight:900;letter-spacing:.05em}
+.nx b{display:block;font-size:15px;font-weight:900;overflow-wrap:anywhere;line-height:1.25}
+.nx .nxnum{display:block;font-size:29px;font-weight:900;line-height:1.05}
+.nx.main{min-width:198px}
+.nx.main b{font-size:18px}
+.nx.main .nxnum{font-size:37px}
+#who{margin-top:-4px}
+.st{font-size:11px;font-weight:700;text-align:left}
+.wn{font-family:"Mochiy Pop One","Zen Maru Gothic",sans-serif;font-size:14px;text-align:left;line-height:1.35}
+.wn b{font-size:20px;color:var(--pink);font-weight:400}
+.wn i{display:inline-block;margin-left:6px;padding:0 8px;border-radius:9px;background:rgba(255,255,255,.85);color:#14152b;font-style:normal;font-size:10px;text-shadow:none}
+#ovbtn{width:calc(100% - 28px);align-self:center;height:48px;border-radius:24px;border:2px solid var(--pink);font-weight:900;font-size:15px}
+#ovbtn span{color:var(--pink);font-size:18px}
+@media (prefers-reduced-motion:reduce){.cd{animation:none}}
+#pen{position:absolute;left:12px;bottom:0;width:10px;height:70px;border-radius:5px;transform-origin:50% 100%;opacity:0;background:currentColor;box-shadow:0 0 18px currentColor;pointer-events:none}
+#pen.on{opacity:1;animation:sway 1s ease-in-out infinite alternate}
+@keyframes sway{from{transform:rotate(-25deg)}to{transform:rotate(25deg)}}
+@media (prefers-reduced-motion:reduce){#pen.on{animation:none}}
+.pads{display:flex;justify-content:center;align-items:flex-end;gap:14px}
+.sq{width:84px;height:84px;border-radius:20px;font-weight:900;font-size:15px;line-height:1.2}
+#q{position:relative;width:20px;height:20px;border-radius:50%;border:1px solid #8e91b8;color:var(--mut);font-size:12px;font-weight:700;margin:0 0 4px -8px}
+#q::after{content:"";position:absolute;inset:-12px}
+.dots{display:flex;justify-content:center}
+.dots button{width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+.dots i{width:24px;height:24px;border-radius:50%;display:block}
+.dots .sel i{outline:3px solid #fff;outline-offset:2px}
+input[type=range]{width:100%;accent-color:var(--pink);height:28px;margin:0}
+.times{display:flex;justify-content:space-between;font-size:11px;color:var(--mut)}
+#play{width:88px;height:88px;flex:none;border-radius:50%;background:var(--pink);color:#2a0c1c;font-weight:900;font-size:16px}
+#play.meas{font-size:12px;line-height:1.4;padding:8px}
+#info{font-size:12px;color:var(--mut);text-align:center}
+#ov{position:fixed;inset:0;background:rgba(14,15,34,.92);display:none;z-index:35;overflow:auto}
+#ov .in{max-width:480px;margin:0 auto;padding:16px}
+.oh{display:flex;justify-content:space-between;align-items:center;font-weight:900;font-size:19px;margin-bottom:8px}
+.oh b{color:var(--pink);font-size:22px}
+.u{border-radius:18px;padding:12px 14px;margin-bottom:10px}
+.hd{width:100%;display:flex;align-items:center;gap:10px;min-height:44px;text-align:left;font-weight:900;font-size:15px}
+.hd b{font-size:17px}.sp{flex:1}
+.av{width:40px;height:40px;border-radius:50%;border:4px solid;background:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:900;flex:none}
+.dt{display:none;flex-direction:column;gap:10px;margin-top:10px;font-size:12px;line-height:1.6}
+.u.open .dt{display:flex}
+.tag{display:inline-block;padding:2px 10px;border-radius:10px;background:var(--ink);color:var(--bg);font-weight:700;font-size:11px;margin-left:6px}
+.used{color:#ffd23f;font-weight:700}
+.act{display:flex;gap:8px;flex-wrap:wrap}
+.act button{flex:1;min-width:84px;height:44px;border-radius:22px;border:2px solid var(--ink);font-weight:700;font-size:13px}
+.act .w{background:var(--ink);color:var(--bg);font-weight:900}
+.act .hr{flex:none;min-width:76px;padding:0 12px;border-color:transparent;color:#fff;font-weight:900}
+#mk{display:none;padding:14px;border-radius:18px;background:var(--panel);flex-direction:column;gap:10px}
+#mk h2{margin:0;font-size:16px}
+.seek{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.seek button{height:44px;border-radius:12px;border:2px solid #8e91b8;font-weight:700;font-size:11px}
+.types{display:flex;gap:8px}
+.types button{flex:1;height:44px;border-radius:22px;border:2px solid #8e91b8;font-weight:700;font-size:12px}
+.types .sel{background:var(--ink);color:var(--bg)}
+#mk input[type=text],#sheet input{height:44px;border-radius:12px;border:2px solid #8e91b8;background:var(--bg);color:var(--ink);padding:0 12px;font:inherit;width:100%}
+#mk label{font-size:12px;display:flex;align-items:center;gap:8px;min-height:44px}
+#mk .add{height:48px;border-radius:24px;background:#ffd23f;color:#2a2410;font-weight:900}
+.mkrow{display:flex;align-items:center;gap:8px;font-size:13px;min-height:44px;border-bottom:1px solid #3a3f6b;flex-wrap:wrap}
+.mkrow button{width:44px;height:44px;font-size:18px;color:var(--mut)}
+#sheet{position:fixed;inset:0;background:rgba(10,10,24,.7);display:none;align-items:flex-end;z-index:45}
+#sheet>div{width:100%;max-width:480px;margin:0 auto;background:var(--panel);border-radius:20px 20px 0 0;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#sheet h2,#sheet input,#sheet p{grid-column:1/3;margin:0}
+#sheet h2{font-size:16px}#sheet p{font-size:12px;color:var(--mut)}
+#sheet button{height:52px;border-radius:14px;border:4px solid;font-weight:900;background:var(--bg)}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:90vw;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:20px;font-weight:700;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:30}
+#toast.on{opacity:1}
+#songbox{position:relative}
+#songsel{-webkit-appearance:none;appearance:none;width:100%;height:50px;border:0;border-radius:25px;padding:0 48px 0 20px;font-family:"Mochiy Pop One","Zen Maru Gothic",sans-serif;font-size:17px;color:#fff;background:linear-gradient(120deg,#e0408c,#7a45d8);box-shadow:0 4px 14px rgba(166,107,255,.45);text-shadow:0 1px 3px rgba(0,0,0,.35)}
+#songbox::after{content:"";position:absolute;right:22px;top:50%;width:9px;height:9px;border-right:3px solid #fff;border-bottom:3px solid #fff;transform:translateY(-70%) rotate(45deg);pointer-events:none}
+#songsel option{color:#14152b;font-family:"Zen Maru Gothic",sans-serif}
+#tot{font-size:12px;color:#ffd23f;font-weight:700;text-align:center}
+#tot:empty{display:none}
+.penb{border:2px solid var(--pc,#fff);background:radial-gradient(circle at 50% 35%,var(--pc,#fff),rgba(20,21,43,.92) 78%);box-shadow:0 0 20px var(--pc,#fff);font-size:12px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.85)}
+.wk{border:2px solid #ffd23f;background:#2a2410;color:#ffd23f}
+.wk.hot{background:#ffd23f;color:#2a2410;box-shadow:0 0 24px #ffd23f}
+#applybtn{align-self:center;min-height:44px;padding:0 16px;border-radius:22px;border:2px solid #ffd23f;color:#ffd23f;font-weight:700;font-size:12px}
+#refcall{width:100%;min-height:48px;border-radius:24px;border:2px solid #ffd23f;color:#ffd23f;font-weight:900;margin-bottom:12px}
+#menu .mrow{display:block;margin-top:10px;font-size:12px;font-weight:700;padding:0 6px}
+#icons{grid-column:1/3;display:flex;gap:8px;justify-content:center}
+#icons button{width:48px;height:48px;border:3px solid #8e91b8;border-radius:50%;padding:0;display:flex;align-items:center;justify-content:center}
+#icons .sel{border-color:#fff}
+#icons svg{width:26px;height:26px}
+body.nofs{overflow:hidden}
+#fsbtn{position:absolute;right:8px;bottom:8px;width:44px;height:44px;border-radius:22px;background:rgba(20,21,43,.5);z-index:3;display:flex;align-items:center;justify-content:center}
+#fsbtn svg{width:22px;height:22px}
+#mv.fs .ex,#mv:not(.fs) .sh{display:none}
+#mv.fs{position:fixed;inset:0;z-index:15;border-radius:0;aspect-ratio:auto;height:100vh;height:100dvh;background:#000}
+.fsonly{display:none}
+#mv.fs .fsonly{display:flex}
+#fsplay{position:absolute;left:8px;top:8px;height:44px;padding:0 14px;border-radius:22px;background:rgba(20,21,43,.5);z-index:3;align-items:center;font-weight:700;font-size:12px}
+#fspads{position:absolute;right:10px;bottom:62px;flex-direction:column;gap:8px;z-index:3}
+#fspads .sq{width:72px;height:64px;font-size:11px}
+#mv.fs #panel{right:92px}
+#fsinfo{position:absolute;left:8px;bottom:8px;width:44px;height:44px;border-radius:22px;background:rgba(20,21,43,.5);z-index:3;align-items:center;justify-content:center;font-weight:900}
+#panel{display:none;position:absolute;left:8px;right:8px;bottom:60px;max-height:60%;overflow:auto;background:rgba(20,21,43,.78);border-radius:14px;padding:12px 14px;z-index:4;font-size:13px;line-height:1.6}
+#panel .pc{float:right;width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+.tltitle{font-weight:900;margin:4px 2px 10px}
+.tlbar{position:relative;background:#14152b;border:1px solid #2c2f57;border-radius:14px;padding:8px 8px 8px 0;cursor:pointer}
+.tlrow{display:flex;align-items:center;margin:3px 0}
+.tllab{flex:0 0 64px;font-size:10px;font-weight:900;text-align:center;color:#cfd2f2}
+.tltrack{position:relative;flex:1;height:20px;background:rgba(255,255,255,.06);border-radius:6px}
+.tlm{position:absolute;top:2px;height:16px;border-radius:5px;border:1px solid rgba(255,255,255,.5);padding:0;min-width:8px;cursor:pointer}
+.tl-call{background:#ff6b9d}.tl-sing{background:#4dc9ff}.tl-koko{background:#ffd23f}
+#tlPos{position:absolute;top:4px;bottom:4px;width:2px;background:#fff;box-shadow:0 0 6px #fff;display:none;pointer-events:none}
+.tlscale{display:flex;justify-content:space-between;font-size:10px;color:#8e91b8;margin:4px 2px 0 72px}
+.tlInfo{margin-top:12px;background:#1c1e38;border:1px solid #2c2f57;border-radius:12px;padding:10px 12px;font-weight:700;min-height:20px}
+.ovl{position:fixed;inset:0;background:rgba(14,15,34,.92);display:none;z-index:35;overflow:auto;padding:16px}
+.ovl>*{max-width:480px;margin-left:auto;margin-right:auto}
+.obar{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.durrow{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:700}
+.durrow input[type=range]{flex:1}
+.durrow b{color:#ffd23f;min-width:40px;text-align:right}
+.mkrow .dursl{flex:1 1 120px;width:auto;min-width:120px;height:24px}
+.playrow{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.playrow .skb{height:48px}
+.skb{padding:0 10px;border-radius:20px;border:2px solid #8e91b8;font-weight:900;font-size:13px;color:#f4f4fb;background:#262a4a}
+#randcall{width:100%;min-height:48px;border-radius:24px;border:2px solid #a66bff;color:#c9a7ff;font-weight:900;margin-bottom:12px;background:transparent}
+.adjb{width:34px;height:34px;border-radius:50%;border:2px solid #ffd23f;color:#ffd23f;font-weight:900;font-size:16px;flex:none;background:transparent;line-height:1}
+.mkrow .adjb{width:32px;height:32px;font-size:14px}
+#mkMeas{margin-top:8px;width:100%;min-height:44px;border-radius:22px;border:2px solid #4dc9ff;color:#4dc9ff;font-weight:900;background:transparent}
+.mkrow .durval{font-size:11px;color:#ffd23f;min-width:32px}
+.mkrow .pvb{width:auto;padding:0 10px;font-size:12px;font-weight:700;color:#ffd23f;border:1px solid #ffd23f;border-radius:16px;height:32px}
+.tlHint{font-size:11px;color:#8e91b8;margin-top:6px;text-align:right}
+.tlVert{position:relative;margin-top:14px;background:#14152b;border:1px solid #2c2f57;border-radius:14px;overflow:hidden}
+.tlVLine{position:absolute;left:78px;top:8px;bottom:8px;width:2px;background:#3a3f6b}
+.tlVItem{position:absolute;left:6px;right:8px;display:flex;gap:8px;align-items:center}
+.tlVTime{flex:0 0 62px;text-align:right;font-weight:900;font-size:12px;color:#cfd2f2}
+.tlVCard{font-weight:700;font-size:12px;padding:5px 9px;border-radius:9px;border:1px solid;color:#fff;text-align:left;overflow-wrap:anywhere;max-width:calc(100% - 92px)}
+#fsExit{display:none}
+#mv.fs #fsExit{display:block;position:absolute;top:10px;right:10px;z-index:40;height:44px;padding:0 16px;border-radius:22px;background:rgba(20,21,43,.65);font-weight:900;font-size:13px;color:#fff}
+#mkvBtn{height:52px;border-radius:26px;border:2px solid #ffd23f;color:#ffd23f;font-weight:900;font-size:15px;width:100%}
+#mkvWarn{position:fixed;inset:0;background:rgba(18,18,28,.45);display:none;align-items:center;justify-content:center;z-index:40;padding:16px}
+.mkvCard{background:rgba(105,105,118,.94);border-radius:18px;padding:22px 18px;max-width:420px;width:100%;text-align:center;font-weight:900;font-size:16px;line-height:1.6}
+.mkvCard .act{margin-top:16px}
+.mkvBody{background:#1c1e38;border:1px solid #2c2f57;border-radius:14px;padding:18px;color:#cfd2f2;line-height:1.8}
+.bbsGo{display:block;text-align:center;background:#ff7ab8;color:#fff;font-weight:900;font-size:15px;border-radius:26px;padding:14px 12px;text-decoration:none}
+#spPanel{background:#1c1e38;border:1px solid #2c2f57;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:9px}
+.spHead{display:flex;justify-content:space-between;align-items:center;font-size:15px}
+.spHead button{font-size:12px;color:var(--mut);border:1px solid #3a3f6b;border-radius:14px;padding:4px 12px}
+.spFor{font-size:13px;color:#cfd2f2}
+.spRow{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.spRow button{font-size:12px;font-weight:700;color:#ff7ab8;border:1.5px solid #ff7ab8;border-radius:14px;padding:4px 11px}
+#spPanel input[type=range]{width:100%;accent-color:#ff7ab8;height:28px}
+.spBtns{display:flex;gap:8px}
+.spBtns button{flex:1;height:44px;border-radius:12px;font-weight:900;border:2px solid #ff7ab8;color:#ff7ab8}
+#spResult{display:flex;flex-direction:column;gap:9px}
+.spLink{font-size:12px;word-break:break-all;background:#14152b;border:1px solid #2c2f57;border-radius:10px;padding:9px 11px;color:#cfd2f2}
+.spShare{display:flex;gap:8px}
+.spShare a,.spShare button{flex:1;text-align:center;height:40px;line-height:40px;border-radius:10px;font-weight:900;font-size:13px;text-decoration:none}
+.spX{background:#000;color:#fff}
+.spLine{background:#06c755;color:#fff}
+.spCopy{background:#3a3f6b;color:#fff}
+.ogpPrev{border:1px solid #2c2f57;border-radius:12px;overflow:hidden;background:#14152b}
+.ogpPrev img{width:100%;display:block}
+.ogpPrev .og{padding:9px 12px}
+.ogpPrev .og b{display:block;font-size:14px}
+.ogpPrev .og span{font-size:12px;color:var(--mut)}
+.spPgT{font-size:16px;font-weight:900;line-height:1.5}
+.spPgMeta{font-size:13px;color:var(--mut);line-height:1.7}
+.spPgScene{font-size:13px;line-height:1.8;border-bottom:1px dashed #2c2f57;padding:5px 0}
+.spPlayBtn{display:block;width:100%;height:52px;border-radius:26px;background:#ff7ab8;color:#fff;font-weight:900;font-size:16px;margin:14px 0}
+.refitem{background:#1c1e38;border:1px solid #2c2f57;border-radius:14px;padding:12px 14px;margin-bottom:10px}
+.refitem .rs{font-size:12px;line-height:1.7;color:#cfd2f2}
+.cmts{margin-top:10px;border-top:1px solid #2c2f57;padding-top:8px}
+.cmtT{font-size:12px;font-weight:900;color:#cfd2f2;margin-bottom:6px}
+.cmt{display:flex;flex-direction:column;gap:2px;background:#14152b;border:1px solid #2c2f57;border-radius:10px;padding:7px 10px;margin-bottom:6px;font-size:13px}
+.cmt b{color:#ffd2e6;font-size:12px}
+.cmtBtns{display:flex;gap:8px;margin-top:4px}
+.cmtBtns button{height:32px;padding:0 12px;font-size:12px;font-weight:700;border-radius:16px}
+.cmtSub{font-size:11px;color:#8e91b8}
+.cmtNone{font-size:12px;color:#8e91b8;margin-bottom:6px}
+.cmtForm{display:flex;gap:6px;margin-top:6px}
+.cmtForm input{flex:1;min-width:0;background:#14152b;border:1px solid #2c2f57;border-radius:10px;color:#eef;padding:8px 10px;font-size:13px}
+.cmtForm button{flex:none;width:auto;padding:0 14px;font-weight:700}
+.cmtNote{font-size:11px;color:#8e91b8;margin-top:4px}
+.cmtPend{margin-top:8px}
+.mailrow{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;margin:6px 0}
+
+#pEv{margin:8px 0}
+.evBox{border:1px solid #2c2f57;border-radius:14px;background:#14152b;overflow:hidden}
+.evHead{width:100%;display:flex;justify-content:space-between;align-items:center;background:none;border:none;color:#f4f4fb;padding:10px 14px;font-size:14px;font-weight:700;cursor:pointer}
+.evBody{padding:2px 12px 10px}
+.evRow{display:flex;gap:12px;align-items:center;margin:4px 0 8px;font-size:13px;color:#c9cbe8}
+
+.myProf{display:flex;gap:12px;align-items:center;margin:10px 0}
+.myIco{font-size:30px}
+.mySub{font-size:12px;color:var(--mut)}
+.myH{margin:18px 0 8px;font-size:15px}
+.myCall{border:1px solid #2c2f57;border-radius:12px;padding:10px 12px;margin:8px 0;background:#14152b}
+.myCallT{font-weight:700;margin-bottom:2px}
+.myCall button{margin-top:6px}
+
+.newStamp{display:inline-block;background:#ff3b30;color:#fff;font-size:10px;font-weight:800;letter-spacing:.6px;padding:1px 6px;border:1.5px solid #fff;border-radius:3px;transform:rotate(-6deg);margin-left:7px;vertical-align:middle;box-shadow:0 1px 4px rgba(0,0,0,.45)}
+.uico{display:inline-flex;cursor:pointer;border-radius:50%;flex:none}
+.myPr{margin-top:8px;font-size:13px;line-height:1.65}
+.pflabel{display:block;font-size:12px;font-weight:700;color:var(--mut);margin:12px 0 6px}
+#sheet textarea{width:100%;border-radius:12px;border:2px solid #8e91b8;background:var(--bg);color:var(--ink);padding:10px 12px;font:inherit;resize:vertical}
+#sheet textarea::placeholder{color:#7d80a8}
+.evNote{font-size:12px;line-height:1.6;color:var(--ink);padding:2px 0;overflow-wrap:anywhere}
+#intro{position:absolute;inset:0;z-index:8;display:none;overflow:hidden;background:#f6f1ea;cursor:pointer}
+#inImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:filter 3.8s ease-in-out}
+#intro.whiteout #inImg{filter:brightness(1.4) blur(7px)}
+#inFlash{position:absolute;inset:0;background:#fff;opacity:0;transition:opacity 3.8s ease-in-out;pointer-events:none;z-index:3}
+#intro.whiteout #inFlash{opacity:1}
+#inCount{position:absolute;left:50%;top:50%;width:104px;height:104px;margin:-52px 0 0 -52px;border:4px solid rgba(255,255,255,.92);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:52px;font-weight:900;color:#fff;background:rgba(60,40,60,.28);z-index:2;text-shadow:0 1px 6px rgba(0,0,0,.25)}
+#inCount.tick{animation:tick .22s}
+@keyframes tick{0%{transform:translate(0,0)}30%{transform:translate(1px,-1px)}60%{transform:translate(-1px,1px)}100%{transform:translate(0,0)}}
+#share{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 10px}
+.shBtn{flex:1;min-width:100px;text-align:center;padding:9px 4px;border-radius:999px;font-size:13px;font-weight:800;text-decoration:none;border:1px solid var(--line);cursor:pointer;font-family:inherit}
+.shX{background:#000;color:#fff}
+.shTh{background:#262626;color:#fff}
+.shLn{background:#06c755;color:#fff}
+.shCp{background:#fff;color:var(--ink)}
+
+/* シェアポイント専用画面: 動画が見えるよう下からのシートにする */
+#spPage{top:auto;max-height:58%;border-radius:20px 20px 0 0;box-shadow:0 -8px 28px rgba(20,20,60,.28)}
+
+/* ---------- build 50: 湧きリアクション演出 ---------- */
+.shake-anim{animation:cameraShake .675s ease-in-out}
+@keyframes cameraShake{0%{transform:translate(0,0)}15%{transform:translate(-6px,6px) rotate(-1.2deg)}30%{transform:translate(6px,-5px) rotate(1.2deg)}45%{transform:translate(-5px,4px) rotate(-.8deg)}60%{transform:translate(4px,-3px) rotate(.8deg)}75%{transform:translate(-2px,2px)}100%{transform:translate(0,0)}}
+#impact{position:absolute;left:50%;bottom:-13px;transform:translateX(-50%);z-index:36;max-width:92%;padding:7px 16px;border-radius:999px;background:#1b2350;border:2px solid var(--pink);box-shadow:0 0 14px rgba(255,122,184,.85),0 4px 10px rgba(0,0,0,.4);color:#ffd23f;font-size:16px;font-weight:900;text-align:center;overflow-wrap:anywhere;pointer-events:none}
+#impact.pop{animation:impactPop .9s cubic-bezier(.175,.885,.32,1.275) forwards}
+@keyframes impactPop{0%{opacity:0;transform:translateX(-50%) translateY(16px) scale(.5) rotate(-3deg)}30%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.05) rotate(1deg)}55%{opacity:1;transform:translateX(-50%) translateY(2px) scale(1)}100%{opacity:0;transform:translateX(-50%) translateY(10px) scale(1.08) rotate(2deg)}}
+#wfx{position:fixed;inset:0;pointer-events:none;z-index:45;overflow:hidden}
+.cfetti{position:absolute;top:-4vh;pointer-events:none;animation:confettiFall 2.2s cubic-bezier(.25,1,.5,1) forwards}
+/* build 59: 激湧きモード(トグルボタンと画面全体の放射光オーバーレイ) */
+#gekibtn{border:2px solid #b18cff;background:#1d1433;color:#cdb4ff;font-size:13px}
+#gekibtn .gkstate{font-size:15px}
+#gekibtn.on{background:linear-gradient(140deg,#ffd23f,#ff7ab8);color:#2a0c1c;border-color:#fff;box-shadow:0 0 26px rgba(255,210,63,.9)}
+#geki{position:fixed;inset:0;pointer-events:none;z-index:1;overflow:hidden;opacity:0;background:repeating-conic-gradient(from 0deg at var(--gx,50%) var(--gy,40%),rgba(255,214,80,.5) 0deg 9deg,rgba(255,214,80,0) 9deg 22deg),radial-gradient(circle at var(--gx,50%) var(--gy,40%),rgba(255,240,180,.85),rgba(255,210,63,.25) 34%,transparent 68%)}
+#geki.on{animation:gekiBurst 1.4s ease-out forwards}
+@keyframes gekiBurst{0%{opacity:0;transform:scale(.92)}18%{opacity:1}55%{opacity:.95}100%{opacity:0;transform:scale(1.06)}}
+#geki .gspk{position:absolute;pointer-events:none;animation:gekiSpark 1.3s ease-out forwards}
+@keyframes gekiSpark{0%{opacity:0;transform:scale(.4) rotate(0deg)}25%{opacity:1}100%{opacity:0;transform:scale(1.5) rotate(50deg)}}
+@media (prefers-reduced-motion:reduce){#geki.on{animation:none}}
+@keyframes confettiFall{0%{opacity:1;transform:translateY(0) rotate(0) scale(1)}80%{opacity:.9}100%{opacity:0;transform:translateY(105vh) rotate(680deg) scale(.35)}}
+body.nofs #impact{position:fixed;left:50%;bottom:8px;top:auto;z-index:60}
+
+/* ===== ページ編集ツール (build 51, edit.js) ===== */
+@keyframes paFade{from{opacity:0}to{opacity:1}}
+@keyframes paSlide{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+@keyframes paPop{0%{transform:scale(.6)}55%{transform:scale(1.12)}100%{transform:scale(1)}}
+@keyframes paFloat{from{transform:translateY(0)}to{transform:translateY(-7px)}}
+@keyframes paSparkle{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35) saturate(1.3)}}
+.pa-fade{animation-name:paFade;animation-fill-mode:both}
+.pa-slide{animation-name:paSlide;animation-fill-mode:both}
+.pa-pop{animation-name:paPop;animation-fill-mode:both}
+.pa-float{animation-name:paFloat;animation-iteration-count:infinite;animation-direction:alternate;animation-timing-function:ease-in-out}
+.pa-sparkle{animation-name:paSparkle;animation-iteration-count:infinite;animation-timing-function:ease-in-out}
+#freearea{max-width:860px;margin:10px auto;padding:0 6px}
+.pb-line{margin:10px 0}
+.pb-h{font-weight:900;font-size:21px;margin:16px 0 8px;color:#fff}
+.pb-t{font-size:15px;line-height:1.8;margin:8px 0;white-space:pre-wrap;color:#eef}
+.pb-a{color:#ff8fab;font-weight:700;text-decoration:underline;cursor:pointer}
+.pb-btn{display:inline-block;background:#ff5d8f;color:#fff;font-weight:900;font-size:15.5px;border-radius:999px;padding:10px 26px;box-shadow:0 2px 0 #c2185b;cursor:pointer}
+.pb-card{background:#1c1e38;border:1px solid #2c2f57;border-radius:16px;padding:14px 16px;margin:12px 0;color:#eef}
+.pb-card-t{font-weight:900;font-size:16.5px;margin:0 0 6px}
+.pb-card-b{font-size:14.5px;line-height:1.75;margin:0;white-space:pre-wrap}
+.pb-card-lk{margin-top:8px}
+.pb-imgwrap{display:block;margin:12px 0}
+.pb-img{max-width:100%;border-radius:14px;display:block}
+.pb-cap{font-size:13px;color:#9aa0c8;margin:4px 0 10px}
+.pb-group{background:#1c1e38;border:2px dashed rgba(255,93,143,.45);border-radius:18px;padding:12px 14px;margin:14px 0;color:#eef}
+.pb-group-t{font-weight:900;font-size:16px;margin:0 0 8px}
+.pb-group-in{overflow-y:auto;padding-right:4px}
+.gh-s{height:180px}
+.gh-m{height:280px}
+.gh-l{height:420px}
+.pb-ukka.pb-card,.pb-card.pb-ukka{background:#fff5f8;border:2px solid #ffd3e0;color:#333}
+.pb-ukka.pb-group,.pb-group.pb-ukka{background:#fff5f8;border-color:#ff9ebb;color:#333}
+.pb-ukka .pb-btn,.pb-btn.pb-ukka{background:#ff5c8a;box-shadow:0 2px 0 #e75480}
+.pb-momo.pb-card,.pb-card.pb-momo{background:#101c3a;color:#fff;border-color:#ff5c8a}
+.pb-momo.pb-group,.pb-group.pb-momo{background:#101c3a;color:#fff;border-color:#ff5c8a}
+.pdlg-ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:999;padding:18px}
+.pdlg{background:#1c1e38;border:1px solid #2c2f57;color:#eef;border-radius:18px;padding:20px;max-width:420px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.pdlg-t{font-weight:900;font-size:17px;margin:0 0 8px}
+.pdlg-b{font-size:14.5px;line-height:1.7;margin:0 0 16px;white-space:pre-wrap}
+.pdlg-btns{display:flex;gap:10px;justify-content:flex-end}
+.pdlg-ok{background:#ff5d8f;color:#fff;font-weight:900;border:0;border-radius:999px;padding:9px 22px;cursor:pointer}
+.pdlg-c{background:#262a4d;color:#cfd2f2;font-weight:700;border:1px solid #2c2f57;border-radius:999px;padding:9px 22px;cursor:pointer}
+/* build 58: モード方式(制作モード/シェアポイント作成モード) */
+.mkmode{font-size:11px;color:#ffd23f;border:1.5px solid #ffd23f;border-radius:10px;padding:2px 8px;vertical-align:2px}
+#mkCreate{width:100%;height:56px;border-radius:28px;background:#ffd23f;color:#2a2410;font-weight:900;font-size:16px}
+#mkCreate.go{background:#4dc9ff;color:#0b2233}
+#mkCreate.edit{background:#a66bff;color:#fff}
+#mkHint{font-size:12px;color:var(--mut);line-height:1.6}
+#mkList{height:208px;overflow-y:auto;overscroll-behavior:contain;border:1px solid #2c2f57;border-radius:12px;padding:6px;background:#14152b}
+.mkcard{display:flex;align-items:stretch;gap:6px;border-bottom:1px solid #2c2f57;padding:3px 0}
+.mkcard:last-child{border-bottom:0}
+.mkcard .mkpick{flex:1;display:flex;align-items:center;gap:8px;min-height:44px;text-align:left;font-size:13px;padding:4px 8px;border-radius:10px;color:var(--ink)}
+.mkcard .mkt{font-weight:900;color:#cfd2f2;flex:none}
+.mkcard .mkk{flex:none;font-size:11px;font-weight:900;border:1.5px solid #8e91b8;border-radius:9px;padding:2px 7px}
+.mkcard .mkx{flex:1;overflow-wrap:anywhere}
+.mkcard .mkd{flex:none;color:#ffd23f;font-weight:700;font-size:12px}
+.mkcard .mkdel{width:40px;flex:none;font-size:16px;color:var(--mut)}
+.mkcard.sel{background:rgba(166,107,255,.16);border-radius:10px}
+.mkcard.sel .mkpick{outline:2px solid #a66bff}
+.mkcard.pend{background:rgba(77,201,255,.12);border-radius:10px}
+.mkcard.pend .mkpick{outline:2px dashed #4dc9ff}
+#spStep{width:100%;height:52px;border-radius:26px;background:#ff7ab8;color:#fff;font-weight:900;font-size:15px}
+
+/* ===== build 59: 作成画面・シェアポイント作成画面(画面切替。プレイヤーは移動しない) ===== */
+body.scr-mk #songbox,body.scr-sp #songbox,body.scr-mk #tot,body.scr-sp #tot,body.scr-mk #who,body.scr-sp #who,body.scr-mk #modebar,body.scr-sp #modebar,body.scr-mk #applybtn,body.scr-sp #applybtn,body.scr-mk #dots,body.scr-sp #dots,body.scr-mk .pads,body.scr-sp .pads,body.scr-mk #pEv,body.scr-sp #pEv,body.scr-mk #ovbtn,body.scr-sp #ovbtn,body.scr-mk #info,body.scr-sp #info,body.scr-mk #mkvBtn,body.scr-sp #mkvBtn,body.scr-mk #freearea,body.scr-sp #freearea{display:none!important}
+body.scr-mk #play,body.scr-sp #play{width:56px;height:56px;font-size:12px}
+.subctl{display:flex;gap:8px}
+.subctl button{flex:1;height:44px;border-radius:22px;background:#262a4a;color:var(--ink);font-weight:700;border:1px solid #3a3f6b}
+#mkCreate{width:118px;height:118px;border-radius:50%;margin:2px auto;font-size:17px;display:block}
+#mkCreate.go{background:#4dc9ff;color:#0b2233}
+#mkCreate.edit{background:#ffd23f;color:#2a2410;border:4px solid #a66bff}
+#mkEdit{flex-direction:column;gap:10px;background:#14152b;border:1px solid #2c2f57;border-radius:12px;padding:10px}
+#mkDelBtn{height:40px;border-radius:20px;background:#3a2030;color:#ff8fa8;font-weight:700}
+#mkPubBtn{height:44px;border-radius:22px;background:#262a4a;color:var(--ink);font-weight:700;border:1px solid #3a3f6b}
+#mkSaveBtn{height:52px;border-radius:26px;background:#ff5c8a;color:#fff;font-weight:900;font-size:16px}
+.mkyameru{background:none;color:var(--mut);font-size:13px;min-height:36px}
+#barin{position:relative}
+#mkBand{position:absolute;left:0;top:50%;transform:translateY(-50%);height:12px;border-radius:6px;pointer-events:none;z-index:2}
+#mkKnob{position:absolute;top:50%;width:34px;height:34px;border-radius:50%;transform:translate(-50%,-50%);z-index:3;cursor:grab;touch-action:none;box-shadow:0 2px 8px rgba(0,0,0,.55);border:3px solid rgba(255,255,255,.35)}
+#mkBub{position:absolute;left:50%;bottom:42px;transform:translateX(-50%);background:#14152b;border:1px solid #8e91b8;color:#fff;font-size:12px;font-weight:700;padding:2px 8px;border-radius:8px;display:none;white-space:nowrap}
+#mkKnob.drag #mkBub{display:block}
+#spStep{width:118px;height:118px;border-radius:50%;margin:2px auto;display:block;background:#ffd23f;color:#2a2410;font-weight:900;font-size:16px;padding:10px}
+.spValsLine{text-align:center;font-size:14px}
+.switchbtn{height:48px;border-radius:24px;background:#262a4a;color:var(--ink);font-weight:700;border:1px solid #3a3f6b}
+
+/* ===== build 60: 作成画面下部の引き出し(ツールバー。将来的に他のボタンも置く場所)とプリセットコール ===== */
+#mkDrawer{display:none}
+body.scr-mk #mkDrawer{display:block;position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:26}
+body.scr-mk #app{padding-bottom:64px}
+#mkDrawerBar{width:100%;height:42px;background:rgba(38,42,74,.78);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:0;border-top:2px solid #3a3f6b;color:var(--ink);font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font:inherit}
+#mkDrawerBar .drwHint{font-size:11px;color:var(--mut);font-weight:700}
+#mkDrawerBody{max-height:0;overflow:hidden;transition:max-height .3s ease;background:rgba(28,30,56,.78);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+#mkDrawer.open #mkDrawerBody{max-height:25vh;overflow-y:auto;padding:10px}
+.drwBtns{display:flex;gap:8px;flex-wrap:wrap}
+.drwBtn{flex:1;min-width:140px;height:44px;border-radius:12px;background:#ff5c8a;color:#fff;font-weight:900;font-size:14px;border:0;cursor:pointer;font:inherit}
+#psList{flex-direction:column;gap:6px;margin-top:10px}
+.psChip{display:flex;align-items:center;gap:8px;min-height:44px;text-align:left;font-size:13px;padding:4px 8px;border-radius:10px;background:#14152b;border:1px solid #2c2f57;color:var(--ink);cursor:pointer;width:100%;font:inherit}
+.psChip .psk{flex:none;font-size:11px;font-weight:900;border:1.5px solid #8e91b8;border-radius:9px;padding:2px 7px}
+.psChip .psx{flex:1;overflow-wrap:anywhere}
+.psNone{font-size:12px;color:var(--mut);padding:6px 2px;line-height:1.6}
+
+/* ===== build 62: ウェルカムカード / ゲスト作成 / ガイドモード / ±0.1秒 / 自押し制限 ===== */
+/* ウェルカムカード(トップを開いたとき最上レイヤーに表示。モック実装の確定スタイル) */
+#welcome{position:fixed;inset:0;background:rgba(10,10,24,.72);display:none;align-items:center;justify-content:center;z-index:70;padding:16px}
+#welcome.on{display:flex}
+.wcard{background:var(--panel);border:2px solid var(--pink);border-radius:20px;max-width:440px;width:100%;padding:16px;display:flex;flex-direction:column;gap:12px;max-height:92vh;overflow:auto}
+.wcard img{width:100%;border-radius:12px;display:block}
+.wcard h2{margin:0;font-size:19px;font-weight:900;text-align:center}
+.wcard p{margin:0;font-size:14px;line-height:1.8}
+.wchk{font-size:13px;display:flex;gap:8px;align-items:center;cursor:pointer}
+.wclose{height:52px;border-radius:26px;background:var(--pink);color:#14152b;font-weight:900;font-size:16px;border:0;cursor:pointer;font:inherit}
+/* ゲスト/初めての訪問者向けの点滅入口と、各作成画面のガイド開始ボタン */
+#trybtn{display:block;margin:10px auto 0;background:linear-gradient(90deg,#ff3b4f,#ff7ab8);color:#fff;border:none;border-radius:999px;padding:13px 24px;font-size:16px;font-weight:900;cursor:pointer;font:inherit;animation:gtPulse .8s ease-in-out infinite}
+body.scr-mk #trybtn,body.scr-sp #trybtn{display:none!important}
+.gstart{align-self:flex-start;background:#3a3f6b;color:var(--ink);border:1.5px solid var(--pink);border-radius:999px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;font:inherit}
+@keyframes gtPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,122,184,0)}50%{box-shadow:0 0 0 7px rgba(255,122,184,.4)}}
+/* 制作ガイドモード(refmake build 61のバナーが原型。「ガイドモードを解除」は常時表示) */
+#guideBar{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:40;background:#ffd23f;color:#2a2410;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top));box-shadow:0 4px 18px rgba(0,0,0,.5);border-radius:0 0 16px 16px}
+#guideProg{font-size:11px;font-weight:900;opacity:.75}
+#guideMsg{font-size:14px;font-weight:900;line-height:1.6;margin-top:2px}
+#guideBtns{display:flex;gap:8px;margin-top:8px}
+#guideBtns button{flex:1;height:46px;border-radius:23px;background:#2a2410;color:#ffd23f;font-weight:900;font-size:14px;border:0;cursor:pointer;font:inherit}
+#gOffBtn{width:100%;height:46px;border-radius:23px;background:#2a2410;color:#ffd23f;font-weight:900;font-size:14px;margin-top:8px;border:0;cursor:pointer;font:inherit}
+@keyframes gBlink{0%,100%{box-shadow:0 0 0 3px rgba(255,210,63,.95),0 0 18px 6px rgba(255,210,63,.55)}50%{box-shadow:0 0 0 3px rgba(255,210,63,.2),0 0 4px 1px rgba(255,210,63,.1)}}
+.gtarget{animation:gBlink 1s ease-in-out infinite}
+.glocked{opacity:.35!important;pointer-events:none!important}
+/* ±0.1秒の位置微調整(refmakeと同じ見た目) */
+.fineRow{display:flex;gap:8px;align-items:center}
+.fineRow span{font-size:12px;color:var(--mut);flex:none}
+.fineRow button{flex:1;height:44px;border-radius:22px;border:2px solid #8e91b8;font-weight:700;font-size:13px;color:var(--ink);background:#262a4a;cursor:pointer;font:inherit}
+/* プレビューボタン(保存先切替ボタンと同じ見た目) */
+#mkPvBtn{height:44px;border-radius:22px;background:#262a4a;color:var(--ink);font-weight:700;border:1px solid #3a3f6b;cursor:pointer;font:inherit}
+/* この訪問中に作ったコールは湧きボタンを少し透かす(自押し制限の目印) */
+.wk.off{opacity:.45}
+
+/* ===== build 63: 観覧モード / シェアの選択肢シート / この作者の他の推しコール ===== */
+/* 観覧モード: 下部シート(プリセットコールの引き出しと同じ形式・同じ半透明の見た目) */
+#kanranbtn{border:2px solid #4dc9ff;background:#16283d;color:#bfe9ff;font-size:14px}
+#kanranbtn.on{border-color:#fff;background:#4dc9ff;color:#0b2233;box-shadow:0 0 18px rgba(77,201,255,.65)}
+#kanranSheet{position:fixed;inset:0;background:rgba(10,10,24,.38);display:none;align-items:flex-end;z-index:25}
+#kanranSheet.on{display:flex}
+#kanranSheet .kspanel{width:100%;max-width:480px;margin:0 auto;height:50vh;height:50dvh;background:rgba(38,42,74,.78);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1.5px solid rgba(255,255,255,.22);border-bottom:0;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;overflow:auto}
+#shareChoiceSheet{position:fixed;inset:0;background:rgba(10,10,24,.38);display:none;align-items:flex-end;z-index:26}
+#shareChoiceSheet.on{display:flex}
+#shareChoiceSheet .kspanel{width:100%;max-width:480px;margin:0 auto;max-height:62vh;max-height:62dvh;background:rgba(38,42,74,.78);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1.5px solid rgba(255,255,255,.22);border-bottom:0;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;overflow:auto}
+#shChoiceNote{padding:10px 12px;border-radius:12px;background:rgba(20,21,43,.55);border:1px solid rgba(255,255,255,.20);font-size:12.5px;font-weight:700;line-height:1.6}
+#shChoiceNote b{color:var(--pink)}
+#shChoiceBtns{display:flex;flex-direction:column;gap:12px}
+.kshead{display:flex;justify-content:space-between;align-items:center;min-height:44px}
+.kshead h2{margin:0;font-size:19px;font-weight:900}
+.ksx{width:44px;height:44px;flex:none;display:flex;align-items:center;justify-content:center}
+.ksitem{width:100%;min-height:64px;border-radius:16px;border:2px solid rgba(255,255,255,.35);background:rgba(20,21,43,.45);font-weight:900;font-size:17px;text-align:left;padding:0 18px;display:flex;align-items:center;justify-content:space-between;color:var(--ink);cursor:pointer;font:inherit}
+.ksitem span{color:var(--mut);font-size:22px;font-weight:900}
+.ksclose{min-height:52px;border-radius:26px;border:2px solid var(--ink);font-weight:900;font-size:15px;color:var(--ink);cursor:pointer;font:inherit}
+.ksitem.sel{border-color:#4dc9ff;background:rgba(77,201,255,.20)}
+#ksStatus{padding:10px 12px;border-radius:12px;background:rgba(20,21,43,.55);border:1px solid rgba(255,255,255,.20);font-size:12.5px;font-weight:700;line-height:1.6}
+#ksStatus b{color:#4dc9ff}
+#ksSpecBox{display:none;flex-direction:column;gap:10px;padding:12px;border-radius:14px;background:rgba(20,21,43,.45);border:1px solid rgba(255,255,255,.18)}
+#ksSpecBox.on{display:flex}
+#ksSpecBox p{margin:0;font-size:12px;color:var(--mut);line-height:1.6}
+.ksname{flex:none;width:34px;font-size:12px;font-weight:900}
+.ksbtns{display:flex;gap:8px;flex-wrap:wrap}
+.ksbtns button{flex:1;min-width:100px;min-height:44px;border-radius:22px;border:2px solid #8e91b8;font-weight:700;font-size:12px;color:var(--ink);cursor:pointer;font:inherit}
+#ksApply{height:50px;border-radius:25px;background:#4dc9ff;color:#0b2233;font-weight:900;font-size:15px;cursor:pointer;font:inherit}
+/* この作者の他の推しコール: 再生画面の作者表示(#who)のすぐ下に出すボタンと、全曲横断の一覧シート(観覧シートと同じ下半分・半透明の形式) */
+#authorOtherBtn{margin-top:8px;min-height:44px;padding:0 18px;border-radius:22px;border:2px solid var(--pink);color:var(--pink);font-weight:900;font-size:13px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;font:inherit}
+#authorOtherBtn:active{background:rgba(255,122,184,.18)}
+#authorSheet{position:fixed;inset:0;background:rgba(10,10,24,.38);display:none;align-items:flex-end;z-index:25}
+#authorSheet.on{display:flex}
+#authorSheet .kspanel{width:100%;max-width:480px;margin:0 auto;max-height:72vh;max-height:72dvh;background:rgba(38,42,74,.82);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1.5px solid rgba(255,255,255,.22);border-bottom:0;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;overflow:auto}
+#authorHead{font-size:13px;font-weight:700;line-height:1.6;color:var(--mut)}
+#authorHead b{color:var(--ink);font-size:15px}
+#authorList{display:flex;flex-direction:column;gap:10px}
+.authorItem{border:1.5px solid rgba(255,255,255,.25);border-radius:16px;background:rgba(20,21,43,.5);padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.authorItem.cur{border-color:var(--pink);background:rgba(255,122,184,.14)}
+.authorItem .asong{font-size:12px;font-weight:900;color:#4dc9ff}
+.authorItem .atitle{font-size:15px;font-weight:900;line-height:1.4;overflow-wrap:anywhere}
+.authorItem .atitle .tag{margin-left:6px}
+.authorItem .ameta{font-size:11px;color:var(--mut);font-weight:700}
+.authorItem .aplay{align-self:flex-start;min-height:44px;padding:0 18px;border-radius:22px;background:var(--pink);color:#2a0c1c;font-weight:900;font-size:13px;cursor:pointer;font:inherit}
+.authorItem .aplay.curbtn{background:rgba(255,255,255,.15);color:var(--ink);border:2px solid var(--ink)}
+.authorEmpty{font-size:13px;color:var(--mut);font-weight:700;line-height:1.7;padding:6px 2px}
+
+/* ---------- build 64: 作成の2モード制・長押しカード作成・シーク連動スクラブ・拡大タイムライン・カード再編集 ---------- */
+/* モード切替タブ(既存の .mkmode は h2 内の小ラベル用なので、タブは .mktab で分ける) */
+#mkModeTabs{display:flex;flex-direction:column;gap:8px}
+.mktab{min-height:52px;border-radius:16px;border:2px solid #8e91b8;font-weight:900;font-size:15px;padding:8px 12px;color:var(--ink);line-height:1.35;cursor:pointer;font:inherit;background:#262a4a}
+.mktab.sel{background:var(--pink);color:#2a0c1c;border-color:var(--pink);box-shadow:0 4px 16px rgba(255,122,184,.45)}
+#mkModeDesc{margin:0;font-size:12px;color:var(--mut);line-height:1.65}
+/* 拡大タイムライン(通常は曲全体。ドラッグ中・長押し中は現在位置を中心に約30秒へ拡大し、画面下部に浮かせて出し続ける) */
+#mkTlBox{display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:14px;background:rgba(20,21,43,.55);border:1px solid #3a3f6b}
+#mkTlBox.tlfloat{position:fixed;left:8px;right:8px;bottom:calc(10px + env(safe-area-inset-bottom));max-width:464px;margin:0 auto;z-index:88;background:rgba(20,21,43,.96);border:1.5px solid var(--pink);box-shadow:0 12px 34px rgba(0,0,0,.65)}
+.mktl-head{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:900}
+#mkTlMode{padding:2px 10px;border-radius:10px;background:#3a3f6b;font-size:11px}
+#mkTlBox.zoom #mkTlMode{background:#ffd23f;color:#2a2410}
+#mkTlPos{margin-left:auto;font-size:11px;color:var(--mut);font-weight:700;text-align:right}
+#mkTlView{display:flex;gap:6px}
+#mkTlLabs{flex:0 0 52px;display:flex;flex-direction:column;font-size:9px;font-weight:900;color:#cfd2f2}
+#mkTlLabs span{height:20px;margin-bottom:3px;display:flex;align-items:center}
+#mkTlLabs span:last-child{height:20px;margin-bottom:0}
+#mkTlSlide{position:relative;flex:1;overflow:hidden;border-radius:8px;background:rgba(255,255,255,.05);min-height:92px}
+#mkTlInner{position:absolute;left:0;top:0;bottom:0;width:100%;transition:transform .55s cubic-bezier(.3,1.25,.35,1),width .55s cubic-bezier(.3,1.25,.35,1);will-change:transform,width}
+.mktl-lane{position:relative;height:20px;margin-bottom:3px}
+.mktl-bar{position:absolute;top:2px;height:16px;border-radius:5px;border:1px solid rgba(255,255,255,.55);min-width:6px;overflow:hidden;font-size:9px;font-weight:900;line-height:16px;padding:0 4px;white-space:nowrap;color:#14152b;cursor:pointer}
+.mktl-bar span{display:none}
+#mkTlBox.zoom .mktl-bar span{display:inline}
+.mb-call{background:#ff6b9d}.mb-sing{background:#4dc9ff}.mb-koko{background:#ffd23f}
+.mktl-bar.selb2{outline:2px solid #fff;outline-offset:1px}
+.mktl-ticks{position:relative;height:20px}
+.mktl-tick{position:absolute;bottom:0;width:1px;height:6px;background:#8e91b8}
+.mktl-tick.big{height:10px;background:#cfd2f2}
+.mktl-tlab{position:absolute;top:0;transform:translateX(-50%);font-size:9px;font-weight:700;color:#8e91b8;white-space:nowrap}
+#mkTlBox.zoom .mktl-tlab{color:#f4f4fb;font-size:10px;font-weight:900}
+#mkTlPlay{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 6px #fff;pointer-events:none;display:none}
+#mkTlPrev{position:absolute;height:16px;border-radius:5px;border:2px dashed #ffd23f;background:rgba(255,210,63,.35);color:#ffd23f;font-size:9px;font-weight:900;line-height:16px;padding:0 4px;white-space:nowrap;overflow:visible;z-index:2}
+.mktl-note{margin:0;font-size:11px;color:var(--mut);line-height:1.6}
+#mkTlKnob{position:absolute;top:0;bottom:0;width:16px;margin-left:-8px;background:var(--pink);border:2px solid #fff;border-radius:8px;box-shadow:0 0 10px rgba(255,122,184,.8);display:none;z-index:3;touch-action:none;cursor:ew-resize}
+/* 大きなボタンの長押し(指を離すまでスクロールさせない) */
+#mkCreate{touch-action:none;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+#mkCreate:active{transform:scale(.96)}
+/* お気に置きにいっちゃうモード: プリセットチップと掴み要素、ドラッグ中のゴースト */
+.mkTextRow{display:flex;gap:8px}
+.mkTextRow input{flex:1;min-width:0}
+#mkGrip{flex:none;height:44px;padding:0 14px;border-radius:12px;border:2px solid #ffd23f;color:#ffd23f;font-weight:900;font-size:13px;touch-action:none;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none;background:#262a4a;cursor:pointer;font:inherit}
+#mkGrip:active{background:rgba(255,210,63,.2)}
+#mkPresets{display:flex;flex-direction:column;gap:8px}
+#mkPresets .plab{font-size:12px;font-weight:900;line-height:1.6}
+#mkChips{display:flex;gap:8px;flex-wrap:wrap}
+.pchip{min-height:44px;padding:0 16px;border-radius:22px;border:2px solid var(--pink);color:#ffd2e6;font-weight:900;font-size:14px;background:rgba(255,122,184,.12);touch-action:none;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none;cursor:pointer;font:inherit}
+.pchip:active{background:var(--pink);color:#2a0c1c}
+.mknote{font-size:11px;color:var(--mut);line-height:1.6}
+#dragGhost{position:fixed;z-index:95;pointer-events:none;display:none;transform:translate(-50%,-150%);max-width:78vw;padding:8px 14px;border-radius:20px;background:var(--pink);color:#2a0c1c;font-weight:900;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.5);text-align:center;line-height:1.3}
+#dragGhost small{display:block;font-size:11px;font-weight:900}
+#dragGhost.on{display:block}
+/* 操作感の調整パネル */
+#mkTuneBtn{align-self:flex-start;min-height:40px;padding:0 14px;border-radius:20px;border:2px solid #8e91b8;color:var(--mut);font-weight:900;font-size:12px;cursor:pointer;font:inherit;background:#262a4a}
+#mkTunePanel{display:none;flex-direction:column;gap:10px;padding:12px;border-radius:14px;background:rgba(20,21,43,.55);border:1px solid #3a3f6b}
+#mkTunePanel.on{display:flex}
+#mkTunePanel .durrow b{min-width:52px}
+.tuneword{flex:none;font-size:11px;color:var(--mut);font-weight:700}
+#tuneReset{align-self:flex-start;min-height:40px;padding:0 14px;border-radius:20px;border:2px solid #8e91b8;font-weight:700;font-size:12px;color:var(--ink);cursor:pointer;font:inherit;background:#262a4a}
+/* カード再編集: 選択したカードがふわっと浮かび上がる見た目と、選択中だけ出る位置編集欄 */
+.mkcard{transition:transform .25s ease,box-shadow .25s ease}
+.mkcard.sel{transform:translateY(-4px) scale(1.015);background:rgba(255,122,184,.16);border-radius:12px;box-shadow:0 10px 22px rgba(0,0,0,.45),0 0 16px rgba(255,122,184,.45);animation:selFloat .3s ease-out}
+.mkcard.sel .mkpick{outline:2px solid var(--pink)}
+@keyframes selFloat{from{transform:translateY(4px) scale(.98);opacity:.55}to{transform:translateY(-4px) scale(1.015);opacity:1}}
+@media (prefers-reduced-motion:reduce){.mkcard.sel{animation:none}}
+#mkPosEdit{flex-direction:column;gap:10px;padding:12px;border-radius:14px;background:rgba(255,122,184,.10);border:1.5px solid rgba(255,122,184,.55)}
+.mkpe-head{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:900;flex-wrap:wrap}
+#mkPosTime{color:#ffd23f}
+.mkpe-note{margin:0;font-size:11px;color:var(--mut);line-height:1.6}
+#mkPosScrub{min-height:48px;border-radius:14px;border:2px solid #ffd23f;color:#ffd23f;font-weight:900;font-size:13px;touch-action:none;user-select:none;-webkit-user-select:none;background:#262a4a;cursor:pointer;font:inherit}
+#mkPosScrub:active{background:rgba(255,210,63,.2)}
+.mkpe-btns{display:flex;gap:8px;flex-wrap:wrap}
+.mkpe-btns button{flex:1;min-width:70px;min-height:44px;border-radius:22px;border:2px solid #4dc9ff;color:#4dc9ff;font-weight:900;font-size:13px;background:#262a4a;cursor:pointer;font:inherit}
+.mkpe-btns .restore{border-color:var(--ink);color:var(--ink)}
+.mkpe-btns .here{border-color:#ffd23f;color:#ffd23f}
+#mkApplyNote{margin:0;font-size:12px;font-weight:700;line-height:1.6;color:var(--mut)}
+#mkApplyNote:empty{display:none}
+@media (prefers-reduced-motion:reduce){#mkTlInner{transition:none}#mkCreate:active{transform:none}}
