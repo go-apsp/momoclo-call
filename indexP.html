@@ -893,10 +893,12 @@ gtag('config', 'G-00QSZME258');
   body.scr-mk.nori-simple #mk { padding-top:8px; }
   body.scr-mk.nori-simple #mk .mknori { display:none !important; }
   body.scr-mk.nori-simple #mk .mkoki { display:none !important; }
+  body.scr-mk.nori-simple #mk .nori-call-input { display:block; width:calc(100% - 16px); max-width:464px; margin:10px auto; box-sizing:border-box; }
+  body.scr-mk.nori-simple #mk .nori-call-input .types { display:flex !important; }
+  body.scr-mk.nori-simple #mk .nori-call-input .mkTextRow { display:flex !important; width:100%; min-height:48px; }
+  body.scr-mk.nori-simple #mk .nori-call-input #mkText { display:block !important; visibility:visible !important; width:100%; min-width:0; min-height:48px; font-size:16px; }
   body.scr-mk.nori-simple #mk .nori-edit-panel { display:none; }
   body.scr-mk.nori-simple.nori-edit-open #mk .nori-edit-panel { display:flex; flex-direction:column; gap:10px; }
-  body.scr-mk.nori-simple.nori-edit-open #mk .nori-edit-panel .mkTextRow { display:flex !important; width:100%; min-height:48px; }
-  body.scr-mk.nori-simple.nori-edit-open #mk .nori-edit-panel #mkText { display:block !important; visibility:visible !important; width:100%; min-width:0; min-height:48px; font-size:16px; }
   @media (max-width:360px) {
     #noriMainRow #mkCreate { height:70px; font-size:19px; }
     #noriSpeedWrap { flex-basis:82px; }
@@ -971,20 +973,23 @@ gtag('config', 'G-00QSZME258');
     rateProxy.style.display = "none";
     document.body.appendChild(rateProxy);
 
+    const callInputPanel = document.createElement("div");
+    callInputPanel.className = "nori-call-input";
+    const callLabel = document.createElement("label");
+    callLabel.htmlFor = "mkText";
+    callLabel.textContent = "カードに表示するコールの文字";
+    callLabel.style.cssText = "display:block;font-weight:800;margin:2px 0 6px;";
+    callInputPanel.appendChild(callLabel);
+    [document.getElementById("mkTypes"), mk.querySelector(".mkTextRow")].filter(Boolean).forEach(node => move(node,callInputPanel));
+    mk.appendChild(callInputPanel);
+
     const editPanel = document.createElement("div");
     editPanel.className = "nori-edit-panel";
     const editNodes = [
       document.getElementById("mkApplyNote"),
-      document.getElementById("mkTypes"),
-      mk.querySelector(".mkTextRow"),
       document.getElementById("mkEdit"),
       document.getElementById("mkPosEdit")
     ].filter(Boolean);
-    const callLabel = document.createElement("label");
-    callLabel.htmlFor = "mkText";
-    callLabel.textContent = "コールの内容を入力";
-    callLabel.style.cssText = "display:block;font-weight:800;margin:2px 0 -5px;";
-    editPanel.appendChild(callLabel);
     editNodes.forEach(node => move(node,editPanel));
     mk.appendChild(editPanel);
 
