@@ -132,13 +132,12 @@ gtag('config', 'G-00QSZME258');
     <button class="gstart" data-a="guideStart" style="display:none!important">ガイドモードで作成</button>
     <!-- build 64: 作成の2モード制。表示する操作UIは選択中のモード分だけ。切替えても作りかけのカードは保持される -->
     <div id="mkModeContent" style="display:none;flex-direction:column;gap:10px">
-    <div id="mkLegacyPanel" style="display:none!important">
-    <p id="mkModeDesc"></p>
+    <p id="mkModeDesc" style="display:none!important"></p>
     <div class="subctl">
       <button id="mkPlayBtn" data-a="play">▶ 再生</button>
       <button class="ratebtn" data-a="rate">速度 1倍</button>
     </div>
-    </div>
+    <div id="mkLegacyPanel" style="display:none!important">
     <!-- build 64: 拡大タイムライン。ドラッグ中・長押し中は約30秒表示になり、画面下部に浮いて出続けます(元の位置には同じ高さの空きを残します) -->
     <div id="mkTlBox">
       <div class="mktl-head"><span>タイムライン</span><span id="mkTlMode">全体表示</span><span id="mkTlPos"></span></div>
@@ -207,6 +206,7 @@ gtag('config', 'G-00QSZME258');
     <button id="mkPvBtn" data-a="pvToggle">プレビュー</button>
     <button id="mkSaveBtn" data-a="mkSaveBack">保存して戻る</button>
     <button class="mkyameru" data-a="endMk">保存せずに戻る</button>
+    </div>
     </div>
   </section>
 
