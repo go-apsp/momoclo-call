@@ -499,6 +499,7 @@ function paintKnob() {
   const bub = $("mkBub"); if (bub) bub.textContent = fmt(sc.t);
 }
 function enterMk() {
+  const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "none";
   spStep = 0; paintSpStep();
   setScreen("mk");
   applyRate();
@@ -509,6 +510,7 @@ function enterMk() {
   $("mvwrap").scrollIntoView({behavior: "smooth"});
 }
 function exitMk() {
+  const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "";
   setScreen("play");
   const drw = $("mkDrawer"); if (drw) drw.classList.remove("open");
   mkSel = -1; mkLenPhase = null; mkSelOrigT = null; mkSetZoom(false);
