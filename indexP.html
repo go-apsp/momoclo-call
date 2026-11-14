@@ -865,6 +865,7 @@ gtag('config', 'G-00QSZME258');
 
 
 <style id="indexp-nori-layout-v1">
+  body.scr-mk.nori-simple #mk .subctl,
   body.scr-mk.nori-simple #mkModeDesc,
   body.scr-mk.nori-simple #mkBigWrap,
   body.scr-mk.nori-simple #mk .gstart,
@@ -952,7 +953,7 @@ gtag('config', 'G-00QSZME258');
       speedMenu.appendChild(b);
     });
     speedWrap.append(speedBtn,speedMenu);
-    mainRow.append(mkCreate,speedWrap);
+    mainRow.append(speedWrap);
     const seekRow = document.createElement("div");
     seekRow.id = "noriSeekRow";
     const multiBtn = document.createElement("button");
@@ -998,10 +999,11 @@ gtag('config', 'G-00QSZME258');
       document.body.classList.toggle("nori-simple",nori);
       if (nori) {
         if (!controls.isConnected) {
+          move(mkCreate,mainRow);
+          seekButtons.forEach(b => move(b,seekRow));
           const anchor = mkTlBox.nextSibling;
           mvwrap.parentNode.insertBefore(controls,anchor);
         }
-        seekButtons.forEach(b => seekRow.appendChild(b));
         if (oldPlay) oldPlay.style.display = "none";
         const mkPlay = document.getElementById("mkPlayBtn");
         if (mkPlay) mkPlay.style.display = "none";
