@@ -1628,7 +1628,7 @@ const A = {
     guideEvent("card");
   },
   /* build 59: 速度切替(1倍 → 0.5倍 → 0.25倍) */
-  rate: () => { const R = [1, 0.75, 0.5, 0.25]; mkRate = R[(R.indexOf(mkRate) + 1) % R.length]; applyRate(); toast("再生速度を " + mkRate + "倍にしました"); },
+  rate: () => { const R = [1, 0.5, 0.25]; mkRate = R[(R.indexOf(mkRate) + 1) % R.length]; applyRate(); toast("再生速度を " + mkRate + "倍にしました"); },
   rateSelect: v => { const n = Number(v); if ([0.25, 0.5, 0.75, 1].includes(n)) { mkRate = n; applyRate(); toast("再生速度を " + mkRate + "倍にしました"); } },
   /* build 59: 保存先の切替(公開/下書き)と、保存の確定ボタン「保存して戻る」 */
   mkPubTgl: () => { mkPub = !mkPub; paintMkPub(); },
