@@ -651,11 +651,11 @@ function paintPsList() { const el = $("psList"); if (el) el.innerHTML = UI.psChi
 /* ---------- build 64: 2モード制の表示切替 ---------- */
 const MKMODE_DESC = {
   nori: "曲を聞きながら作るモードです。コールを口で言っている間だけ大きな丸ボタンを長押しすると、離した長さでカードが打てます。中身（種類・文言）は後から入れられます。",
-  oki: "文言を先に用意してから置きに行くモードです。プリセットを選ぶか文字を書いておいて、掴んで左右に動かすと、その位置の音を頼りに置く場所を探れます。再生ボタンを押していなくても、掴んで動かし始めるとその位置の音が自動で流れます。指を止めると、その位置からの音が流れるので、聞いて確かめてから離してください。離した位置にカードが置けて、長さは後から変えられます。"
+  oki: "先にカード作成ボタンから黒いカード内容パネルを開き、文言入力→種類選択→決定でカードを作ります。カード一覧で未配置カードを選ぶと、丸い「置きに行く」ボタンが光ります。そのボタンを押さえたまま左右に動かすと、位置の音を聞きながら探れます。指を離した場所にカードが配置されます。従来のプリセットチップ／Gripからの直接配置も使えます。"
 };
 const MKMODE_TLNOTE = {
   nori: "長押ししている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。打ったカードの開始〜終了も表示されます。",
-  oki: "掴んで動かしている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。指の横の位置が、そのまま曲の位置になります。"
+  oki: "「置きに行く」ボタンを押さえて動かしている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。指の横の位置が、そのまま曲の位置になります。"
 };
 function paintMkMode() {
   document.querySelectorAll("#mkModeTabs .mktab").forEach(b => b.classList.toggle("sel", b.dataset.mkmode === mkMode));
@@ -669,7 +669,7 @@ function setMkMode(m) {
   if (m !== "nori" && m !== "oki") return;
   mkMode = m;
   try { localStorage.setItem("momo_mkmode", m); } catch (e) {}
-  paintMkMode();
+  paintMkMode(); paintPlaceBtn();
   guideEvent("mode");
 }
 
@@ -915,7 +915,6 @@ function bindMkPlaceButton() {
   b.addEventListener("pointercancel", () => { if (mkScrSt && mkScrSt.src.fromPlaceButton) mkScrEnd(false); });
   b.addEventListener("contextmenu", e => { if (screen === "mk" && mkMode === "oki") e.preventDefault(); });
 }
-/* お気に置きにいっちゃうモードのプリセットチップ(引き出しの psChips とは別に、掴んでドラッグできるチップを描く) */
 /* お気に置きにいっちゃうモードのプリセットチップ(引き出しの psChips とは別に、掴んでドラッグできるチップを描く) */
 function paintMkChips() {
   const box = $("mkChips"); if (!box) return;
@@ -2005,7 +2004,7 @@ const A = {
    シェアポイント作成は 再生→始点→終点→リンク作成→完了 の全5手順(build 62のまま)。 */
 let guide = null;   // {mode: "mk"|"sp", step: "m0"/"n2"〜"n8"/"nd"/"o2"〜"o6"/"od" / "sp1"〜"sp5"}
 const GMSG = {
-  m0: "作り方を選びます。「♪ ノリノリながらモード」は、曲を聞きながら長押しでカードを打つ作り方。「お気に置きにいっちゃうモード」は、文言を先に用意してから置きに行く作り方です。作りたい方のボタンを押してください（あとから切り替えることもできます）",
+  m0: "作り方を選びます。「♪ ノリノリながらモード」は曲を聞きながらカードを作る方法。「お気に置きにいっちゃうモード」は先にカードの内容を作り、一覧から選んで置きに行く方法です。作りたい方のボタンを押してください（あとから切り替えることもできます）",
   n2: "再生ボタンを押して、曲を再生します。まずはよく聞いて、コールの入るところを耳でつかみましょう",
   n3: "コールのところが来たら、口で言っている間だけ大きな『カード作成』ボタンを長押しします。離すと、その長さでカードが1つできます（短いタップだと5秒の仮カード）。そのまま聞き続けて、次のコールのところでも長押し→離してカード完成。これを繰り返して、ながらでカードを作っていきます。カード作成を止めたいところで、「一時停止」ボタンを押してください。押すと、次は作ったカードの再編集の案内に進みます",
   n4: "ここからは再編集です。まず、直したいカードを下の一覧でタップして選択します。選ぶとカードがふわっと浮かび上がって、そのカードの位置から再生が始まるので、どの部分のカードか音で確かめられます",
@@ -2014,9 +2013,9 @@ const GMSG = {
   n7: "種類と文言も変えられます。カードを選んでいる間は、種類ボタン・文言の入力・プリセットが、選んだカードにそのまま適用されます。種類はボタン（コール／シンガロン／ココ好き!）で切り替え、文言は入力欄に書き直してください。プリセットは、画面いちばん下のバーの引き出しや、プリセットのチップのタップでも適用できます",
   n8: "他のカードも直したくなったら、一覧で選び直して、同じように再編集できます。終わりにするなら「保存して戻る」を押してください（公開か下書きかは、その上のボタンで切り替えられます）。ゲストの方は、名前も入れてください。保存しないなら「保存せずに戻る」を選んでください",
   nd: "できあがり！おつかれさまでした。ガイドモードは上のボタンでいつでもやめられます",
-  o2: "先に文言を用意します。プリセットのチップをタップするか、入力欄に文言を書いてください。種類（コール／シンガロン／ココ好き!）もここで選べます",
-  o3: "用意した文言を掴んで、左右に動かします。再生ボタンを押していなくても、掴んで動かし始めると、その位置の音が自動で流れます。指を動かして、止めてください。指を止めると、その位置からの音が流れます。その音を聞いて置く場所を確かめて、置きたい場所で指を離すと、そこにカードが置かれます。プリセットのチップか、入力欄の横の「つかむ」を押さえてください",
-  o4: "置いたカードを後から直すときは、下の一覧でタップして選びます。選ぶとカードがふわっと浮かび上がって、そのカードの位置から音が再生されるので、どの部分のカードか音で確かめられます",
+  o2: "ペンライト位置の「カード作成」ボタンを押して、黒いカード内容パネルを開きます。文言を入力し、種類（コール／シンガロン／ココ好き!）を選んで決定すると、未配置カードが一覧に追加されます",
+  o3: "下のカード一覧から、今置きたい未配置カードをタップして選択します。選択すると丸い「置きに行く」ボタンが光ります",
+  o4: "光った「置きに行く」ボタンを押さえたまま、左右に動かしてください。丸いオブジェクトが浮かび、動かすとその位置の音が流れます。置きたい場所で指を離すと、そこにカードが配置されます",
   o5: "選択中のカードは、シークバーのつまみや「押さえて左右に動かす」で位置を動かせて、−／＋ボタンで細かく直せます。曲を再生して「ここだ」というところで止めて、「今の再生位置へ持っていく」を押すと、その位置へ一気に移動もできます。間違えたら「戻す」で、選んだときの位置に戻せます。長さは、カードを選んだ状態で大きなボタンを長押しすると決め直せます",
   o6: "次の文言も、同じように掴んで置けます。終わりにするなら「保存して戻る」を押してください（公開か下書きかは、その上のボタンで切り替えられます）。ゲストの方は、名前も入れてください。保存しないなら「保存せずに戻る」を選んでください",
   od: "できあがり！おつかれさまでした。ガイドモードは上のボタンでいつでもやめられます",
@@ -2037,9 +2036,9 @@ const GTARGETS = {
   n7: ["#mkTypes button", "#mkText", "#mkDrawerBar", ".drwBtn", ".psChip", "#mkChips .pchip"],
   n8: ["#mkSaveBtn", "#mkPubBtn", "#mkGuestName", ".mkyameru", "#mkList .mkpick"],
   nd: [],
-  o2: ["#mkText", "#mkTypes button", "#mkChips .pchip", "#mkDrawerBar", ".drwBtn", ".psChip"],
-  o3: ["#mkChips .pchip", "#mkGrip"],
-  o4: ["#mkList .mkpick"],
+  o2: ["#penbtn"],
+  o3: ["#mkList .mkpick"],
+  o4: ["#play"],
   o5: ["#mkKnob", "#mkTlKnob", "#mkPosScrub", ".posStepB", "#mkPosHere", "#mkPosRestore", "#mkFineM", "#mkFineP"],
   o6: ["#mkSaveBtn", "#mkPubBtn", "#mkGuestName", ".mkyameru", "#mkChips .pchip", "#mkGrip"],
   od: [],
@@ -2049,7 +2048,7 @@ const GTARGETS = {
   sp4: ["#spStep"],
   sp5: []
 };
-const GSCROLL = {m0: "#mkModeTabs", n2: "#play", n3: "#mkCreate", n4: "#mkList", n5: "#mkPosEdit", n6: "#mkCreate", n7: "#mkTypes", n8: "#mkSaveBtn", o2: "#mkText", o3: "#mkPresets", o4: "#mkList", o5: "#mkPosEdit", o6: "#mkSaveBtn", sp1: "#spPlayBtn", sp2: "#spStep", sp3: "#spStep", sp4: "#spStep"};
+const GSCROLL = {m0: "#mkModeTabs", n2: "#play", n3: "#mkCreate", n4: "#mkList", n5: "#mkPosEdit", n6: "#mkCreate", n7: "#mkTypes", n8: "#mkSaveBtn", o2: "#penbtn", o3: "#mkList", o4: "#play", o5: "#mkPosEdit", o6: "#mkSaveBtn", sp1: "#spPlayBtn", sp2: "#spStep", sp3: "#spStep", sp4: "#spStep"};
 const GLOCK_SEL = "#songsel,#bar,.skb,#play,#spPlayBtn,.ratebtn,#mkRateSelect,#mkCreate,#mkTypes button,#mkText,#mkFineM,#mkFineP,#mkDelBtn,#mkList .mkpick,#mkList .mkdel,#mkKnob,#mkVer,#mkNote,#mkRef,#mkCmt,#mkGuestName,#mkPubBtn,#mkSaveBtn,#mkPvBtn,.mkyameru,#mkDrawerBar,.drwBtn,.psChip,#spStep,.switchbtn,#mkModeTabs .mktab,#mkGrip,#mkChips .pchip,#mkPosScrub,.posStepB,#mkPosHere,#mkPosRestore,#mkSelClear,#mkTuneBtn,#tuneGain,#tuneDead,#tuneReset,#mkTlKnob";
 function applyGuide() {
   const all = document.querySelectorAll(GLOCK_SEL);
@@ -2099,8 +2098,8 @@ function guideEvent(name) {
   else if (st === "n7" && (name === "type" || (name === "text" && $("mkText").value.trim()))) setGuideStep("n8");
   else if (st === "n8" && name === "saved") setGuideStep("nd");
   else if (st === "o2" && (name === "type" || (name === "text" && $("mkText").value.trim()))) setGuideStep("o3");
-  else if (st === "o3" && name === "drop") setGuideStep("o4");
-  else if (st === "o4" && name === "picked") setGuideStep("o5");
+  else if (st === "o3" && name === "picked") setGuideStep("o4");
+  else if (st === "o4" && name === "drop") setGuideStep("o5");
   else if (st === "o5" && (name === "knob" || name === "fine" || name === "tweak" || name === "lenDone")) setGuideStep("o6");
   else if (st === "o6" && name === "saved") setGuideStep("od");
 }
