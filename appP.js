@@ -526,10 +526,10 @@ function paintMkBtn() {
   const hint = $("mkHint");
   const ed = $("mkEdit"); if (ed) ed.style.display = (mkSel >= 0 && mkIsPlaced(mk.scenes[mkSel])) ? "flex" : "none";
   b.classList.remove("go", "edit");
-  if (mkLenPhase === "run" && mkSel >= 0 && mk.scenes[mkSel]) {
+  if (mkLenPhase === "run" && mkSel >= 0 && mkIsPlaced(mk.scenes[mkSel])) {
     b.textContent = "ここで終わり"; b.classList.add("go");
     if (hint) hint.textContent = "再生中です。表示を終わらせたい位置で「ここで終わり」を押してください。";
-  } else if (mkSel >= 0 && mk.scenes[mkSel]) {
+  } else if (mkSel >= 0 && mkIsPlaced(mk.scenes[mkSel])) {
     const sc = mk.scenes[mkSel];
     b.textContent = "長さ指定"; b.classList.add("edit");
     if (hint) hint.textContent = fmt(sc.t) + " のカードを選択中です。「長さ指定」を押すか、このボタンを長押しすると、その位置から再生して長さを決め直せます。シークバーのつまみや下の位置編集でも直せます。もう一度カードを押すと選択を終わります。";
@@ -543,7 +543,7 @@ function paintMkBtn() {
 const MK_KCOL = {call: "#ff5c8a", sing: "#2ec4b6", koko: "#ff9f1c"};
 function paintKnob() {
   const band = $("mkBand"), kn = $("mkKnob"); if (!band || !kn) return;
-  const sc = (screen === "mk" && mkSel >= 0) ? mk.scenes[mkSel] : null;
+  const sc = (screen === "mk" && mkSel >= 0 && mkIsPlaced(mk.scenes[mkSel])) ? mk.scenes[mkSel] : null;
   if (!sc) { band.style.display = "none"; kn.style.display = "none"; return; }
   const D = Math.max(dur() || 0, +($("bar").max || 0), 1);
   const col = MK_KCOL[sc.k] || "#ff5c8a";
@@ -724,7 +724,7 @@ function mkTlApplyView() {
   const pos = $("mkTlPos"); if (pos) pos.textContent = "現在 " + fmt(t) + (mkTlZoom ? " ／ 表示範囲 " + fmt(w.a) + "〜" + fmt(w.a + w.span) : "");
   const kn = $("mkTlKnob");
   if (kn) {
-    const sc = (mkSel >= 0 && mk.scenes[mkSel]) ? mk.scenes[mkSel] : null;
+    const sc = (mkSel >= 0 && mkIsPlaced(mk.scenes[mkSel])) ? mk.scenes[mkSel] : null;
     if (sc) {
       const kp = (sc.t - w.a) / w.span * 100;
       if (kp >= 0 && kp <= 100) { kn.style.display = "block"; kn.style.left = kp + "%"; kn.setAttribute("aria-valuenow", Math.round(sc.t)); } else kn.style.display = "none";
@@ -1721,7 +1721,7 @@ const A = {
       guideEvent("lenDone");
       return;
     }
-    if (mkSel >= 0 && mk.scenes[mkSel]) {   // 長さ指定の開始: そのカードの位置から再生する
+    if (mkSel >= 0 && mkIsPlaced(mk.scenes[mkSel])) {   // 長さ指定の開始: そのカードの位置から再生する
       if (!playerReady()) return toast(spMode ? "Spotifyプレイヤーの準備ができていません" : "動画の準備ができていません");
       const sc = mk.scenes[mkSel];
       mkLenPhase = "run";
@@ -1766,7 +1766,7 @@ const A = {
   },
   psApply: (i) => {
     const p = PRESETS[+i]; if (!p) return;
-    if (!(mkSel >= 0 && mk.scenes[mkSel])) { toast("先にカードを選んでください"); return; }
+    if (!(mkSel >= 0 && mkIsPlaced(mk.scenes[mkSel]))) { toast("先に配置済みカードを選んでください"); return; }
     const sc = mk.scenes[mkSel];
     sc.k = p.k; sc.x = p.x; mk.type = p.k;
     document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === p.k));
@@ -1807,7 +1807,7 @@ const A = {
   /* build 64: 作成の2モード切替と、選択中カードの位置編集(今の再生位置へ / 戻す / 選択解除) */
   mkMode: m => setMkMode(m),
   posHere: () => {
-    const sc = mk.scenes[mkSel]; if (!sc) return toast("先にカードを選んでください");
+    const sc = mk.scenes[mkSel]; if (!mkIsPlaced(sc)) return toast("先に配置済みカードを選んでください");
     const D = Math.max(dur() || 0, 1);
     let v = Math.round(now() * 10) / 10;
     v = Math.max(0, Math.min(Math.max(0, D - sc.d), v));
@@ -1816,7 +1816,7 @@ const A = {
     guideEvent("tweak");
   },
   posRestore: () => {
-    const sc = mk.scenes[mkSel]; if (!sc || mkSelOrigT == null) return;
+    const sc = mk.scenes[mkSel]; if (!mkIsPlaced(sc) || mkSelOrigT == null) return;
     const D = Math.max(dur() || 0, 1);
     let v = Math.max(0, Math.min(Math.max(0, D - sc.d), mkSelOrigT));
     if (v !== sc.t) { sc.t = v; mkSortScenes(); mkSel = mk.scenes.indexOf(sc); renderMk(); }
@@ -2223,7 +2223,7 @@ $("mkTlInner").addEventListener("click", e => {
     guideEvent("tweak");
   };
   btn.addEventListener("pointerdown", e => {
-    const sc = mk.scenes[mkSel]; if (!sc) return;
+    const sc = mk.scenes[mkSel]; if (!mkIsPlaced(sc)) return;
     e.preventDefault();
     try { btn.setPointerCapture(e.pointerId); } catch (err) {}
     mkPosScrSt = {pid: e.pointerId, x0: e.clientX, anchorX: e.clientX, active: false, target: sc.t, lastSeek: null, sc: sc, settle: null, lastX: e.clientX};
