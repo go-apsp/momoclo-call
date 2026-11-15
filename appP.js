@@ -1690,7 +1690,7 @@ const A = {
   },
   whoami: () => { if (!me || !prof) return; $("mypage").style.display = "block"; loadMyPage(); },
   closeMy: () => { $("mypage").style.display = "none"; },
-  userPage: uid => { if (me && uid === me.uid) return A.whoami(); openUserPage(uid); },
+  userPage: uid => { if (uid === guestDraftSessionId) return; if (me && uid === me.uid) return A.whoami(); openUserPage(uid); },
   closeUser: () => { $("userpage").style.display = "none"; },
   mypOpen: async key => {
     const p = key.split("|"), idx = SONGS.findIndex(s => s.vid === p[0]);
