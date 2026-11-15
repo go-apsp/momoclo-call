@@ -712,21 +712,36 @@ function paintMkFinishStep() {
     try { input.setSelectionRange(end, end); } catch (e) {}
   });
 }
-function paintMkFinishChoice() {
+function paintMkFinishStart() {
   if (!mkFinishDraft) return;
   const overlay = $("mkFinishOverlay"), prompt = $("mkFinishPrompt"), input = $("mkFinishInput");
   const actions = $("mkFinishActions"), choices = $("mkFinishChoices");
+  const draftButton = $("mkFinishDraftSave");
   if (!overlay || !prompt || !input || !actions || !choices) return;
-  prompt.textContent = "保存方法を選んでください";
+  prompt.textContent = "制作を終了しますか？";
   input.style.display = "none";
   actions.style.display = "none";
   choices.style.display = "flex";
+  if (draftButton) draftButton.style.display = me ? "" : "none";
   overlay.style.display = "flex";
 }
 function openMkFinish() {
   if (screen !== "mk" || mkFinishSaving) return;
-  mkFinishDraft = {step:0, name:"", title:"", versionName:"", note:""};
+  mkFinishDraft = {step:-1, pub:null, name:"", title:"", versionName:"", note:""};
+  paintMkFinishStart();
+}
+function chooseMkFinish(pub) {
+  if (!mkFinishDraft || mkFinishSaving) return;
+  mkFinishDraft.pub = !!pub;
+  mkFinishDraft.step = 0;
   paintMkFinishStep();
+}
+function finishMkWithoutSave() {
+  if (!mkFinishDraft || mkFinishSaving) return;
+  const overlay = $("mkFinishOverlay");
+  if (overlay) overlay.style.display = "none";
+  mkFinishDraft = null;
+  exitMk();
 }
 function cancelMkFinish() {
   if (mkFinishSaving) return;
@@ -748,21 +763,22 @@ function advanceMkFinish() {
       return;
     }
     mkFinishDraft.step = MK_FINISH_FIELDS.length;
-    paintMkFinishChoice();
+    saveMkFinish();
   } catch (e) {
     toast("入力を進められませんでした。もう一度お試しください");
   }
 }
-async function saveMkFinish(pub) {
-  if (!mkFinishDraft || mkFinishDraft.step !== MK_FINISH_FIELDS.length || mkFinishSaving) return;
+async function saveMkFinish() {
+  if (!mkFinishDraft || mkFinishDraft.step !== MK_FINISH_FIELDS.length || typeof mkFinishDraft.pub !== "boolean" || mkFinishSaving) return;
   if (!mk.scenes.length) { toast("カードを作成してください"); return; }
+  const publish = mkFinishDraft.pub;
   const meta = {name:mkFinishDraft.name, title:mkFinishDraft.title, versionName:mkFinishDraft.versionName, note:mkFinishDraft.note};
   mkFinishSaving = true;
-  const buttons = ["mkFinishDraftSave", "mkFinishRegister", "mkFinishChoiceCancel"]
+  const buttons = ["mkFinishDraftSave", "mkFinishRegister", "mkFinishNoSave", "mkFinishChoiceCancel"]
     .map(id => $(id)).filter(Boolean);
   buttons.forEach(b => { b.disabled = true; });
   try {
-    const saved = await A.save(pub ? "1" : "0", meta);
+    const saved = await A.save(publish ? "1" : "0", meta);
     if (!saved || saved === true) return;
     const overlay = $("mkFinishOverlay");
     if (overlay) overlay.style.display = "none";
@@ -774,7 +790,7 @@ async function saveMkFinish(pub) {
     if (!calls.some(c => c.id === saved.id)) calls.unshift(saved.record);
     act = saved.id;
     try { applyAct(); render(); } catch (e) {}
-    alert(pub ? "推しコールが登録されました" : "下書き保存されました");
+    alert(publish ? "推しコールが登録されました" : "下書き保存されました");
   } catch (e) {
     toast("保存処理でエラーが発生しました。制作内容を確認して、もう一度お試しください");
   } finally {
@@ -2406,12 +2422,14 @@ const finishNextBtn = $("mkFinishNext");
 const finishCancelBtn = $("mkFinishCancel");
 const finishDraftBtn = $("mkFinishDraftSave");
 const finishRegisterBtn = $("mkFinishRegister");
+const finishNoSaveBtn = $("mkFinishNoSave");
 const finishChoiceCancelBtn = $("mkFinishChoiceCancel");
 if (finishStartBtn) finishStartBtn.addEventListener("click", openMkFinish);
 if (finishNextBtn) finishNextBtn.addEventListener("click", e => { e.preventDefault(); advanceMkFinish(); });
 if (finishCancelBtn) finishCancelBtn.addEventListener("click", e => { e.preventDefault(); cancelMkFinish(); });
-if (finishDraftBtn) finishDraftBtn.addEventListener("click", e => { e.preventDefault(); saveMkFinish(false); });
-if (finishRegisterBtn) finishRegisterBtn.addEventListener("click", e => { e.preventDefault(); saveMkFinish(true); });
+if (finishDraftBtn) finishDraftBtn.addEventListener("click", e => { e.preventDefault(); chooseMkFinish(false); });
+if (finishRegisterBtn) finishRegisterBtn.addEventListener("click", e => { e.preventDefault(); chooseMkFinish(true); });
+if (finishNoSaveBtn) finishNoSaveBtn.addEventListener("click", e => { e.preventDefault(); finishMkWithoutSave(); });
 if (finishChoiceCancelBtn) finishChoiceCancelBtn.addEventListener("click", e => { e.preventDefault(); cancelMkFinish(); });
 const finishInput = $("mkFinishInput");
 if (finishInput) finishInput.addEventListener("keydown", e => {
