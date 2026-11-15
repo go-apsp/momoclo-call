@@ -1772,7 +1772,7 @@ const A = {
     toast("編集モード: 保存するとスコアと感想はリセットされます");
   },
   closeReview: () => { $("cmov").style.display = "none"; },
-  use: id => { act = id; refPlay = false; randPlay = false; spRange = null; sess = null; paintApply(); applyAct(); A.closeOv(); },
+  use: id => { if (screen === "mk") exitMk(); act = id; refPlay = false; randPlay = false; spRange = null; sess = null; paintApply(); applyAct(); A.closeOv(); },
   heart: async id => {
     /* build 62: この訪問中に作ったコールには押せない(ログイン/ゲスト共通) */
     if (mySession.has(id)) return toast("自分のコールには押せないよ");
