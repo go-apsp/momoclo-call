@@ -76,6 +76,7 @@ let mkSel = -1;                 // 作成画面: 選択中の場面インデッ�
 let mkLenPhase = null;          // 作成画面: 長さ指定の計測中は "run"
 let spStep = 0;                 // シェアポイント作成の段階 0=始点を決める 1=終点を決める 2=作成する
 let mkPub = true;               // 作成画面: 保存先(公開=true / 下書き=false)。確定は「保存して戻る」
+let mkFinishDraft = null;        // 「制作を終了」からの4段階登録入力
 let mkRate = 1;                 // 作成画面・シェアポイント作成画面: 再生速度
 let PRESETS = [], psLoaded = false, psListShown = false;   // build 60: プリセットコール(presetsコレクション。管理画面で登録)
 /* ---------- build 64: 作成の2モード制 / 長押し / シーク連動スクラブ / 拡大タイムライン / 位置再編集 ---------- */
@@ -618,6 +619,63 @@ function exitMk() {
     });
   }
 }
+
+const MK_FINISH_FIELDS = [
+  {key:"name", prompt:"あなたのお名前は？", max:20, placeholder:"お名前"},
+  {key:"title", prompt:"推しコールのタイトル？", max:40, placeholder:"推しコールのタイトル"},
+  {key:"versionName", prompt:"バージョン名は？", max:20, placeholder:"バージョン名"},
+  {key:"note", prompt:"備考は？", max:100, placeholder:"備考（任意）"}
+];
+function paintMkFinishStep() {
+  if (!mkFinishDraft) return;
+  const field = MK_FINISH_FIELDS[mkFinishDraft.step];
+  const overlay = $("mkFinishOverlay"), prompt = $("mkFinishPrompt"), input = $("mkFinishInput");
+  if (!field || !overlay || !prompt || !input) return;
+  prompt.textContent = field.prompt;
+  input.maxLength = field.max;
+  input.placeholder = field.placeholder;
+  input.value = mkFinishDraft[field.key] || "";
+  overlay.style.display = "flex";
+  requestAnimationFrame(() => { input.focus(); input.setSelectionRange(input.value.length, input.value.length); });
+}
+function openMkFinish() {
+  if (screen !== "mk") return;
+  mkFinishDraft = {step:0, name:"", title:"", versionName:"", note:""};
+  paintMkFinishStep();
+}
+function cancelMkFinish() {
+  const overlay = $("mkFinishOverlay");
+  if (overlay) overlay.style.display = "none";
+  mkFinishDraft = null;
+}
+async function advanceMkFinish() {
+  if (!mkFinishDraft) return;
+  const field = MK_FINISH_FIELDS[mkFinishDraft.step], input = $("mkFinishInput");
+  if (!field || !input) return;
+  mkFinishDraft[field.key] = input.value.trim();
+  if (mkFinishDraft.step < MK_FINISH_FIELDS.length - 1) {
+    mkFinishDraft.step++;
+    paintMkFinishStep();
+    return;
+  }
+  if (!mk.scenes.length) { toast("カードを作成してください"); return; }
+  const meta = {name:mkFinishDraft.name, title:mkFinishDraft.title, versionName:mkFinishDraft.versionName, note:mkFinishDraft.note};
+  const saved = await A.save(mkPub ? "1" : "0", meta);
+  if (!saved || saved === true) return;
+  const overlay = $("mkFinishOverlay");
+  if (overlay) overlay.style.display = "none";
+  mkFinishDraft = null;
+  exitMk();
+  refPlay = false; randPlay = false; spRange = null; sess = null;
+  act = saved.id;
+  await loadCalls();
+  if (!calls.some(c => c.id === saved.id)) calls.unshift(saved.record);
+  act = saved.id;
+  applyAct();
+  render();
+  alert("推しコールが登録されました");
+}
+
 function enterSp() {
   setScreen("sp");
   spStep = 0; paintSpStep();
@@ -1884,6 +1942,9 @@ const A = {
   /* build 59: 保存先の切替(公開/下書き)と、保存の確定ボタン「保存して戻る」 */
   mkPubTgl: () => { mkPub = !mkPub; paintMkPub(); },
   mkSaveBack: async () => { const ok = await A.save(mkPub ? "1" : "0"); if (ok) exitMk(); },
+  mkFinishStart: () => openMkFinish(),
+  mkFinishCancel: () => cancelMkFinish(),
+  mkFinishNext: () => advanceMkFinish(),
   mkDelSel: () => { if (mkSel >= 0 && mk.scenes[mkSel]) A.delScene(mkSel); },
   /* build 60: 作成画面下部の引き出し(バーで開閉 / プリセット一覧の表示 / 選択中カードへ適用) */
   psDrawer: (i, b) => { const d = $("mkDrawer"); if (!d) return; d.classList.toggle("open"); if (b) b.setAttribute("aria-expanded", d.classList.contains("open") ? "true" : "false"); },
