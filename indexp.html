@@ -638,14 +638,19 @@ body.scr-mk #mkFinishBtn{display:block}
   </div>
 </div>
 
-<button id="mkFinishBtn" type="button" data-a="mkFinishStart">制作を終了</button>
+<button id="mkFinishBtn" type="button">制作を終了</button>
 <div id="mkFinishOverlay" role="dialog" aria-modal="true" aria-labelledby="mkFinishPrompt">
   <div id="mkFinishCard">
     <h3 id="mkFinishPrompt"></h3>
     <input id="mkFinishInput" type="text" autocomplete="off">
-    <div class="mkFinishActions">
-      <button id="mkFinishCancel" type="button" data-a="mkFinishCancel">キャンセル</button>
-      <button id="mkFinishNext" type="button" class="mkFinishPrimary" data-a="mkFinishNext">決定</button>
+    <div id="mkFinishActions" class="mkFinishActions">
+      <button id="mkFinishCancel" type="button">キャンセル</button>
+      <button id="mkFinishNext" type="button" class="mkFinishPrimary">決定</button>
+    </div>
+    <div id="mkFinishChoices" class="mkFinishActions" style="display:none;flex-direction:column">
+      <button id="mkFinishDraftSave" type="button">下書き保存</button>
+      <button id="mkFinishRegister" type="button" class="mkFinishPrimary">登録する</button>
+      <button id="mkFinishChoiceCancel" type="button">キャンセル</button>
     </div>
   </div>
 </div>
