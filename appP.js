@@ -589,7 +589,17 @@ function exitMk() {
   if (mkMeas !== null) { mkMeas = null; const b = $("mkMeas"); if (b) b.textContent = "▶ 再生して表示時間を測る"; }
   const pb = $("play"); if (pb) pb.classList.remove("meas");
   const restoreY = mkReturnScrollY; mkReturnScrollY = null;
-  if (restoreY !== null) window.scrollTo(0, restoreY);
+  if (restoreY !== null) {
+    // enterMk() のsmooth scrollが残っていても、プレイ画面の元位置を優先して復元する
+    const root = document.documentElement;
+    const prevScrollBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = "auto";
+    window.scrollTo(0, restoreY);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, restoreY);
+      root.style.scrollBehavior = prevScrollBehavior;
+    });
+  }
 }
 function enterSp() {
   setScreen("sp");
