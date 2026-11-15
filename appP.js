@@ -525,6 +525,7 @@ function paintPlaceBtn() {
   const b = $("play"); if (!b) return;
   const placing = screen === "mk" && mkMode === "oki";
   if (!placing) {
+    b.textContent = playerState() === 1 ? "一時停止" : "再生";
     b.dataset.a = "play"; b.disabled = false;
     b.classList.remove("place-ready", "place-idle");
     b.setAttribute("aria-label", "再生");
