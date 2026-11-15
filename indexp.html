@@ -60,6 +60,8 @@ body.scr-mk #play{touch-action:none;-webkit-user-select:none;user-select:none}
 #mkTlZoomSlide{position:relative;flex:1;overflow:hidden;border-radius:8px;background:rgba(255,255,255,.07);min-height:92px}
 #mkTlZoomInner{position:absolute;inset:0;width:100%}
 #mkTlZoomMark{position:absolute;left:50%;top:0;bottom:0;width:2px;background:#ffd23f;box-shadow:0 0 7px #ffd23f;pointer-events:none;z-index:4}
+#mkTlZoomBox .mktl-bar span{display:inline}
+#mkTlZoomBox .mktl-tlab{color:#f4f4fb;font-size:10px;font-weight:900}
 
 /* B案：作成画面ではYouTube映像だけを黒幕で隠す。iframeと音声再生は維持する */
 body.scr-mk #yt::after{content:"";position:absolute;inset:0;z-index:1;background:rgba(0,0,0,.94);pointer-events:none}
