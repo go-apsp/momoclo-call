@@ -118,6 +118,7 @@ function removeGuestDraft(id) {
 function toast(s, ms) { const t = $("toast"); t.textContent = s; t.classList.add("on"); clearTimeout(toast.id); toast.id = setTimeout(() => t.classList.remove("on"), ms || 2400); }
 
 let me = null, prof = null, calls = [], liked = new Set(), act = null, openId = null;
+let authStateReady = false, pendingMkFinishOpen = false;
 let EV = [], cur = null, sess = null, pickI = 0, native = false;
 const LIMIT = 600000;   // 湧きを数えるのは、再生を始めてから10分
 let mk = {scenes: [], type: "call", from: null, base: ""};
@@ -362,6 +363,11 @@ onAuthStateChanged(auth, async u => {
   if (u) {
     const d = await getDoc(doc(db, "users", u.uid));
     if (d.exists()) prof = d.data(); else openSheet();   // 最初のログイン = ユーザー登録(推しはここで一度だけ決める)
+  }
+  authStateReady = true;
+  if (pendingMkFinishOpen) {
+    pendingMkFinishOpen = false;
+    openMkFinish();
   }
   paintLogin(); await loadCalls();
 });
@@ -727,6 +733,10 @@ function paintMkFinishStart() {
 }
 function openMkFinish() {
   if (screen !== "mk" || mkFinishSaving) return;
+  if (!authStateReady) {
+    pendingMkFinishOpen = true;
+    return;
+  }
   mkFinishDraft = {step:-1, pub:null, name:"", title:"", versionName:"", note:""};
   paintMkFinishStart();
 }
