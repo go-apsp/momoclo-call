@@ -2130,7 +2130,7 @@ const A = {
         if (!gn) return toast("名前を入れてください(作者として表示されます)");
         owner = {ownerUid: null, ownerName: gn.slice(0, 20), oshi: 5, ownerIcon: 0};
       }
-      const record = {...owner, videoId: VID, title: finishMeta ? String(finishMeta.title || "").trim() : "", versionName: ver, note: finishMeta ? String(finishMeta.note || "").trim() : $("mkNote").value.trim(), allowRef: $("mkRef").checked, allowComments: $("mkCmt").checked, scenes: mk.scenes.map(sc => ({...sc})), public: !!+pub, hearts: 0, used: 0, createdAt: serverTimestamp()};
+      const record = {...owner, videoId: VID, ...(finishMeta ? {title: String(finishMeta.title || "").trim()} : {}), versionName: ver, note: finishMeta ? String(finishMeta.note || "").trim() : $("mkNote").value.trim(), allowRef: $("mkRef").checked, allowComments: $("mkCmt").checked, scenes: mk.scenes, public: !!+pub, hearts: 0, used: 0, createdAt: serverTimestamp()};
       const added = await addDoc(collection(db, "calls"), record);
       nid = added.id;
       savedRecord = {id:nid, ...record};
