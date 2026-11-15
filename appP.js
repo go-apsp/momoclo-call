@@ -631,65 +631,92 @@ function paintMkFinishStep() {
   if (!mkFinishDraft) return;
   const field = MK_FINISH_FIELDS[mkFinishDraft.step];
   const overlay = $("mkFinishOverlay"), prompt = $("mkFinishPrompt"), input = $("mkFinishInput");
-  if (!field || !overlay || !prompt || !input) return;
+  const actions = $("mkFinishActions"), choices = $("mkFinishChoices");
+  if (!field || !overlay || !prompt || !input || !actions || !choices) return;
   prompt.textContent = field.prompt;
   input.maxLength = field.max;
   input.placeholder = field.placeholder;
-  input.value = mkFinishDraft[field.key] || "";
+  input.value = String(mkFinishDraft[field.key] || "");
+  input.style.display = "block";
+  actions.style.display = "flex";
+  choices.style.display = "none";
   overlay.style.display = "flex";
-  requestAnimationFrame(() => { input.focus(); input.setSelectionRange(input.value.length, input.value.length); });
+  requestAnimationFrame(() => {
+    if (!mkFinishDraft || mkFinishDraft.step >= MK_FINISH_FIELDS.length) return;
+    input.focus();
+    const end = input.value.length;
+    try { input.setSelectionRange(end, end); } catch (e) {}
+  });
+}
+function paintMkFinishChoice() {
+  if (!mkFinishDraft) return;
+  const overlay = $("mkFinishOverlay"), prompt = $("mkFinishPrompt"), input = $("mkFinishInput");
+  const actions = $("mkFinishActions"), choices = $("mkFinishChoices");
+  if (!overlay || !prompt || !input || !actions || !choices) return;
+  prompt.textContent = "保存方法を選んでください";
+  input.style.display = "none";
+  actions.style.display = "none";
+  choices.style.display = "flex";
+  overlay.style.display = "flex";
 }
 function openMkFinish() {
-  if (screen !== "mk") return;
+  if (screen !== "mk" || mkFinishSaving) return;
   mkFinishDraft = {step:0, name:"", title:"", versionName:"", note:""};
-  const cancel = $("mkFinishCancel"), next = $("mkFinishNext");
-  if (cancel) cancel.disabled = false;
-  if (next) next.disabled = false;
   paintMkFinishStep();
 }
 function cancelMkFinish() {
+  if (mkFinishSaving) return;
   const overlay = $("mkFinishOverlay");
   if (overlay) overlay.style.display = "none";
   mkFinishDraft = null;
 }
-async function advanceMkFinish() {
+function advanceMkFinish() {
   if (!mkFinishDraft || mkFinishSaving) return;
-  const field = MK_FINISH_FIELDS[mkFinishDraft.step], input = $("mkFinishInput");
-  if (!field || !input) return;
-  mkFinishDraft[field.key] = input.value.trim();
-  if (field.key === "name" && !(me && prof) && !mkFinishDraft.name) { toast("お名前を入力してください"); return; }
-  if (field.key === "versionName" && me && prof && calls.some(c => c.ownerUid === me.uid) && !mkFinishDraft.versionName) { toast("2つ目以降はバージョン名を入れてください"); return; }
-  if (mkFinishDraft.step < MK_FINISH_FIELDS.length - 1) {
-    mkFinishDraft.step++;
-    paintMkFinishStep();
-    return;
+  try {
+    const field = MK_FINISH_FIELDS[mkFinishDraft.step], input = $("mkFinishInput");
+    if (!field || !input) return;
+    mkFinishDraft[field.key] = String(input.value == null ? "" : input.value).trim();
+    if (field.key === "name" && !(me && prof) && !mkFinishDraft.name) { toast("お名前を入力してください"); return; }
+    if (field.key === "versionName" && me && prof && calls.some(c => c.ownerUid === me.uid) && !mkFinishDraft.versionName) { toast("2つ目以降はバージョン名を入れてください"); return; }
+    if (mkFinishDraft.step < MK_FINISH_FIELDS.length - 1) {
+      mkFinishDraft.step++;
+      paintMkFinishStep();
+      return;
+    }
+    mkFinishDraft.step = MK_FINISH_FIELDS.length;
+    paintMkFinishChoice();
+  } catch (e) {
+    toast("入力を進められませんでした。もう一度お試しください");
   }
+}
+async function saveMkFinish(pub) {
+  if (!mkFinishDraft || mkFinishDraft.step !== MK_FINISH_FIELDS.length || mkFinishSaving) return;
   if (!mk.scenes.length) { toast("カードを作成してください"); return; }
   const meta = {name:mkFinishDraft.name, title:mkFinishDraft.title, versionName:mkFinishDraft.versionName, note:mkFinishDraft.note};
   mkFinishSaving = true;
-  const next = $("mkFinishNext"), cancel = $("mkFinishCancel");
-  if (next) next.disabled = true;
-  if (cancel) cancel.disabled = true;
-  const saved = await A.save(mkPub ? "1" : "0", meta);
-  if (!saved || saved === true) {
+  const buttons = ["mkFinishDraftSave", "mkFinishRegister", "mkFinishChoiceCancel"]
+    .map(id => $(id)).filter(Boolean);
+  buttons.forEach(b => { b.disabled = true; });
+  try {
+    const saved = await A.save(pub ? "1" : "0", meta);
+    if (!saved || saved === true) return;
+    const overlay = $("mkFinishOverlay");
+    if (overlay) overlay.style.display = "none";
+    mkFinishDraft = null;
+    exitMk();
+    refPlay = false; randPlay = false; spRange = null; sess = null;
+    act = saved.id;
+    try { await loadCalls(); } catch (e) {}
+    if (!calls.some(c => c.id === saved.id)) calls.unshift(saved.record);
+    act = saved.id;
+    try { applyAct(); render(); } catch (e) {}
+    alert(pub ? "推しコールが登録されました" : "下書き保存されました");
+  } catch (e) {
+    toast("保存処理でエラーが発生しました。制作内容を確認して、もう一度お試しください");
+  } finally {
     mkFinishSaving = false;
-    if (next) next.disabled = false;
-    if (cancel) cancel.disabled = false;
-    return;
+    if (mkFinishDraft) buttons.forEach(b => { b.disabled = false; });
   }
-  const overlay = $("mkFinishOverlay");
-  if (overlay) overlay.style.display = "none";
-  mkFinishDraft = null;
-  exitMk();
-  refPlay = false; randPlay = false; spRange = null; sess = null;
-  act = saved.id;
-  await loadCalls();
-  if (!calls.some(c => c.id === saved.id)) calls.unshift(saved.record);
-  act = saved.id;
-  applyAct();
-  render();
-  mkFinishSaving = false;
-  alert("推しコールが登録されました");
 }
 
 function enterSp() {
@@ -1958,9 +1985,7 @@ const A = {
   /* build 59: 保存先の切替(公開/下書き)と、保存の確定ボタン「保存して戻る」 */
   mkPubTgl: () => { mkPub = !mkPub; paintMkPub(); },
   mkSaveBack: async () => { const ok = await A.save(mkPub ? "1" : "0"); if (ok) exitMk(); },
-  mkFinishStart: () => openMkFinish(),
-  mkFinishCancel: () => cancelMkFinish(),
-  mkFinishNext: () => advanceMkFinish(),
+
   mkDelSel: () => { if (mkSel >= 0 && mk.scenes[mkSel]) A.delScene(mkSel); },
   /* build 60: 作成画面下部の引き出し(バーで開閉 / プリセット一覧の表示 / 選択中カードへ適用) */
   psDrawer: (i, b) => { const d = $("mkDrawer"); if (!d) return; d.classList.toggle("open"); if (b) b.setAttribute("aria-expanded", d.classList.contains("open") ? "true" : "false"); },
@@ -2267,6 +2292,23 @@ function guideEvent(name) {
 }
 
 bindMkPlaceButton();
+/* 制作終了フローは汎用data-a委譲から分離し、各ボタンへ直接イベントを結び付ける */
+const finishStartBtn = $("mkFinishBtn");
+const finishNextBtn = $("mkFinishNext");
+const finishCancelBtn = $("mkFinishCancel");
+const finishDraftBtn = $("mkFinishDraftSave");
+const finishRegisterBtn = $("mkFinishRegister");
+const finishChoiceCancelBtn = $("mkFinishChoiceCancel");
+if (finishStartBtn) finishStartBtn.addEventListener("click", openMkFinish);
+if (finishNextBtn) finishNextBtn.addEventListener("click", e => { e.preventDefault(); advanceMkFinish(); });
+if (finishCancelBtn) finishCancelBtn.addEventListener("click", e => { e.preventDefault(); cancelMkFinish(); });
+if (finishDraftBtn) finishDraftBtn.addEventListener("click", e => { e.preventDefault(); saveMkFinish(false); });
+if (finishRegisterBtn) finishRegisterBtn.addEventListener("click", e => { e.preventDefault(); saveMkFinish(true); });
+if (finishChoiceCancelBtn) finishChoiceCancelBtn.addEventListener("click", e => { e.preventDefault(); cancelMkFinish(); });
+const finishInput = $("mkFinishInput");
+if (finishInput) finishInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); advanceMkFinish(); }
+});
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-a]");
   if (b && A[b.dataset.a]) A[b.dataset.a](b.dataset.i, b);
