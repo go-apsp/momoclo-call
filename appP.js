@@ -468,7 +468,19 @@ function render() {
   renderPEv();
 }
 let pEvOpen = false, evFor = null;
-function renderPEv() { const el = $("pEv"); if (!el) return; const c = calls.find(x => x.id === act); if (c) { el.innerHTML = UI.evHtml(c, {me, liked: me ? liked : guestLiked, cmts, myNick: prof ? prof.nick : "", open: pEvOpen, mySession}); return; } if (refPlay && curRef) { el.innerHTML = '<div class="evBox"><div class="evBody"><button class="w" style="width:100%;height:44px;border-radius:12px" data-a="spOpenRef" data-i="' + curRef.id + '">シェアポイントを作る</button></div></div>'; return; } el.innerHTML = ""; }
+function paintPlaySceneList() {
+  const box = $("playSceneList"), items = $("playSceneItems");
+  if (!box || !items) return;
+  if (screen !== "play" || !Array.isArray(EV) || !EV.length) {
+    box.classList.remove("on"); items.innerHTML = ""; return;
+  }
+  items.innerHTML = EV.map((sc, i) => {
+    const label = String(sc.x || LAB[sc.k] || "コール").trim();
+    return '<button type="button" class="psl-item" data-a="playSceneJump" data-i="' + i + '"><span class="psl-time">' + esc(fmt(Math.max(0, +sc.t || 0))) + '</span><span class="psl-text">' + esc(label) + '</span></button>';
+  }).join("");
+  box.classList.add("on");
+}
+function renderPEv() { paintPlaySceneList(); const el = $("pEv"); if (!el) return; const c = calls.find(x => x.id === act); if (c) { el.innerHTML = UI.evHtml(c, {me, liked: me ? liked : guestLiked, cmts, myNick: prof ? prof.nick : "", open: pEvOpen, mySession}); return; } if (refPlay && curRef) { el.innerHTML = '<div class="evBox"><div class="evBody"><button class="w" style="width:100%;height:44px;border-radius:12px" data-a="spOpenRef" data-i="' + curRef.id + '">シェアポイントを作る</button></div></div>'; return; } el.innerHTML = ""; }
 /* ---------- 感想(承認制) ---------- */
 async function loadCmts(id) {
   const c = calls.find(x => x.id === id); if (!c) return;
@@ -594,6 +606,7 @@ function setScreen(name) {
   $("spPanel").style.display = name === "sp" ? "flex" : "none";
   if (name !== "mk") paintKnob();
   paintPlaceBtn();
+  paintPlaySceneList();
 }
 function paintPlaceBtn() {
   const b = $("play"); if (!b) return;
@@ -1742,6 +1755,7 @@ const A = {
   openOv: () => { $("menu").style.display = "none"; $("ov").style.display = "block"; render(); },
   closeOv: () => { $("ov").style.display = "none"; },
   place: () => { if (screen === "mk" && mkMode === "oki" && mkSel >= 0 && !mkIsPlaced(mk.scenes[mkSel])) toast("置きに行くボタンを押さえたまま、タイムライン上へ動かしてください"); },
+  playSceneJump: i => { const sc = EV[+i]; if (!sc) return; playerSeek(Math.max(0, (+sc.t || 0) - 6)); },
   play: () => {
     if (spMode && !spHasTrack()) return toast("この曲はSpotifyでは再生できません");
     if (!playerReady()) return toast(spMode ? "Spotifyプレイヤーの準備中です" : "動画の準備中です");
