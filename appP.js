@@ -731,7 +731,7 @@ function openMkFinish() {
   paintMkFinishStart();
 }
 function chooseMkFinish(pub) {
-  if (!mkFinishDraft || mkFinishSaving) return;
+  if (!mkFinishDraft || mkFinishSaving || (!me && !pub)) return;
   mkFinishDraft.pub = !!pub;
   mkFinishDraft.step = 0;
   paintMkFinishStep();
@@ -772,6 +772,7 @@ async function saveMkFinish() {
   if (!mkFinishDraft || mkFinishDraft.step !== MK_FINISH_FIELDS.length || typeof mkFinishDraft.pub !== "boolean" || mkFinishSaving) return;
   if (!mk.scenes.length) { toast("カードを作成してください"); return; }
   const publish = mkFinishDraft.pub;
+  if (!me && !publish) { toast("ゲストは下書き保存できません"); return; }
   const meta = {name:mkFinishDraft.name, title:mkFinishDraft.title, versionName:mkFinishDraft.versionName, note:mkFinishDraft.note};
   mkFinishSaving = true;
   const buttons = ["mkFinishDraftSave", "mkFinishRegister", "mkFinishNoSave", "mkFinishChoiceCancel"]
