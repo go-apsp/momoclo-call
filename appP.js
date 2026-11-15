@@ -71,6 +71,7 @@ let tlId = null, tlZoom = false, tlD = 1, mkPv = null, refCalls = [], refPlay = 
 let cmts = {}, pendAll = [], pendKnown = new Set();
 let spRange = null, spEdit = null, mySps = [], spRef = null, curRef = null;
 let screen = "play";            // build 59: 画面切替 "play"(再生画面) | "mk"(推しコール作成画面) | "sp"(シェアポイント作成画面)。プレイヤー(#mvwrap)は移動しない
+let mkReturnScrollY = null;    // 作成画面へ入る直前のスクロール位置。戻るときにプレイ画面の表示位置を復元
 let mkSel = -1;                 // 作成画面: 選択中の場面インデックス(-1=未選択)
 let mkLenPhase = null;          // 作成画面: 長さ指定の計測中は "run"
 let spStep = 0;                 // シェアポイント作成の段階 0=始点を決める 1=終点を決める 2=作成する
@@ -525,7 +526,6 @@ function paintPlaceBtn() {
   const b = $("play"); if (!b) return;
   const placing = screen === "mk" && mkMode === "oki";
   if (!placing) {
-    b.textContent = playerState() === 1 ? "一時停止" : "再生";
     b.dataset.a = "play"; b.disabled = false;
     b.classList.remove("place-ready", "place-idle");
     b.setAttribute("aria-label", "再生");
@@ -570,6 +570,7 @@ function paintKnob() {
   const bub = $("mkBub"); if (bub) bub.textContent = fmt(sc.t);
 }
 function enterMk() {
+  mkReturnScrollY = window.scrollY || document.documentElement.scrollTop || 0;
   const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "none";
   spStep = 0; paintSpStep();
   setScreen("mk");
@@ -587,6 +588,8 @@ function exitMk() {
   mkSel = -1; mkLenPhase = null; mkSelOrigT = null; mkSetZoom(false);
   if (mkMeas !== null) { mkMeas = null; const b = $("mkMeas"); if (b) b.textContent = "▶ 再生して表示時間を測る"; }
   const pb = $("play"); if (pb) pb.classList.remove("meas");
+  const restoreY = mkReturnScrollY; mkReturnScrollY = null;
+  if (restoreY !== null) window.scrollTo(0, restoreY);
 }
 function enterSp() {
   setScreen("sp");
