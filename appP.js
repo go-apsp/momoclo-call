@@ -80,6 +80,7 @@ let mkRate = 1;                 // 作成画面・シェアポイント作成画
 let PRESETS = [], psLoaded = false, psListShown = false;   // build 60: プリセットコール(presetsコレクション。管理画面で登録)
 /* ---------- build 64: 作成の2モード制 / 長押し / シーク連動スクラブ / 拡大タイムライン / 位置再編集 ---------- */
 let mkMode = "nori";            // 作成モード "nori"(♪ノリノリながら) | "oki"(お気に置きにいっちゃう)。localStorageに保存し、次回も同じモードで開く
+let mkOnboardTimer = null;        // 作成画面・モード選択時の7秒案内タイマー
 try { const m64 = localStorage.getItem("momo_mkmode"); if (m64 === "oki" || m64 === "nori") mkMode = m64; } catch (e) {}
 let mkSelOrigT = null;          // カードを選んだときの開始位置(位置編集の「戻す」用)
 let mkHoldClickAt = 0;          // 大きなボタンを長押しで処理した時刻(続くクリック=mhMain を握りつぶすため)
@@ -569,11 +570,26 @@ function paintKnob() {
   kn.style.display = "block"; kn.style.left = (sc.t / D * 100) + "%"; kn.style.background = col;
   const bub = $("mkBub"); if (bub) bub.textContent = fmt(sc.t);
 }
+function clearMkOnboard() {
+  if (mkOnboardTimer !== null) { clearTimeout(mkOnboardTimer); mkOnboardTimer = null; }
+  document.querySelectorAll('.mk-onboard-blink').forEach(el => el.classList.remove('mk-onboard-blink'));
+  const hint = $("mkOnboardHint"); if (hint) { hint.textContent = ""; hint.style.display = "none"; }
+}
+function showMkOnboard(message, targetId) {
+  clearMkOnboard();
+  const hint = $("mkOnboardHint"), target = $(targetId);
+  if (!hint || !target) return;
+  hint.textContent = message;
+  hint.style.display = "block";
+  target.classList.add("mk-onboard-blink");
+  mkOnboardTimer = setTimeout(clearMkOnboard, 7000);
+}
 function enterMk() {
   mkReturnScrollY = window.scrollY || document.documentElement.scrollTop || 0;
   const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "none";
   spStep = 0; paintSpStep();
   setScreen("mk");
+  showMkOnboard("作成モードを選択", "mkDrawerBar");
   applyRate();
   paintMkMode();
   renderMk();
@@ -582,6 +598,7 @@ function enterMk() {
   $("mvwrap").scrollIntoView({behavior: "smooth"});
 }
 function exitMk() {
+  clearMkOnboard();
   const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "";
   setScreen("play");
   const drw = $("mkDrawer"); if (drw) drw.classList.remove("open");
@@ -684,6 +701,7 @@ function setMkMode(m) {
   mkMode = m;
   try { localStorage.setItem("momo_mkmode", m); } catch (e) {}
   paintMkMode(); paintPlaceBtn();
+  showMkOnboard(m === "nori" ? "曲に合わせて叫ぶコールの間押す" : "まずはコールカードを作成", m === "nori" ? "play" : "penbtn");
   guideEvent("mode");
 }
 
