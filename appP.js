@@ -642,6 +642,9 @@ function paintMkFinishStep() {
 function openMkFinish() {
   if (screen !== "mk") return;
   mkFinishDraft = {step:0, name:"", title:"", versionName:"", note:""};
+  const cancel = $("mkFinishCancel"), next = $("mkFinishNext");
+  if (cancel) cancel.disabled = false;
+  if (next) next.disabled = false;
   paintMkFinishStep();
 }
 function cancelMkFinish() {
@@ -664,11 +667,14 @@ async function advanceMkFinish() {
   if (!mk.scenes.length) { toast("カードを作成してください"); return; }
   const meta = {name:mkFinishDraft.name, title:mkFinishDraft.title, versionName:mkFinishDraft.versionName, note:mkFinishDraft.note};
   mkFinishSaving = true;
-  const next = $("mkFinishNext"); if (next) next.disabled = true;
+  const next = $("mkFinishNext"), cancel = $("mkFinishCancel");
+  if (next) next.disabled = true;
+  if (cancel) cancel.disabled = true;
   const saved = await A.save(mkPub ? "1" : "0", meta);
   if (!saved || saved === true) {
     mkFinishSaving = false;
     if (next) next.disabled = false;
+    if (cancel) cancel.disabled = false;
     return;
   }
   const overlay = $("mkFinishOverlay");
