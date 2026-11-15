@@ -2036,35 +2036,37 @@ const A = {
   guideOff: () => endGuide(),
   guideNext: () => { if (guide && guide.step === "s9") { mkSel = -1; mkLenPhase = null; $("mkText").value = ""; renderMk(); setGuideStep("s9b"); } },
   guideToSave: () => { if (guide && guide.step === "s9") setGuideStep("s10"); },
-  save: async pub => {
-    /* build 62: ゲスト(非ログイン)でも保存できる。ゲストは保存時の名前入力が作者名になり、ownerUid は null で紐づける */
+  save: async (pub, finishMeta = null) => {
+    /* build 62: ゲスト(非ログイン)でも保存できる。終了フローでは入力された作者名も使う */
     if (!mk.scenes.length) return toast("場面を追加してください");
-    const ver = $("mkVer").value.trim();
+    const ver = finishMeta ? String(finishMeta.versionName || "").trim() : $("mkVer").value.trim();
     if (me && prof && calls.some(c => c.ownerUid === me.uid) && !ver) return toast("2つ目以降はバージョン名を入れてください");
     if (+pub && mk.from && JSON.stringify(mk.scenes) === mk.base) return toast("参考にした推しコールと全く同じなので公開できません。少し変えてください");
-    let nid = null;
+    let nid = null, savedRecord = null;
     try {
       const editId = mk.editId || null;
       let owner;
       if (me && prof) {
-        owner = {ownerUid: me.uid, ownerName: prof.nick, oshi: prof.oshi, ownerIcon: prof.icon || 0};
+        owner = {ownerUid: me.uid, ownerName: (finishMeta && String(finishMeta.name || "").trim()) || prof.nick, oshi: prof.oshi, ownerIcon: prof.icon || 0};
       } else {
-        const gn = $("mkGuestName").value.trim();
+        const gn = (finishMeta && String(finishMeta.name || "").trim()) || $("mkGuestName").value.trim();
         if (!gn) return toast("名前を入れてください(作者として表示されます)");
         owner = {ownerUid: null, ownerName: gn.slice(0, 20), oshi: 5, ownerIcon: 0};
       }
-      const added = await addDoc(collection(db, "calls"), {...owner, videoId: VID, versionName: ver, note: $("mkNote").value.trim(), allowRef: $("mkRef").checked, allowComments: $("mkCmt").checked, scenes: mk.scenes, public: !!+pub, hearts: 0, used: 0, createdAt: serverTimestamp()});
+      const record = {...owner, videoId: VID, title: finishMeta ? String(finishMeta.title || "").trim() : "", versionName: ver, note: finishMeta ? String(finishMeta.note || "").trim() : $("mkNote").value.trim(), allowRef: $("mkRef").checked, allowComments: $("mkCmt").checked, scenes: mk.scenes.map(sc => ({...sc})), public: !!+pub, hearts: 0, used: 0, createdAt: serverTimestamp()};
+      const added = await addDoc(collection(db, "calls"), record);
       nid = added.id;
+      savedRecord = {id:nid, ...record};
       if (editId) {
         try { const cs = await getDocs(query(collection(db, "calls", editId, "comments"), where("ownerUid", "==", me.uid))); await Promise.all(cs.docs.map(d => deleteDoc(d.ref))); } catch (e) {}
         try { await deleteDoc(doc(db, "calls", editId)); } catch (e) {}
       }
     } catch (e) { return toast("保存できませんでした"); }
     if (nid) { mySession.add(nid); sessSet("momo_my_calls", [...mySession]); }   // この訪問中に作ったコールとして覚える(自押し制限用)
-    toast(+pub ? "公開しました" : "下書きを保存しました");
+    if (!finishMeta) toast(+pub ? "公開しました" : "下書きを保存しました");
     mk = {scenes: [], type: "call", from: null, base: ""}; mkSel = -1; mkLenPhase = null; mkSelOrigT = null; $("mkVer").value = $("mkNote").value = ""; $("mkText").value = ""; $("mkGuestName").value = ""; renderMk(); loadCalls();
     guideEvent("saved");
-    return true;
+    return finishMeta ? {id:nid, record:savedRecord} : true;
   },
   ref: id => {
     const c = calls.find(x => x.id === id); if (!c) return;
