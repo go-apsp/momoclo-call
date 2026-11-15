@@ -22,7 +22,8 @@ gtag('config', 'G-00QSZME258');
 <meta name="twitter:title" content="未完成なコールウェブアプリ">
 <meta name="twitter:description" content="見る…？">
 <meta name="twitter:image" content="https://go-apsp.github.io/momoclo-call/ogp.jpg">
-  <style id="playback-ui-restore">body:not(.scr-mk):not(.scr-sp) .pads{display:flex!important}body.scr-mk #songbox{display:block!important}</style>
+  <style id="play-scene-list-styles">#playSceneList{display:none;margin:10px 0 14px;padding:10px;border:1px solid rgba(255,255,255,.18);border-radius:12px;background:rgba(15,17,31,.88);color:#fff}#playSceneList.on{display:block}#playSceneList .psl-title{margin:0 0 8px;font-size:14px;font-weight:900}#playSceneList .psl-items{display:grid;gap:6px;max-height:190px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}#playSceneList .psl-item{display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:8px 10px;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.07);color:#fff;text-align:left;font:inherit}#playSceneList .psl-time{flex:0 0 auto;color:#aee9e2;font-size:12px;font-weight:900;font-variant-numeric:tabular-nums}#playSceneList .psl-text{min-width:0;overflow-wrap:anywhere;font-size:14px;font-weight:700}body.scr-mk #playSceneList,body.scr-sp #playSceneList{display:none!important}</style>
+<style id="playback-ui-restore">body:not(.scr-mk):not(.scr-sp) .pads{display:flex!important}body.scr-mk #songbox{display:block!important}</style>
 
 <style id="mkContentPanelStyles">
 body.scr-mk .pads{display:flex!important}
@@ -182,6 +183,7 @@ body.scr-mk #mkFinishBtn{display:block}
     <option value="0.75">速度 0.75倍速</option>
     <option value="1" selected>速度 1倍速</option>
   </select>
+  <div id="playSceneList" aria-label="コールカード一覧"><div class="psl-title">コールカード一覧</div><div class="psl-items" id="playSceneItems"></div></div>
   <div id="pEv"></div>
   <div id="spPanel" style="display:none">
     <div class="spHead"><b>シェアポイント作成</b></div>
