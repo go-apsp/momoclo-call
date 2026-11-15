@@ -61,6 +61,60 @@ function mkCardContent(type, text) {
 
 const auth = getAuth(initializeApp(firebaseConfig)), db = getFirestore(auth.app);
 const $ = id => document.getElementById(id);
+
+/* ゲスト下書き：ブラウザセッションCookieで識別し、本文はこのブラウザ内だけに保存 */
+const GUEST_DRAFT_COOKIE = "momo_guest_session";
+const GUEST_DRAFT_PREFIX = "momo_guest_drafts_";
+function getCookieValue(name) {
+  try {
+    const part = document.cookie.split(";").map(x => x.trim()).find(x => x.indexOf(name + "=") === 0);
+    return part ? decodeURIComponent(part.slice(name.length + 1)) : "";
+  } catch (e) { return ""; }
+}
+function ensureGuestDraftSession() {
+  let id = getCookieValue(GUEST_DRAFT_COOKIE);
+  if (id) return id;
+  /* 前回セッションのCookieが消えていたら、残った下書きデータも次の訪問で利用できないよう破棄 */
+  try {
+    Object.keys(localStorage).filter(k => k.indexOf(GUEST_DRAFT_PREFIX) === 0).forEach(k => localStorage.removeItem(k));
+  } catch (e) {}
+  id = "g" + Date.now().toString(36) + Math.random().toString(36).slice(2);
+  try {
+    document.cookie = GUEST_DRAFT_COOKIE + "=" + encodeURIComponent(id) + "; Path=/; SameSite=Lax; Secure";
+    return getCookieValue(GUEST_DRAFT_COOKIE);
+  } catch (e) { return ""; }
+}
+const guestDraftSessionId = ensureGuestDraftSession();
+function readGuestDrafts() {
+  if (!guestDraftSessionId) return [];
+  try {
+    const v = JSON.parse(localStorage.getItem(GUEST_DRAFT_PREFIX + guestDraftSessionId) || "[]");
+    return Array.isArray(v) ? v.filter(x => x && x.localGuestDraft === true && x.ownerUid === guestDraftSessionId) : [];
+  } catch (e) { return []; }
+}
+function writeGuestDrafts(items) {
+  if (!guestDraftSessionId) throw new Error("guest session cookie unavailable");
+  localStorage.setItem(GUEST_DRAFT_PREFIX + guestDraftSessionId, JSON.stringify(items));
+}
+function saveGuestDraft(record, editId) {
+  const items = readGuestDrafts();
+  const old = editId ? items.find(x => x.id === editId) : null;
+  const id = old ? old.id : "guestdraft_" + Date.now().toString(36) + Math.random().toString(36).slice(2);
+  const item = {...record, id, ownerUid: guestDraftSessionId, localGuestDraft: true, public: false,
+    guestAllowComments: record.allowComments !== false, allowComments: false,
+    createdAt: old ? old.createdAt : {seconds: Math.floor(Date.now() / 1000)}};
+  const index = items.findIndex(x => x.id === id);
+  if (index >= 0) items[index] = item; else items.push(item);
+  writeGuestDrafts(items);
+  return item;
+}
+function removeGuestDraft(id) {
+  const items = readGuestDrafts();
+  const next = items.filter(x => x.id !== id);
+  if (next.length === items.length) return false;
+  writeGuestDrafts(next);
+  return true;
+}
 function toast(s, ms) { const t = $("toast"); t.textContent = s; t.classList.add("on"); clearTimeout(toast.id); toast.id = setTimeout(() => t.classList.remove("on"), ms || 2400); }
 
 let me = null, prof = null, calls = [], liked = new Set(), act = null, openId = null;
@@ -343,6 +397,12 @@ async function loadCalls() {
     if (me) {
       (await getDocs(query(collection(db, "calls"), where("ownerUid", "==", me.uid)))).forEach(d => { if (d.data().videoId === VID) m.set(d.id, {id: d.id, ...d.data()}); });
       await Promise.all([...m.keys()].map(async id => { if ((await getDoc(doc(db, "calls", id, "hearts", me.uid))).exists()) liked.add(id); }));
+    } else {
+      readGuestDrafts().filter(d => d.videoId === VID).forEach(d => {
+        m.set(d.id, d);
+        mySession.add(d.id);
+      });
+      sessSet("momo_my_calls", [...mySession]);
     }
     calls = [...m.values()].sort((a, b) => (b.hearts || 0) - (a.hearts || 0));
   } catch (e) { toast("読み込めませんでした。通信を確認してください"); }
@@ -396,7 +456,11 @@ function applyAct() {
 }
 
 /* ---------- 一覧(一番上のレイヤー) ---------- */
-function render() { $("list").innerHTML = UI.list(calls, {me, liked: me ? liked : guestLiked, openId, cmts, myNick: prof ? prof.nick : "", mySession}); renderPEv(); }
+function render() {
+  const listMe = me || (guestDraftSessionId ? {uid: guestDraftSessionId} : null);
+  $("list").innerHTML = UI.list(calls, {me:listMe, liked: me ? liked : guestLiked, openId, cmts, myNick: prof ? prof.nick : "", mySession});
+  renderPEv();
+}
 let pEvOpen = false, evFor = null;
 function renderPEv() { const el = $("pEv"); if (!el) return; const c = calls.find(x => x.id === act); if (c) { el.innerHTML = UI.evHtml(c, {me, liked: me ? liked : guestLiked, cmts, myNick: prof ? prof.nick : "", open: pEvOpen, mySession}); return; } if (refPlay && curRef) { el.innerHTML = '<div class="evBox"><div class="evBody"><button class="w" style="width:100%;height:44px;border-radius:12px" data-a="spOpenRef" data-i="' + curRef.id + '">シェアポイントを作る</button></div></div>'; return; } el.innerHTML = ""; }
 /* ---------- 感想(承認制) ---------- */
@@ -1881,12 +1945,13 @@ const A = {
   review: () => { $("menu").style.display = "none"; renderReview(); $("cmov").style.display = "block"; },
   evToggle: () => { pEvOpen = !pEvOpen; renderPEv(); },
   edit: id => {
-    if (!guard()) return;
     const c = calls.find(x => x.id === id); if (!c) return;
-    if (!confirm("編集はできますが、今までのスコア(♥と湧き)はリセットされ、付いた感想も削除されます。よろしいですか?")) return;
+    const ownGuestDraft = !!(c.localGuestDraft && !me && c.ownerUid === guestDraftSessionId);
+    if (!ownGuestDraft && !guard()) return;
+    if (!confirm(ownGuestDraft ? "このゲスト下書きを編集しますか?" : "編集はできますが、今までのスコア(♥と湧き)はリセットされ、付いた感想も削除されます。よろしいですか?")) return;
     mk = {scenes: c.scenes.map(x => ({...x})), type: "call", from: null, base: "", editId: id};
     mkSel = -1; mkLenPhase = null;
-    $("mkVer").value = c.versionName || ""; $("mkNote").value = c.note || ""; $("mkRef").checked = !!c.allowRef; $("mkCmt").checked = c.allowComments !== false;
+    $("mkVer").value = c.versionName || ""; $("mkNote").value = c.note || ""; $("mkRef").checked = !!c.allowRef; $("mkCmt").checked = ownGuestDraft ? c.guestAllowComments !== false : c.allowComments !== false;
     A.closeOv(); enterMk();
     toast("編集モード: 保存するとスコアと感想はリセットされます");
   },
@@ -2156,12 +2221,27 @@ const A = {
         owner = {ownerUid: null, ownerName: gn.slice(0, 20), oshi: 5, ownerIcon: 0};
       }
       const record = {...owner, videoId: VID, ...(finishMeta ? {title: String(finishMeta.title || "").trim()} : {}), versionName: ver, note: finishMeta ? String(finishMeta.note || "").trim() : $("mkNote").value.trim(), allowRef: $("mkRef").checked, allowComments: $("mkCmt").checked, scenes: mk.scenes, public: !!+pub, hearts: 0, used: 0, createdAt: serverTimestamp()};
-      const added = await addDoc(collection(db, "calls"), record);
-      nid = added.id;
-      savedRecord = {id:nid, ...record};
-      if (editId) {
-        try { const cs = await getDocs(query(collection(db, "calls", editId, "comments"), where("ownerUid", "==", me.uid))); await Promise.all(cs.docs.map(d => deleteDoc(d.ref))); } catch (e) {}
-        try { await deleteDoc(doc(db, "calls", editId)); } catch (e) {}
+      const priorGuestDrafts = readGuestDrafts();
+      const editingGuestDraft = !!(editId && priorGuestDrafts.some(x => x.id === editId));
+      if (me && editingGuestDraft) return toast("ゲスト下書きはログイン中のアカウントへ移せません。ログアウトしてから操作してください");
+      if (!me && !+pub) {
+        if (!guestDraftSessionId) return toast("セッションクッキーを利用できないため、ゲスト下書きを保存できません");
+        const prior = editingGuestDraft ? priorGuestDrafts.find(x => x.id === editId) : null;
+        const localRecord = {...record, ...(finishMeta ? {} : (prior && prior.title ? {title: prior.title} : {}))};
+        const local = saveGuestDraft(localRecord, editId);
+        nid = local.id;
+        savedRecord = local;
+      } else {
+        const added = await addDoc(collection(db, "calls"), record);
+        nid = added.id;
+        savedRecord = {id:nid, ...record};
+        if (editingGuestDraft) {
+          removeGuestDraft(editId);
+          mySession.delete(editId);
+        } else if (editId) {
+          try { const cs = await getDocs(query(collection(db, "calls", editId, "comments"), where("ownerUid", "==", me.uid))); await Promise.all(cs.docs.map(d => deleteDoc(d.ref))); } catch (e) {}
+          try { await deleteDoc(doc(db, "calls", editId)); } catch (e) {}
+        }
       }
     } catch (e) { return toast("保存できませんでした"); }
     if (nid) { mySession.add(nid); sessSet("momo_my_calls", [...mySession]); }   // この訪問中に作ったコールとして覚える(自押し制限用)
@@ -2177,8 +2257,36 @@ const A = {
     A.closeOv(); enterMk();
     toast("中身を読み込みました。自分用に変えてください");
   },
-  pub: async id => { const c = calls.find(x => x.id === id); try { await updateDoc(doc(db, "calls", id), {public: !c.public}); loadCalls(); } catch (e) { toast("変更できませんでした"); } },
-  del: async id => { if (!confirm("この推しコールを削除しますか?")) return; try { await deleteDoc(doc(db, "calls", id)); loadCalls(); } catch (e) { toast("削除できませんでした"); } }
+  pub: async id => {
+    const c = calls.find(x => x.id === id); if (!c) return;
+    if (c.localGuestDraft) {
+      if (me || c.ownerUid !== guestDraftSessionId) return toast("このゲスト下書きは現在のゲストセッションからのみ公開できます");
+      try {
+        const record = {...c, ownerUid: null, public: true, allowComments: c.guestAllowComments !== false, createdAt: serverTimestamp()};
+        delete record.id; delete record.localGuestDraft; delete record.guestAllowComments;
+        const added = await addDoc(collection(db, "calls"), record);
+        removeGuestDraft(id);
+        mySession.delete(id); mySession.add(added.id); sessSet("momo_my_calls", [...mySession]);
+        await loadCalls();
+      } catch (e) { toast("公開できませんでした"); }
+      return;
+    }
+    try { await updateDoc(doc(db, "calls", id), {public: !c.public}); loadCalls(); } catch (e) { toast("変更できませんでした"); }
+  },
+  del: async id => {
+    const c = calls.find(x => x.id === id);
+    if (!confirm("この推しコールを削除しますか?")) return;
+    if (c && c.localGuestDraft) {
+      if (c.ownerUid !== guestDraftSessionId) return toast("このゲスト下書きは現在のゲストセッションから削除できません");
+      try {
+        removeGuestDraft(id);
+        mySession.delete(id); sessSet("momo_my_calls", [...mySession]);
+        await loadCalls();
+      } catch (e) { toast("削除できませんでした"); }
+      return;
+    }
+    try { await deleteDoc(doc(db, "calls", id)); loadCalls(); } catch (e) { toast("削除できませんでした"); }
+  }
 };
 
 /* ---------- build 62: 制作ガイドモード(refmake build 61のガイドが原型) ----------
