@@ -77,6 +77,17 @@ body.scr-mk #play.place-idle{opacity:.48;filter:saturate(.45)}
 .mk-onboard-blink{animation:mkOnboardBlink .8s ease-in-out infinite!important}
 @keyframes mkOnboardBlink{0%,100%{filter:brightness(1);box-shadow:0 0 0 2px rgba(255,210,63,.22),0 0 8px rgba(255,210,63,.3)}50%{filter:brightness(1.55);box-shadow:0 0 0 5px rgba(255,210,63,.85),0 0 24px rgba(255,210,63,.95)}}
 </style>
+<style id="mkFinishStyles">
+#mkFinishBtn{display:none;position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:100001;padding:10px 14px;border:1px solid rgba(255,255,255,.45);border-radius:12px;background:rgba(125,125,125,.62);color:#fff;font-size:14px;font-weight:800;box-shadow:0 3px 12px rgba(0,0,0,.28);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+body.scr-mk #mkFinishBtn{display:block}
+#mkFinishOverlay{display:none;position:fixed;inset:0;z-index:100002;box-sizing:border-box;align-items:center;justify-content:center;padding:22px;background:rgba(0,0,0,.88)}
+#mkFinishCard{width:min(100%,420px);box-sizing:border-box;padding:22px 18px 18px;border:1px solid rgba(255,255,255,.2);border-radius:18px;background:rgba(54,54,54,.94);color:#fff;box-shadow:0 12px 38px rgba(0,0,0,.5)}
+#mkFinishPrompt{margin:0 0 18px;text-align:center;font-size:20px;font-weight:900;line-height:1.4}
+#mkFinishInput{display:block;width:100%;min-height:46px;box-sizing:border-box;padding:10px 12px;border:1px solid rgba(255,255,255,.35);border-radius:10px;background:rgba(0,0,0,.48);color:#fff;font-size:16px}
+.mkFinishActions{display:flex;gap:12px;margin-top:18px}
+.mkFinishActions button{flex:1;min-height:44px;border:1px solid rgba(255,255,255,.28);border-radius:10px;background:rgba(125,125,125,.52);color:#fff;font-size:15px;font-weight:800}
+.mkFinishActions button.mkFinishPrimary{background:rgba(75,115,180,.88);border-color:rgba(160,195,255,.7)}
+</style>
 </head>
 <body>
 <script>
@@ -627,6 +638,17 @@ body.scr-mk #play.place-idle{opacity:.48;filter:saturate(.45)}
   </div>
 </div>
 
+<button id="mkFinishBtn" type="button" data-a="mkFinishStart">制作を終了</button>
+<div id="mkFinishOverlay" role="dialog" aria-modal="true" aria-labelledby="mkFinishPrompt">
+  <div id="mkFinishCard">
+    <h3 id="mkFinishPrompt"></h3>
+    <input id="mkFinishInput" type="text" autocomplete="off">
+    <div class="mkFinishActions">
+      <button id="mkFinishCancel" type="button" data-a="mkFinishCancel">キャンセル</button>
+      <button id="mkFinishNext" type="button" class="mkFinishPrimary" data-a="mkFinishNext">決定</button>
+    </div>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script src="ui.js?v=64" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
