@@ -77,6 +77,7 @@ let mkLenPhase = null;          // 作成画面: 長さ指定の計測中は "ru
 let spStep = 0;                 // シェアポイント作成の段階 0=始点を決める 1=終点を決める 2=作成する
 let mkPub = true;               // 作成画面: 保存先(公開=true / 下書き=false)。確定は「保存して戻る」
 let mkFinishDraft = null;        // 「制作を終了」からの4段階登録入力
+let mkFinishSaving = false;       // 登録処理の二重実行防止
 let mkRate = 1;                 // 作成画面・シェアポイント作成画面: 再生速度
 let PRESETS = [], psLoaded = false, psListShown = false;   // build 60: プリセットコール(presetsコレクション。管理画面で登録)
 /* ---------- build 64: 作成の2モード制 / 長押し / シーク連動スクラブ / 拡大タイムライン / 位置再編集 ---------- */
@@ -649,10 +650,12 @@ function cancelMkFinish() {
   mkFinishDraft = null;
 }
 async function advanceMkFinish() {
-  if (!mkFinishDraft) return;
+  if (!mkFinishDraft || mkFinishSaving) return;
   const field = MK_FINISH_FIELDS[mkFinishDraft.step], input = $("mkFinishInput");
   if (!field || !input) return;
   mkFinishDraft[field.key] = input.value.trim();
+  if (field.key === "name" && !(me && prof) && !mkFinishDraft.name) { toast("お名前を入力してください"); return; }
+  if (field.key === "versionName" && me && prof && calls.some(c => c.ownerUid === me.uid) && !mkFinishDraft.versionName) { toast("2つ目以降はバージョン名を入れてください"); return; }
   if (mkFinishDraft.step < MK_FINISH_FIELDS.length - 1) {
     mkFinishDraft.step++;
     paintMkFinishStep();
@@ -660,8 +663,14 @@ async function advanceMkFinish() {
   }
   if (!mk.scenes.length) { toast("カードを作成してください"); return; }
   const meta = {name:mkFinishDraft.name, title:mkFinishDraft.title, versionName:mkFinishDraft.versionName, note:mkFinishDraft.note};
+  mkFinishSaving = true;
+  const next = $("mkFinishNext"); if (next) next.disabled = true;
   const saved = await A.save(mkPub ? "1" : "0", meta);
-  if (!saved || saved === true) return;
+  if (!saved || saved === true) {
+    mkFinishSaving = false;
+    if (next) next.disabled = false;
+    return;
+  }
   const overlay = $("mkFinishOverlay");
   if (overlay) overlay.style.display = "none";
   mkFinishDraft = null;
@@ -673,6 +682,7 @@ async function advanceMkFinish() {
   act = saved.id;
   applyAct();
   render();
+  mkFinishSaving = false;
   alert("推しコールが登録されました");
 }
 
