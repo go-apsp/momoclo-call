@@ -501,6 +501,78 @@ function openMkContentPanel(target) {
   p.style.display = "flex";
 }
 function closeMkContentPanel() { const p = $("mkContentPanel"); if (p) p.style.display = "none"; }
+/* プロトタイプ2 移植4(見た目のみ): 制作を終了フロー。選択→4段階入力の表示だけ。実際の保存・終了は次の段階でつなぐ */
+const MK_FINISH_FIELDS = [
+  {key:"name", prompt:"あなたのお名前は？", max:20, placeholder:"お名前"},
+  {key:"title", prompt:"推しコールのタイトル？", max:40, placeholder:"推しコールのタイトル"},
+  {key:"versionName", prompt:"バージョン名は？", max:20, placeholder:"バージョン名"},
+  {key:"note", prompt:"備考は？", max:100, placeholder:"備考（任意）"}
+];
+let mkFinishDraft = null;
+function setMkFinishError(msg) {
+  const el = $("mkFinishError");
+  if (!el) { if (msg) toast(msg, 4000); return; }
+  el.textContent = msg || "";
+  el.style.display = msg ? "block" : "none";
+}
+function paintMkFinishStep() {
+  if (!mkFinishDraft) return;
+  const field = MK_FINISH_FIELDS[mkFinishDraft.step];
+  const overlay = $("mkFinishOverlay"), prompt = $("mkFinishPrompt"), input = $("mkFinishInput");
+  const actions = $("mkFinishActions"), choices = $("mkFinishChoices");
+  if (!field || !overlay || !prompt || !input || !actions || !choices) return;
+  setMkFinishError("");
+  prompt.textContent = field.prompt;
+  input.maxLength = field.max;
+  input.placeholder = field.placeholder;
+  input.value = String(mkFinishDraft[field.key] || "");
+  input.style.display = "block";
+  actions.style.display = "flex";
+  choices.style.display = "none";
+  overlay.style.display = "flex";
+}
+function paintMkFinishStart() {
+  if (!mkFinishDraft) return;
+  const overlay = $("mkFinishOverlay"), prompt = $("mkFinishPrompt"), input = $("mkFinishInput");
+  const actions = $("mkFinishActions"), choices = $("mkFinishChoices");
+  const draftButton = $("mkFinishDraftSave");
+  if (!overlay || !prompt || !input || !actions || !choices) return;
+  setMkFinishError("");
+  prompt.textContent = "制作を終了しますか？";
+  input.style.display = "none";
+  actions.style.display = "none";
+  choices.style.display = "flex";
+  if (draftButton) draftButton.style.display = me ? "" : "none";
+  overlay.style.display = "flex";
+}
+function openMkFinish() {
+  if (screen !== "mk") return;
+  mkFinishDraft = {step:-1, pub:null, name:"", title:"", versionName:"", note:""};
+  paintMkFinishStart();
+}
+function chooseMkFinish(pub) {
+  if (!mkFinishDraft || (!me && !pub)) return;
+  mkFinishDraft.pub = !!pub;
+  mkFinishDraft.step = 0;
+  paintMkFinishStep();
+}
+function cancelMkFinish() {
+  const overlay = $("mkFinishOverlay");
+  if (overlay) overlay.style.display = "none";
+  mkFinishDraft = null;
+}
+function finishMkWithoutSave() { cancelMkFinish(); toast("見た目の確認用です。実際の終了は次の段階でつなぎます"); }
+function advanceMkFinish() {
+  if (!mkFinishDraft) return;
+  const field = MK_FINISH_FIELDS[mkFinishDraft.step], input = $("mkFinishInput");
+  if (!field || !input) return;
+  mkFinishDraft[field.key] = String(input.value == null ? "" : input.value).trim();
+  if (field.key === "name" && !(me && prof) && !mkFinishDraft.name) { setMkFinishError("お名前を入力してください"); return; }
+  if (field.key === "versionName" && me && prof && calls.some(c => c.ownerUid === me.uid) && !mkFinishDraft.versionName) { setMkFinishError("2つ目以降はバージョン名を入れてください"); return; }
+  if (mkFinishDraft.step < MK_FINISH_FIELDS.length - 1) { mkFinishDraft.step++; paintMkFinishStep(); return; }
+  cancelMkFinish();
+  toast("見た目の確認用です。実際の保存は次の段階でつなぎます");
+}
 function renderMk() { $("mkList").innerHTML = mkCardsHtml(mk.scenes, mkSel); paintMkBtn(); paintPlaceBtn(); paintKnob(); paintPosEdit(); renderMkTl(); applyGuide(); }
 function paintPvBtn() { const b = $("mkPvBtn"); if (b) b.textContent = mkPv ? "プレビューを止める" : "プレビュー"; }
 /* 画面切替: プレイヤー(#mvwrap・iframe)はDOM上で一切動かさず、他のUIの表示/非表示だけで切り替える */
@@ -2200,6 +2272,23 @@ function bindMkPlaceButton() {
   b.addEventListener("contextmenu", e => { if (screen === "mk" && mkMode === "oki") e.preventDefault(); });
 }
 bindMkPlaceButton();
+/* プロトタイプ2 移植4: 制作を終了フローのボタンは data-a 委譲から分離して直接結び付ける */
+const finishStartBtn = $("mkFinishBtn");
+const finishNextBtn = $("mkFinishNext");
+const finishCancelBtn = $("mkFinishCancel");
+const finishDraftBtn = $("mkFinishDraftSave");
+const finishRegisterBtn = $("mkFinishRegister");
+const finishNoSaveBtn = $("mkFinishNoSave");
+const finishChoiceCancelBtn = $("mkFinishChoiceCancel");
+if (finishStartBtn) finishStartBtn.addEventListener("click", openMkFinish);
+if (finishNextBtn) finishNextBtn.addEventListener("click", e => { e.preventDefault(); advanceMkFinish(); });
+if (finishCancelBtn) finishCancelBtn.addEventListener("click", e => { e.preventDefault(); cancelMkFinish(); });
+if (finishDraftBtn) finishDraftBtn.addEventListener("click", e => { e.preventDefault(); chooseMkFinish(false); });
+if (finishRegisterBtn) finishRegisterBtn.addEventListener("click", e => { e.preventDefault(); chooseMkFinish(true); });
+if (finishNoSaveBtn) finishNoSaveBtn.addEventListener("click", e => { e.preventDefault(); finishMkWithoutSave(); });
+if (finishChoiceCancelBtn) finishChoiceCancelBtn.addEventListener("click", e => { e.preventDefault(); cancelMkFinish(); });
+const finishInput = $("mkFinishInput");
+if (finishInput) finishInput.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); advanceMkFinish(); } });
 /* build 64: 操作感の調整(即時反映・localStorage保存) */
 const tuneGainEl = $("tuneGain"); if (tuneGainEl) tuneGainEl.addEventListener("input", e => { mkTune.gain = parseFloat(e.target.value) || 0.5; try { localStorage.setItem("momo_drag_gain", String(mkTune.gain)); } catch (err) {} paintTune(); });
 const tuneDeadEl = $("tuneDead"); if (tuneDeadEl) tuneDeadEl.addEventListener("input", e => { mkTune.dead = Math.round(parseFloat(e.target.value) || 0); try { localStorage.setItem("momo_drag_dead", String(mkTune.dead)); } catch (err) {} paintTune(); });
