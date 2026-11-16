@@ -59,6 +59,7 @@ const $ = id => document.getElementById(id);
 function toast(s, ms) { const t = $("toast"); t.textContent = s; t.classList.add("on"); clearTimeout(toast.id); toast.id = setTimeout(() => t.classList.remove("on"), ms || 2400); }
 
 let me = null, prof = null, calls = [], liked = new Set(), act = null, openId = null;
+let authStateReady = false, pendingMkFinishOpen = false;   // プロトタイプ2 移植4: 終了フローは認証状態が確定してから開く
 let EV = [], cur = null, sess = null, pickI = 0, native = false;
 const LIMIT = 600000;   // 湧きを数えるのは、再生を始めてから10分
 let mk = {scenes: [], type: "call", from: null, base: ""};
@@ -289,6 +290,8 @@ onAuthStateChanged(auth, async u => {
     const d = await getDoc(doc(db, "users", u.uid));
     if (d.exists()) prof = d.data(); else openSheet();   // 最初のログイン = ユーザー登録(推しはここで一度だけ決める)
   }
+  authStateReady = true;
+  if (pendingMkFinishOpen) { pendingMkFinishOpen = false; openMkFinish(); }
   paintLogin(); await loadCalls();
 });
 function paintLogin() {
@@ -501,7 +504,7 @@ function openMkContentPanel(target) {
   p.style.display = "flex";
 }
 function closeMkContentPanel() { const p = $("mkContentPanel"); if (p) p.style.display = "none"; }
-/* プロトタイプ2 移植4(見た目のみ): 制作を終了フロー。選択→4段階入力の表示だけ。実際の保存・終了は次の段階でつなぐ */
+/* プロトタイプ2 移植4: 制作を終了フロー。選択→4段階入力→A.save で保存し、再生画面へ戻る。保存失敗時は備考ステップへ戻して再試行可、保存は20秒で見切る */
 const MK_FINISH_FIELDS = [
   {key:"name", prompt:"あなたのお名前は？", max:20, placeholder:"お名前"},
   {key:"title", prompt:"推しコールのタイトル？", max:40, placeholder:"推しコールのタイトル"},
@@ -509,6 +512,7 @@ const MK_FINISH_FIELDS = [
   {key:"note", prompt:"備考は？", max:100, placeholder:"備考（任意）"}
 ];
 let mkFinishDraft = null;
+let mkFinishSaving = false;   // プロトタイプ2 移植4: 保存の二重実行防止
 function setMkFinishError(msg) {
   const el = $("mkFinishError");
   if (!el) { if (msg) toast(msg, 4000); return; }
@@ -546,32 +550,93 @@ function paintMkFinishStart() {
   overlay.style.display = "flex";
 }
 function openMkFinish() {
-  if (screen !== "mk") return;
+  if (screen !== "mk" || mkFinishSaving) return;
+  if (!authStateReady) { pendingMkFinishOpen = true; return; }   // 認証状態が確定するまで開かない(下書きボタンの出し分けが誤らないように)
   mkFinishDraft = {step:-1, pub:null, name:"", title:"", versionName:"", note:""};
   paintMkFinishStart();
 }
 function chooseMkFinish(pub) {
-  if (!mkFinishDraft || (!me && !pub)) return;
+  if (!mkFinishDraft || mkFinishSaving || (!me && !pub)) return;
   mkFinishDraft.pub = !!pub;
   mkFinishDraft.step = 0;
   paintMkFinishStep();
 }
 function cancelMkFinish() {
+  if (mkFinishSaving) return;
   const overlay = $("mkFinishOverlay");
   if (overlay) overlay.style.display = "none";
   mkFinishDraft = null;
 }
-function finishMkWithoutSave() { cancelMkFinish(); toast("見た目の確認用です。実際の終了は次の段階でつなぎます"); }
+function finishMkWithoutSave() {
+  if (!mkFinishDraft || mkFinishSaving) return;
+  const overlay = $("mkFinishOverlay");
+  if (overlay) overlay.style.display = "none";
+  mkFinishDraft = null;
+  exitMk();
+}
 function advanceMkFinish() {
+  if (!mkFinishDraft || mkFinishSaving) return;
+  try {
+    if (mkFinishDraft.step >= MK_FINISH_FIELDS.length) { saveMkFinish(); return; }   // 終端で詰んでも「決定」で保存を再試行できる
+    const field = MK_FINISH_FIELDS[mkFinishDraft.step], input = $("mkFinishInput");
+    if (!field || !input) return;
+    mkFinishDraft[field.key] = String(input.value == null ? "" : input.value).trim();
+    if (field.key === "name" && !(me && prof) && !mkFinishDraft.name) { toast("お名前を入力してください"); setMkFinishError("お名前を入力してください"); return; }
+    if (field.key === "versionName" && me && prof && calls.some(c => c.ownerUid === me.uid) && !mkFinishDraft.versionName) { toast("2つ目以降はバージョン名を入れてください"); setMkFinishError("2つ目以降はバージョン名を入れてください"); return; }
+    if (mkFinishDraft.step < MK_FINISH_FIELDS.length - 1) { mkFinishDraft.step++; paintMkFinishStep(); return; }
+    mkFinishDraft.step = MK_FINISH_FIELDS.length;
+    saveMkFinish();
+  } catch (e) {
+    toast("入力を進められませんでした。もう一度お試しください");
+    setMkFinishError("入力を進められませんでした。もう一度お試しください");
+  }
+}
+function failMkFinish(msg) {
+  // 保存に失敗したら終端(step=全項目数)のままにせず、最後の入力(備考)へ戻して再試行できるようにする。入力内容は保持する
   if (!mkFinishDraft) return;
-  const field = MK_FINISH_FIELDS[mkFinishDraft.step], input = $("mkFinishInput");
-  if (!field || !input) return;
-  mkFinishDraft[field.key] = String(input.value == null ? "" : input.value).trim();
-  if (field.key === "name" && !(me && prof) && !mkFinishDraft.name) { setMkFinishError("お名前を入力してください"); return; }
-  if (field.key === "versionName" && me && prof && calls.some(c => c.ownerUid === me.uid) && !mkFinishDraft.versionName) { setMkFinishError("2つ目以降はバージョン名を入れてください"); return; }
-  if (mkFinishDraft.step < MK_FINISH_FIELDS.length - 1) { mkFinishDraft.step++; paintMkFinishStep(); return; }
-  cancelMkFinish();
-  toast("見た目の確認用です。実際の保存は次の段階でつなぎます");
+  mkFinishDraft.step = MK_FINISH_FIELDS.length - 1;
+  paintMkFinishStep();
+  setMkFinishError(msg);
+}
+async function saveMkFinish() {
+  if (!mkFinishDraft || mkFinishDraft.step !== MK_FINISH_FIELDS.length || typeof mkFinishDraft.pub !== "boolean" || mkFinishSaving) return;
+  if (!mk.scenes.length) { toast("カードを作成してください"); failMkFinish("カードを作成してください"); return; }
+  const publish = mkFinishDraft.pub;
+  if (!me && !publish) { toast("ゲストは下書き保存できません"); failMkFinish("ゲストは下書き保存できません"); return; }
+  const meta = {name:mkFinishDraft.name, title:mkFinishDraft.title, versionName:mkFinishDraft.versionName, note:mkFinishDraft.note};
+  mkFinishSaving = true;
+  const buttons = ["mkFinishDraftSave", "mkFinishRegister", "mkFinishNoSave", "mkFinishChoiceCancel"].map(id => $(id)).filter(Boolean);
+  buttons.forEach(b => { b.disabled = true; });
+  try {
+    // 保存応答が返らないまま全操作が塞がり続けないよう、20秒で見切ってロックを解除する
+    const saved = await Promise.race([
+      A.save(publish ? "1" : "0", meta),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("mkFinishTimeout")), 20000))
+    ]);
+    if (!saved || saved === true) { failMkFinish("保存できませんでした。入力内容は残っています。「決定」でもう一度保存できます。"); return; }
+    const overlay = $("mkFinishOverlay");
+    if (overlay) overlay.style.display = "none";
+    mkFinishDraft = null;
+    exitMk();
+    refPlay = false; randPlay = false; spRange = null; sess = null;
+    act = saved.id;
+    try { await loadCalls(); } catch (e) {}
+    if (!calls.some(c => c.id === saved.id)) calls.unshift(saved.record);
+    act = saved.id;
+    try { applyAct(); render(); } catch (e) {}
+    alert(publish ? "推しコールが登録されました" : "下書き保存されました");
+  } catch (e) {
+    if (e && e.message === "mkFinishTimeout") {
+      toast("保存の確認ができませんでした。通信を確認してもう一度お試しください");
+      failMkFinish("保存の確認ができませんでした。入力内容は残っています。通信を確認して「決定」でもう一度保存できます。");
+    } else {
+      toast("保存処理でエラーが発生しました。制作内容を確認して、もう一度お試しください");
+      failMkFinish("保存処理でエラーが発生しました。入力内容は残っています。「決定」でもう一度保存できます。");
+    }
+  } finally {
+    mkFinishSaving = false;
+    if (mkFinishDraft) buttons.forEach(b => { b.disabled = false; });
+  }
 }
 function renderMk() { $("mkList").innerHTML = mkCardsHtml(mk.scenes, mkSel); paintMkBtn(); paintPlaceBtn(); paintKnob(); paintPosEdit(); renderMkTl(); applyGuide(); }
 function paintPvBtn() { const b = $("mkPvBtn"); if (b) b.textContent = mkPv ? "プレビューを止める" : "プレビュー"; }
@@ -1888,35 +1953,38 @@ const A = {
   guideOff: () => endGuide(),
   guideNext: () => { if (guide && guide.step === "s9") { mkSel = -1; mkLenPhase = null; $("mkText").value = ""; renderMk(); setGuideStep("s9b"); } },
   guideToSave: () => { if (guide && guide.step === "s9") setGuideStep("s10"); },
-  save: async pub => {
+  save: async (pub, finishMeta = null) => {
     /* build 62: ゲスト(非ログイン)でも保存できる。ゲストは保存時の名前入力が作者名になり、ownerUid は null で紐づける */
+    /* プロトタイプ2 移植4: 終了フローから呼ばれた時は finishMeta(名前/タイトル/バージョン名/備考)を使い、保存結果を返す */
     if (!mk.scenes.length) return toast("場面を追加してください");
-    const ver = $("mkVer").value.trim();
+    const ver = finishMeta ? String(finishMeta.versionName || "").trim() : $("mkVer").value.trim();
     if (me && prof && calls.some(c => c.ownerUid === me.uid) && !ver) return toast("2つ目以降はバージョン名を入れてください");
     if (+pub && mk.from && JSON.stringify(mk.scenes) === mk.base) return toast("参考にした推しコールと全く同じなので公開できません。少し変えてください");
-    let nid = null;
+    let nid = null, savedRecord = null;
     try {
       const editId = mk.editId || null;
       let owner;
       if (me && prof) {
-        owner = {ownerUid: me.uid, ownerName: prof.nick, oshi: prof.oshi, ownerIcon: prof.icon || 0};
+        owner = {ownerUid: me.uid, ownerName: (finishMeta && String(finishMeta.name || "").trim()) || prof.nick, oshi: prof.oshi, ownerIcon: prof.icon || 0};
       } else {
-        const gn = $("mkGuestName").value.trim();
+        const gn = (finishMeta && String(finishMeta.name || "").trim()) || $("mkGuestName").value.trim();
         if (!gn) return toast("名前を入れてください(作者として表示されます)");
         owner = {ownerUid: null, ownerName: gn.slice(0, 20), oshi: 5, ownerIcon: 0};
       }
-      const added = await addDoc(collection(db, "calls"), {...owner, videoId: VID, versionName: ver, note: $("mkNote").value.trim(), allowRef: $("mkRef").checked, allowComments: $("mkCmt").checked, scenes: mk.scenes, public: !!+pub, hearts: 0, used: 0, createdAt: serverTimestamp()});
+      const record = {...owner, videoId: VID, ...(finishMeta ? {title: String(finishMeta.title || "").trim()} : {}), versionName: ver, note: finishMeta ? String(finishMeta.note || "").trim() : $("mkNote").value.trim(), allowRef: $("mkRef").checked, allowComments: $("mkCmt").checked, scenes: mk.scenes, public: !!+pub, hearts: 0, used: 0, createdAt: serverTimestamp()};
+      const added = await addDoc(collection(db, "calls"), record);
       nid = added.id;
+      savedRecord = {id: nid, ...record};
       if (editId) {
         try { const cs = await getDocs(query(collection(db, "calls", editId, "comments"), where("ownerUid", "==", me.uid))); await Promise.all(cs.docs.map(d => deleteDoc(d.ref))); } catch (e) {}
         try { await deleteDoc(doc(db, "calls", editId)); } catch (e) {}
       }
     } catch (e) { return toast("保存できませんでした"); }
     if (nid) { mySession.add(nid); sessSet("momo_my_calls", [...mySession]); }   // この訪問中に作ったコールとして覚える(自押し制限用)
-    toast(+pub ? "公開しました" : "下書きを保存しました");
+    if (!finishMeta) toast(+pub ? "公開しました" : "下書きを保存しました");
     mk = {scenes: [], type: "call", from: null, base: ""}; mkSel = -1; mkLenPhase = null; mkSelOrigT = null; $("mkVer").value = $("mkNote").value = ""; $("mkText").value = ""; $("mkGuestName").value = ""; renderMk(); loadCalls();
     guideEvent("saved");
-    return true;
+    return finishMeta ? {id: nid, record: savedRecord} : true;
   },
   ref: id => {
     const c = calls.find(x => x.id === id); if (!c) return;
