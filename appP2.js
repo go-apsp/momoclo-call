@@ -68,6 +68,7 @@ let cmts = {}, pendAll = [], pendKnown = new Set();
 let spRange = null, spEdit = null, mySps = [], spRef = null, curRef = null;
 let screen = "play";            // build 59: 画面切替 "play"(再生画面) | "mk"(推しコール作成画面) | "sp"(シェアポイント作成画面)。プレイヤー(#mvwrap)は移動しない
 let mkSel = -1;                 // 作成画面: 選択中の場面インデックス(-1=未選択)
+let mkReturnScrollY = null;    // プロトタイプ2 移植11: 作成画面へ入る直前のスクロール位置。戻るときにプレイ画面の表示位置を復元
 let mkLenPhase = null;          // 作成画面: 長さ指定の計測中は "run"
 let spStep = 0;                 // シェアポイント作成の段階 0=始点を決める 1=終点を決める 2=作成する
 let mkPub = true;               // 作成画面: 保存先(公開=true / 下書き=false)。確定は「保存して戻る」
@@ -726,6 +727,7 @@ function showMkOnboard(message, targetId) {
   mkOnboardTimer = setTimeout(clearMkOnboard, 7000);
 }
 function enterMk() {
+  mkReturnScrollY = window.scrollY || document.documentElement.scrollTop || 0;
   const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "none";
   spStep = 0; paintSpStep();
   setScreen("mk");
@@ -745,6 +747,18 @@ function exitMk() {
   mkSel = -1; mkLenPhase = null; mkSelOrigT = null; mkSetZoom(false);
   if (mkMeas !== null) { mkMeas = null; const b = $("mkMeas"); if (b) b.textContent = "▶ 再生して表示時間を測る"; }
   const pb = $("play"); if (pb) pb.classList.remove("meas");
+  const restoreY = mkReturnScrollY; mkReturnScrollY = null;
+  if (restoreY !== null) {
+    // enterMk() のsmooth scrollが残っていても、プレイ画面の元位置を優先して復元する
+    const root = document.documentElement;
+    const prevScrollBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = "auto";
+    window.scrollTo(0, restoreY);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, restoreY);
+      root.style.scrollBehavior = prevScrollBehavior;
+    });
+  }
 }
 function enterSp() {
   setScreen("sp");
@@ -1733,7 +1747,7 @@ const A = {
     toast("編集モード: 保存するとスコアと感想はリセットされます");
   },
   closeReview: () => { $("cmov").style.display = "none"; },
-  use: id => { act = id; refPlay = false; randPlay = false; spRange = null; sess = null; paintApply(); applyAct(); A.closeOv(); },
+  use: id => { if (screen === "mk") exitMk(); act = id; refPlay = false; randPlay = false; spRange = null; sess = null; paintApply(); applyAct(); A.closeOv(); },   // プロトタイプ2 移植11: 作成画面で選んだら再生画面へ戻す
   heart: async id => {
     /* build 62: この訪問中に作ったコールには押せない(ログイン/ゲスト共通) */
     if (mySession.has(id)) return toast("自分のコールには押せないよ");
