@@ -61,6 +61,11 @@ body:not(.scr-mk) #mkRateSelect{display:none}
 body.scr-mk #playSceneList,body.scr-sp #playSceneList{display:none!important}
 /* プロトタイプ2 移植11: 再生画面へ戻ったときのパッド表示を復元する */
 body:not(.scr-mk):not(.scr-sp) .pads{display:flex!important}
+/* プロトタイプ2 統合した作成画面(見た目のみ): モード切替をなくし、両モードの道具を1画面に全部出す。下の引き出しバーは全廃 */
+body.scr-mk #mkModeTabs, body.scr-mk #mkModeDesc, body.scr-mk #mkOnboardHint{display:none!important}
+body.scr-mk #mkDrawer{display:none!important}
+body.scr-mk div.mknori, body.scr-mk div.mkoki{display:block!important}
+body.scr-mk button.mkoki{display:inline-block!important}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
@@ -640,7 +645,7 @@ gtag('config', 'G-00QSZME258');
 <div id="toast"></div>
 
 <script src="ui.js?v=64" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="appP2.js?v=14" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
+<script src="appP2.js?v=15" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
 </body>
