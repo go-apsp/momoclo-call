@@ -46,6 +46,10 @@ body.scr-mk #songbox{display:block!important}
 #mkOnboardHint{display:none;box-sizing:border-box;margin:0 0 10px;padding:12px 15px;border:1px solid rgba(255,226,105,.95);border-radius:14px;background:rgba(255,210,63,.84);color:#29220b;text-align:center;font-size:15px;font-weight:900;line-height:1.45;box-shadow:0 5px 20px rgba(0,0,0,.3)}
 .mk-onboard-blink{animation:mkOnboardBlink .8s ease-in-out infinite!important}
 @keyframes mkOnboardBlink{0%,100%{filter:brightness(1);box-shadow:0 0 0 2px rgba(255,210,63,.22),0 0 8px rgba(255,210,63,.3)}50%{filter:brightness(1.55);box-shadow:0 0 0 5px rgba(255,210,63,.85),0 0 24px rgba(255,210,63,.95)}}
+/* プロトタイプ2 移植9: 作成画面の速度選択(再生ボタン一式の直下に全幅)。作成画面でのみ表示 */
+#mkRateSelect{display:block;width:100%;height:48px;box-sizing:border-box;margin:8px 0 12px;padding:0 14px;border:1px solid rgba(255,255,255,.24);border-radius:10px;background:#252943;color:#fff;font:inherit;font-size:16px;font-weight:800}
+body:not(.scr-mk) #mkRateSelect{display:none}
+#mkRateSelect option{background:#252943;color:#fff}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
@@ -153,6 +157,12 @@ gtag('config', 'G-00QSZME258');
     <button class="skb" data-a="pseek" data-i="10">+10秒</button>
     <button class="skb" data-a="pseek" data-i="30">+30秒</button>
   </div>
+  <select id="mkRateSelect" data-c="rateSelect" aria-label="再生速度">
+    <option value="0.25">速度 0.25倍速</option>
+    <option value="0.5">速度 0.5倍速</option>
+    <option value="0.75">速度 0.75倍速</option>
+    <option value="1" selected>速度 1倍速</option>
+  </select>
   <div id="pEv"></div>
   <div id="spPanel" style="display:none">
     <div class="spHead"><b>シェアポイント作成</b></div>
@@ -180,10 +190,6 @@ gtag('config', 'G-00QSZME258');
       <button type="button" class="mktab" data-a="mkMode" data-i="oki" data-mkmode="oki">お気に置きにいっちゃうモード</button>
     </div>
     <p id="mkModeDesc"></p>
-    <div class="subctl">
-      <button id="mkPlayBtn" data-a="play">▶ 再生</button>
-      <button class="ratebtn" data-a="rate">速度 1倍</button>
-    </div>
     <!-- build 64: 拡大タイムライン。ドラッグ中・長押し中は約30秒表示になり、画面下部に浮いて出続けます(元の位置には同じ高さの空きを残します) -->
     <div id="mkTlBox">
       <div class="mktl-head"><span>タイムライン</span><span id="mkTlMode">全体表示</span><span id="mkTlPos"></span></div>
@@ -622,7 +628,7 @@ gtag('config', 'G-00QSZME258');
 <div id="toast"></div>
 
 <script src="ui.js?v=64" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="appP2.js?v=11" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
+<script src="appP2.js?v=12" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
 </body>
