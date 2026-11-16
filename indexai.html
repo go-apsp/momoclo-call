@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#090812">
+  <meta name="description" content="曲に合わせてタップするだけ。コール弾幕リハーサル AI実験版。">
+  <title>コール弾幕リハーサル | AI試作版</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Noto+Sans+JP:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styleai.css">
+</head>
+<body>
+  <div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="コール弾幕リハーサル ホーム">
+        <span class="brand-mark">CD<span>R</span></span>
+        <span class="brand-copy"><strong>CALL DANMAKU</strong><small>REHEARSAL SYSTEM</small></span>
+      </a>
+      <span class="live-pill"><i></i> PRACTICE MODE</span>
+    </header>
+
+    <div class="experiment-banner"><span class="banner-symbol">✳</span><strong>AI試作版（実験）／本番・プロトタイプ2とは別物です</strong><span class="banner-tail">EXPERIMENTAL</span></div>
+
+    <main>
+      <section class="hero-intro">
+        <div class="eyebrow"><span></span> FEEL THE CROWD. FIND YOUR TIMING.</div>
+        <h1>コールを、<em>浴びろ。</em></h1>
+        <p>聴いて、感じて、タップ。会場の熱狂に飛び込むリハーサル。</p>
+      </section>
+
+      <section class="song-section" aria-labelledby="song-heading">
+        <div class="section-heading">
+          <div><span class="section-kicker">01 / SELECT YOUR TRACK</span><h2 id="song-heading">本日のステージ</h2></div>
+          <span class="track-count">3 TRACKS <b>●</b></span>
+        </div>
+        <div id="song-list" class="song-list"></div>
+      </section>
+
+      <section class="stage-section" aria-labelledby="stage-heading">
+        <div class="stage-topline">
+          <div><span class="section-kicker">02 / LIVE STAGE</span><h2 id="stage-heading">弾幕ステージ</h2></div>
+          <div class="stage-live"><span></span> LIVE FEED</div>
+        </div>
+        <div class="stage-card" id="stage">
+          <div class="stage-grid"></div>
+          <div class="stage-head">
+            <div class="stage-track"><span class="stage-dot"></span><span id="stage-song-name">走れ!</span></div>
+            <div class="stage-time"><span id="current-time">00:00</span><span class="time-slash">/</span><span id="duration-time">--:--</span></div>
+          </div>
+          <div class="video-wrap">
+            <div id="yt-player"></div>
+            <div class="video-vignette"></div>
+            <div id="danmaku-layer" class="danmaku-layer" aria-live="off"></div>
+            <canvas id="burst-canvas"></canvas>
+            <div class="stage-tap-hint" id="stage-tap-hint">ステージをタップして参加</div>
+            <div id="avalanche-label" class="avalanche-label">✦ 熱量雪崩！ ✦</div>
+          </div>
+          <div class="stage-footer">
+            <div class="playing-indicator"><span class="equalizer"><i></i><i></i><i></i><i></i></span><span id="play-state">READY TO GO</span></div>
+            <div class="crowd-meter"><span> CROWD HEAT </span><div class="crowd-track"><i id="crowd-fill"></i></div><b id="crowd-value">00</b></div>
+          </div>
+        </div>
+        <div class="tap-zone">
+          <div class="tap-copy"><span class="section-kicker">YOUR VOICE, YOUR TIMING</span><strong>コールが来たら、迷わずタップ！</strong><small>再生中のタイミングを記録して、サンプルと照合します。</small></div>
+          <button id="tap-button" class="tap-button" type="button" aria-label="今のタイミングでコールをタップ">
+            <span class="tap-ring"></span><span class="tap-label">TAP!</span><span class="tap-sub">CALL IT OUT</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="stats-section" aria-labelledby="stats-heading">
+        <div class="section-heading stats-title">
+          <div><span class="section-kicker">03 / YOUR SESSION</span><h2 id="stats-heading">今日の参戦記録</h2></div>
+          <span class="local-tag"><span></span> THIS DEVICE</span>
+        </div>
+        <div class="stats-grid">
+          <article class="stat-card stat-main"><span class="stat-label">YOUR TAPS</span><strong id="tap-count">0</strong><small>この曲で刻んだコール</small><span class="stat-icon">↗</span></article>
+          <article class="stat-card stat-perfect"><span class="stat-label">PERFECT</span><strong id="perfect-count">0</strong><small>±0.6秒以内</small><span class="stat-icon">✦</span></article>
+          <article class="stat-card stat-good"><span class="stat-label">GOOD</span><strong id="good-count">0</strong><small>±1.2秒以内</small><span class="stat-icon">◎</span></article>
+        </div>
+        <div class="session-bottom">
+          <div class="session-note"><span class="note-icon">⌁</span><span>タップ記録はこのブラウザ内に保存されます。<br>他の端末・ユーザーとは共有されません。</span></div>
+          <button id="clear-button" class="clear-button" type="button"><span>↺</span> この曲の記録を消去</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer"><span>CALL DANMAKU REHEARSAL <b>✳</b></span><span>AN UNOFFICIAL AI EXPERIMENT</span></footer>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="appai.js"></script>
+</body>
+</html>
