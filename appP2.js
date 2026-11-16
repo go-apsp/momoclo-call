@@ -482,19 +482,20 @@ function mkCardsHtml(scenes, sel) {
     + (unplaced.length ? '<div style="font-size:11px;color:var(--mut);padding:8px 2px 2px">未配置（作成順）</div>' + unplaced.map(card).join("") : "");
 }
 /* プロトタイプ2 移植2(見た目のみ): 共通パネルの開閉とステップ切替だけ。カードへの反映は次の段階でつなぐ */
-let mkCpStep = 1, mkCpType = "call";
+let mkCpStep = 1, mkCpType = "call", mkCpTarget = null;
 function paintMkContentPanel() {
   const t = $("mkContentTextStep"), y = $("mkContentTypeStep");
   if (t) t.style.display = mkCpStep === 1 ? "block" : "none";
   if (y) y.style.display = mkCpStep === 2 ? "block" : "none";
   document.querySelectorAll("#mkContentPanel [data-a='mkContentChoose']").forEach(b => b.classList.toggle("sel", b.dataset.i === mkCpType));
 }
-function openMkContentPanel() {
+function openMkContentPanel(target) {
   const p = $("mkContentPanel"); if (!p) return;
   mkCpStep = 1;
-  const sc = (mkSel >= 0 && mk.scenes[mkSel]) ? mk.scenes[mkSel] : null;
-  const inp = $("mkContentTextInput"); if (inp) inp.value = sc ? sc.x : "";
-  if (sc) mkCpType = sc.k;
+  mkCpTarget = target || null;
+  const inp = $("mkContentTextInput");
+  if (inp) inp.value = mkCpTarget ? mkCpTarget.x : $("mkText").value;
+  mkCpType = mkCpTarget ? mkCpTarget.k : mk.type;
   paintMkContentPanel();
   p.style.display = "flex";
 }
@@ -1645,7 +1646,7 @@ const A = {
   /* build 58: 埋め込みパネルのカードをタップ → そのカードの中身を編集(もう一度タップで終了) */
   mkPick: i => {
     i = +i;
-    if (mkSel === i) { openMkContentPanel(); return; }   // プロトタイプ2 移植2: 選択中のカードをもう一度タップで内容パネルを開く
+    if (mkSel === i) { openMkContentPanel(mk.scenes[i]); return; }   // プロトタイプ2 移植2: 選択中のカードをもう一度タップで内容パネルを開く
     const sc = mk.scenes[i]; if (!sc) return;
     mkSel = i; mkLenPhase = null; mkSelOrigT = sc.t;   // build 64: 「戻す」用に、選んだときの位置を覚える
     mk.type = sc.k;
@@ -1710,19 +1711,33 @@ const A = {
     }
   },
   /* プロトタイプ2 移植1: お気に置きモードで、文言と種類だけ決めて未配置カードを作る(配置は移植3で入れる) */
-  mkContentCancel: () => closeMkContentPanel(),
+  mkContentCancel: () => { mkCpTarget = null; closeMkContentPanel(); },
   mkContentTextNext: () => { if (!$("mkContentTextInput").value.trim()) return toast("コールの内容を入力してください"); mkCpStep = 2; paintMkContentPanel(); },
   mkContentBack: () => { mkCpStep = 1; paintMkContentPanel(); },
   mkContentChoose: i => { mkCpType = i; paintMkContentPanel(); },
-  mkContentConfirm: () => { closeMkContentPanel(); toast("見た目の確認用です。カードへの反映は次の段階でつなぎます"); },
-  mkAddUnplaced: () => {
-    const sc = {t: null, d: 5, placed: false, k: mk.type, x: $("mkText").value.trim() || LAB[mk.type]};
-    mk.scenes.push(sc); mkSortScenes();
-    $("mkText").value = "";
-    renderMk();
-    const L = $("mkList"); if (L) L.scrollTop = L.scrollHeight;
-    toast("未配置カードを作りました");
+  mkContentConfirm: () => {
+    const x = $("mkContentTextInput").value.trim();
+    if (!x) { mkCpStep = 1; paintMkContentPanel(); return toast("コールの内容を入力してください"); }
+    const k = mkCpType, target = mkCpTarget;
+    mkCpTarget = null;
+    closeMkContentPanel();
+    if (target) {
+      target.x = x; target.k = k;
+      mk.type = k; $("mkText").value = x;
+      document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === k));
+      renderMk();
+      toast("カードの内容を変更しました");
+    } else {
+      const sc = {t: null, d: 5, placed: false, k: k, x: x};
+      mk.scenes.push(sc); mkSortScenes();
+      mkSel = -1; mkSelOrigT = null;
+      $("mkText").value = "";
+      renderMk();
+      const L = $("mkList"); if (L) L.scrollTop = L.scrollHeight;
+      toast("未配置カードを作成しました");
+    }
   },
+  mkAddUnplaced: () => { openMkContentPanel(null); },   // プロトタイプ2 移植2: 未配置カードの新規作成は共通パネルから
   addScene: () => {   // 旧UIの「この位置に追加」用(build 58で要素は廃止。新方式は mkMain。互換のため残す)
     const durEl = $("mkDur");
     mk.scenes.push({t: Math.round(clampT(now())), d: (durEl ? parseFloat(durEl.value) : NaN) || 6, placed: true, k: mk.type, x: $("mkText").value.trim() || LAB[mk.type]});
