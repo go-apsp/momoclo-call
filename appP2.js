@@ -758,7 +758,7 @@ function mkScrMove(e) {
     mkShowGhost(e, scr.src, scr.seek0);
     if (playerReady()) playerPlay();   // 再生を押していなくても、掴んで動かし始めるとその位置の音がプレビューで流れる
   } else if (Math.abs(e.clientX - scr.anchorX) <= dead) { return; }   // 手ブレ抑制: 前回位置を更新した地点から dead(px) 未満の動きは無視
-  else { scr.anchorX = e.clientX; }
+  else { scr.anchorX = e.clientX; if (scr.src.fromPlaceButton) scr.moved = true; }   // プロトタイプ2 移植3: 置きに行くは「動かした」ことの記録
   const absT = mkBandAbs(e.clientX);
   const g = mkTune.gain;
   let target = g >= 1 ? absT : scr.target + (absT - scr.target) * g;   // 反応の鈍さ: gain が小さいほど、再生位置は指の絶対位置へゆっくり近づく
@@ -780,17 +780,27 @@ function mkScrEnd(commit, upX) {
   const sc = mkScrSt; if (!sc) return;
   mkScrSt = null;
   if (sc.settle) clearTimeout(sc.settle);
-  if (mkGhost) mkGhost.classList.remove("on");
+  if (mkGhost) mkGhost.classList.remove("on", "round");
   if (sc.active) {
     mkSetZoom(false);
+    if (sc.src.fromPlaceButton && !sc.moved) return;   // プロトタイプ2 移植3: ただのタップでは配置しない
     if (commit) {
       if (upX != null) sc.target = mkBandAbs(upX);
       const t = Math.max(0, Math.min(mkTlD() - 0.5, Math.round(sc.target * 10) / 10));
+      if (sc.src.scene && mk.scenes.includes(sc.src.scene)) {   // プロトタイプ2 移植3: 未配置カードそのものを配置する
+        const target = sc.src.scene;
+        target.t = t; target.placed = true;
+        mkSortScenes(); mkSel = mk.scenes.indexOf(target); mkSelOrigT = target.t;
+        renderMk();
+        if (playerReady()) { playerSeek(t); playerPlay(); }
+        toast("「" + (target.x || LAB[target.k]) + "」を " + fmt(t) + " に配置しました");
+      } else {
       const nc = {t: t, d: 5, placed: true, k: sc.src.k, x: sc.src.x};   // 置いたカードの長さは仮の5秒(本番の作り方に合わせる。後から長さ指定で直せる)
       mk.scenes.push(nc); mkSortScenes();
       if (sc.src.grip) $("mkText").value = "";
       renderMk();
       toast("「" + (nc.x || LAB[nc.k]) + "」を " + fmt(t) + " に置きました");
+      }
       guideEvent("drop");
     }
     return;
@@ -1729,7 +1739,7 @@ const A = {
   },
   /* プロトタイプ2 移植1: お気に置きモードで、文言と種類だけ決めて未配置カードを作る(配置は移植3で入れる) */
   mkContentCancel: () => { mkCpTarget = null; closeMkContentPanel(); },
-  place: () => { if (screen === "mk" && mkMode === "oki" && mkSel >= 0 && !mkIsPlaced(mk.scenes[mkSel])) toast("見た目の確認用です。実際に置く処理は次の段階でつなぎます"); },   // プロトタイプ2 移植3(見た目のみ)
+  place: () => { if (screen === "mk" && mkMode === "oki" && mkSel >= 0 && !mkIsPlaced(mk.scenes[mkSel])) toast("置きに行くボタンを押さえたまま、左右へ動かしてから離してください"); },   // プロトタイプ2 移植3: 配置はドラッグ側で処理。タップだけの時は案内
   mkContentTextNext: () => { if (!$("mkContentTextInput").value.trim()) return toast("コールの内容を入力してください"); mkCpStep = 2; paintMkContentPanel(); },
   mkContentBack: () => { mkCpStep = 1; paintMkContentPanel(); },
   mkContentChoose: i => { mkCpType = i; paintMkContentPanel(); },
@@ -2168,31 +2178,25 @@ $("mkTlInner").addEventListener("click", e => {
 /* build 64: 手打ちテキストの「つかむ」にもスクラブを付ける(種類は現在の種類ボタン、文言は入力欄の内容) */
 const mkGripEl = $("mkGrip");
 if (mkGripEl) mkBindScr(mkGripEl, () => ({k: mk.type, x: $("mkText").value.trim() || LAB[mk.type], grip: true}), false);
-/* プロトタイプ2 移植3(見た目のみ): 置きに行くボタンを押さえると丸いゴーストと拡大タイムライン(浮き表示)が出る。離してもまだ置かない */
-let mkPlaceLook = null;
+/* プロトタイプ2 移植3: 置きに行くボタン。本番のスクラブ仕組み(mkScrStart/Move/End)をそのまま使い、押した瞬間からゴーストと拡大タイムラインを出す */
 function bindMkPlaceButton() {
   const b = $("play"); if (!b || b.dataset.mkPlaceBound) return;
   b.dataset.mkPlaceBound = "1";
-  const endLook = () => {
-    if (!mkPlaceLook) return;
-    mkPlaceLook = null;
-    if (mkGhost) { mkGhost.classList.remove("on"); mkGhost.classList.remove("round"); }
-    mkSetZoom(false);
-  };
   b.addEventListener("pointerdown", e => {
     if (screen !== "mk" || mkMode !== "oki") return;
     const sc = mkSel >= 0 ? mk.scenes[mkSel] : null;
-    if (!sc || mkIsPlaced(sc)) return;
-    e.preventDefault();
-    try { b.setPointerCapture(e.pointerId); } catch (err) {}
-    mkPlaceLook = {pid: e.pointerId};
-    mkShowGhost(e, {k: sc.k, x: sc.x}, now() || 0);
+    if (!sc || mkIsPlaced(sc)) { e.preventDefault(); return; }
+    mkScrStart(e, {k: sc.k, x: sc.x, scene: sc, fromPlaceButton: true}, b);
+    mkScrSt.active = true;
+    mkScrSt.moved = false;
+    mkShowGhost(e, mkScrSt.src, mkScrSt.seek0);
     if (mkGhost) mkGhost.classList.add("round");
-    mkSetZoom(true, now() || 0);
+    mkSetZoom(true, mkScrSt.seek0);
+    if (playerReady()) playerPlay();
   });
-  b.addEventListener("pointermove", e => { if (mkPlaceLook && e.pointerId === mkPlaceLook.pid) mkMoveGhost(e, mkBandAbs(e.clientX)); });
-  b.addEventListener("pointerup", e => { if (mkPlaceLook && e.pointerId === mkPlaceLook.pid) endLook(); });
-  b.addEventListener("pointercancel", endLook);
+  b.addEventListener("pointermove", e => { if (mkScrSt && mkScrSt.src.fromPlaceButton) mkScrMove(e); });
+  b.addEventListener("pointerup", e => { if (mkScrSt && mkScrSt.src.fromPlaceButton) mkScrEnd(true, e.clientX); });
+  b.addEventListener("pointercancel", () => { if (mkScrSt && mkScrSt.src.fromPlaceButton) mkScrEnd(false); });
   b.addEventListener("contextmenu", e => { if (screen === "mk" && mkMode === "oki") e.preventDefault(); });
 }
 bindMkPlaceButton();
