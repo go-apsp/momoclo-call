@@ -788,8 +788,8 @@ const MKMODE_DESC = {
   oki: "文言を先に用意してから置きに行くモードです。プリセットを選ぶか文字を書いておいて、掴んで左右に動かすと、その位置の音を頼りに置く場所を探れます。再生ボタンを押していなくても、掴んで動かし始めるとその位置の音が自動で流れます。指を止めると、その位置からの音が流れるので、聞いて確かめてから離してください。離した位置にカードが置けて、長さは後から変えられます。"
 };
 const MKMODE_TLNOTE = {
-  nori: "長押ししている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。打ったカードの開始〜終了も表示されます。",
-  oki: "掴んで動かしている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。指の横の位置が、そのまま曲の位置になります。"
+  nori: "長押ししている間だけ、タイムラインが2つ出ます。こちらは曲全体で、画面中央に出る拡大タイムライン（15秒・1秒ごとの目盛り）で細かい位置が分かります。打ったカードの開始〜終了も表示されます。",
+  oki: "掴んで動かしている間だけ、タイムラインが2つ出ます。こちらは曲全体で、画面中央に出る拡大タイムライン（15秒・1秒ごとの目盛り）で細かい位置が分かります。指の横の位置が、そのまま曲の位置になります。"
 };
 function paintMkMode() {
   document.querySelectorAll("#mkModeTabs .mktab").forEach(b => b.classList.toggle("sel", b.dataset.mkmode === mkMode));
@@ -836,53 +836,68 @@ function mkTlWin() {
   a = Math.max(0, Math.min(Math.max(0, d - span), a));
   return {a: a, span: span};
 }
+/* プロトタイプ2: 拡大タイムライン用の窓(15秒)。mkTlCenterを中心にし、端では寄せて収める */
+function mkTlWin15() {
+  const d = mkTlD();
+  const span = Math.min(15, d);
+  let a = mkTlCenter - span / 2;
+  a = Math.max(0, Math.min(Math.max(0, d - span), a));
+  return {a: a, span: span};
+}
 function renderMkTl() {
   const inner = $("mkTlInner"); if (!inner) return;
   const d = mkTlD();
-  let html = "";
+  let barsHtml = "";
   MK_TL_KINDS.forEach(k => {
     const bars = mk.scenes.filter(s => mkIsPlaced(s) && s.k === k).map(s => {
       const l = Math.max(0, s.t / d * 100), w = Math.max(0.8, s.d / d * 100), idx = mk.scenes.indexOf(s), sel2 = idx === mkSel;
       return '<div class="mktl-bar mb-' + k + (sel2 ? " selb2" : "") + '" data-mksel="' + idx + '" style="left:' + l + '%;width:' + w + '%" title="' + fmt(s.t) + "〜" + fmt(s.t + s.d) + " " + LAB[k] + " " + esc(s.x) + '"><span>' + fmt(s.t) + "〜" + fmt(s.t + s.d) + " " + esc(s.x) + "</span></div>";
     }).join("");
-    html += '<div class="mktl-lane">' + bars + "</div>";
+    barsHtml += '<div class="mktl-lane">' + bars + "</div>";
   });
-  let ticks = "";
-  if (mkTlZoom) {
-    for (let t = 0; t <= d; t += 1) {
-      const big = t % 5 === 0, l2 = t / d * 100;
-      ticks += '<div class="mktl-tick' + (big ? " big" : "") + '" style="left:' + l2 + '%"></div>' + (big ? '<span class="mktl-tlab" style="left:' + l2 + '%">' + fmt(t) + "</span>" : "");
-    }
-  } else {
-    const steps = [5, 10, 15, 20, 30, 60]; let step = 60;
-    for (let si2 = 0; si2 < steps.length; si2++) { if (d / steps[si2] <= 14) { step = steps[si2]; break; } }
-    for (let t2 = 0; t2 <= d; t2 += step) {
-      const l3 = t2 / d * 100;
-      ticks += '<div class="mktl-tick big" style="left:' + l3 + '%"></div><span class="mktl-tlab" style="left:' + l3 + '%">' + fmt(t2) + "</span>";
-    }
+  let ticksFull = "";
+  const steps = [5, 10, 15, 20, 30, 60]; let step = 60;
+  for (let si2 = 0; si2 < steps.length; si2++) { if (d / steps[si2] <= 14) { step = steps[si2]; break; } }
+  for (let t2 = 0; t2 <= d; t2 += step) {
+    const l3 = t2 / d * 100;
+    ticksFull += '<div class="mktl-tick big" style="left:' + l3 + '%"></div><span class="mktl-tlab" style="left:' + l3 + '%">' + fmt(t2) + "</span>";
   }
-  html += '<div class="mktl-ticks">' + ticks + "</div>";
-  inner.innerHTML = html;
-  const box = $("mkTlBox"); if (box) box.classList.toggle("zoom", mkTlZoom);
-  const md = $("mkTlMode"); if (md) md.textContent = mkTlZoom ? "拡大表示（約30秒）" : "全体表示";
+  let ticksZoom = "";
+  for (let t = 0; t <= d; t += 1) {
+    const big = t % 5 === 0, l2 = t / d * 100;
+    ticksZoom += '<div class="mktl-tick' + (big ? " big" : "") + '" style="left:' + l2 + '%"></div>' + (big ? '<span class="mktl-tlab" style="left:' + l2 + '%">' + fmt(t) + "</span>" : "");
+  }
+  inner.innerHTML = barsHtml + '<div class="mktl-ticks">' + ticksFull + "</div>";
+  const zinner = $("mkTlZoomInner");
+  if (zinner) zinner.innerHTML = barsHtml + '<div class="mktl-ticks">' + ticksZoom + "</div>";
+  const md = $("mkTlMode"); if (md) md.textContent = "全体表示";
   mkTlApplyView();
 }
 function mkTlApplyView() {
   const inner = $("mkTlInner"); if (!inner) return;
-  const d = mkTlD(), w = mkTlWin();
-  inner.style.width = (d / w.span * 100) + "%";
-  inner.style.transform = "translateX(" + (-(w.a / d * 100)) + "%)";
+  const d = mkTlD();
   const t = now() || 0;
-  const p = (t - w.a) / w.span * 100, pl = $("mkTlPlay");
-  if (pl) { if (p >= 0 && p <= 100) { pl.style.display = "block"; pl.style.left = p + "%"; } else pl.style.display = "none"; }
-  const pos = $("mkTlPos"); if (pos) pos.textContent = "現在 " + fmt(t) + (mkTlZoom ? " ／ 表示範囲 " + fmt(w.a) + "〜" + fmt(w.a + w.span) : "");
+  inner.style.width = "100%";
+  inner.style.transform = "translateX(0%)";
+  const pl = $("mkTlPlay");
+  if (pl) { const p = t / d * 100; if (p >= 0 && p <= 100) { pl.style.display = "block"; pl.style.left = p + "%"; } else pl.style.display = "none"; }
+  const pos = $("mkTlPos"); if (pos) pos.textContent = "現在 " + fmt(t);
   const kn = $("mkTlKnob");
   if (kn) {
     const sc = (mkSel >= 0 && mk.scenes[mkSel]) ? mk.scenes[mkSel] : null;
-    if (sc) {
-      const kp = (sc.t - w.a) / w.span * 100;
+    if (sc && mkIsPlaced(sc)) {
+      const kp = sc.t / d * 100;
       if (kp >= 0 && kp <= 100) { kn.style.display = "block"; kn.style.left = kp + "%"; kn.setAttribute("aria-valuenow", Math.round(sc.t)); } else kn.style.display = "none";
     } else kn.style.display = "none";
+  }
+  const zinner = $("mkTlZoomInner");
+  if (zinner) {
+    const w = mkTlWin15();
+    zinner.style.width = (d / w.span * 100) + "%";
+    zinner.style.transform = "translateX(" + (-(w.a / d * 100)) + "%)";
+    const zp = $("mkTlZoomPlay");
+    if (zp) { const p2 = (t - w.a) / w.span * 100; if (p2 >= 0 && p2 <= 100) { zp.style.display = "block"; zp.style.left = p2 + "%"; } else zp.style.display = "none"; }
+    const zpos = $("mkTlZoomPos"); if (zpos) zpos.textContent = "表示範囲 " + fmt(w.a) + "〜" + fmt(w.a + w.span);
   }
 }
 function mkTlSetFloat(on) {
@@ -896,9 +911,10 @@ function mkTlSetFloat(on) {
   }
 }
 function mkSetZoom(on, c) {
-  mkTlSetFloat(on);
-  if (on === mkTlZoom) { if (on && c != null) { mkTlCenter = c; mkTlApplyView(); } return; }
-  mkTlZoom = on; if (c != null) mkTlCenter = c;
+  if (c != null) mkTlCenter = c;
+  if (on === mkTlZoom) { if (on) mkTlApplyView(); return; }
+  mkTlZoom = on;
+  document.body.classList.toggle("mk-tl-on", on);
   renderMkTl();
 }
 
@@ -2218,12 +2234,20 @@ document.addEventListener("input", e => {
     el.style.width = Math.max(1.2, h.d / d * 100) + "%";
     el.style.top = (li * 23 + 2) + "px";
     el.textContent = h.d.toFixed(1) + "秒";
+    const zinner = $("mkTlZoomInner");
+    if (zinner) {
+      let zel = $("mkTlZoomPrev");
+      if (!zel) { zel = document.createElement("div"); zel.id = "mkTlZoomPrev"; zinner.appendChild(zel); }
+      zel.style.left = el.style.left; zel.style.width = el.style.width; zel.style.top = el.style.top;
+      zel.textContent = el.textContent;
+    }
   };
   const upd = () => {
     const h = mkHoldSt; if (!h) return;
     const el = (performance.now() - h.at) / 1000;
     h.d = Math.min(20, Math.max(0.5, Math.round(el * 10) / 10));   // 実際に押していた時間(壁時計)で測るので、再生のもたつきに左右されない
     drawPrev();
+    mkTlCenter = h.t0 + h.d / 2; mkTlApplyView();
     if (h.rel) { const pt = $("mkPosTime"); if (pt) pt.textContent = fmt(h.rel.t) + "〜" + fmt(h.rel.t + h.d); }
   };
   const end = commit => {
@@ -2232,6 +2256,7 @@ document.addEventListener("input", e => {
     clearInterval(h.timer);
     const el = (performance.now() - h.at) / 1000;
     const pv = $("mkTlPrev"); if (pv) pv.remove();
+    const zpv = $("mkTlZoomPrev"); if (zpv) zpv.remove();
     mkSetZoom(false);
     // 短いタップ: 従来の働き(カード作成/長さ指定の開始)をここで直接実行する(ブラウザによって pointerdown の preventDefault で click が来ない場合があるため)。実行後に印を付け、続きで来るネイティブクリックは握りつぶす
     if (el < 0.25) { if (commit) A.mkMain(); mkHoldClickAt = Date.now(); return; }
