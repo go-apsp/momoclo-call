@@ -61,11 +61,13 @@ body:not(.scr-mk) #mkRateSelect{display:none}
 body.scr-mk #playSceneList,body.scr-sp #playSceneList{display:none!important}
 /* プロトタイプ2 移植11: 再生画面へ戻ったときのパッド表示を復元する */
 body:not(.scr-mk):not(.scr-sp) .pads{display:flex!important}
-/* プロトタイプ2 統合した作成画面(見た目のみ): モード切替をなくし、両モードの道具を1画面に全部出す。下の引き出しバーは全廃 */
-body.scr-mk #mkModeTabs, body.scr-mk #mkModeDesc, body.scr-mk #mkOnboardHint{display:none!important}
-body.scr-mk #mkDrawer{display:none!important}
-body.scr-mk div.mknori, body.scr-mk div.mkoki{display:block!important}
-body.scr-mk button.mkoki{display:inline-block!important}
+/* プロトタイプ2 旧プロトタイプの感じに寄せた作成画面(見た目のみ): 大きなカード作成ボタンをシークバーの直上に置き、道具類は隠してカード一覧パネルだけを残す。モード選択は下の「作成モード」バーの引き出しの中 */
+body.scr-mk #mkModeDesc, body.scr-mk .gstart{display:none!important}
+body.scr-mk #mkPresets, body.scr-mk #mkTypes, body.scr-mk .mkTextRow, body.scr-mk #mkEdit, body.scr-mk #mkPosEdit, body.scr-mk #mkTuneBtn, body.scr-mk #mkTunePanel, body.scr-mk #mkTlBox, body.scr-mk #mkVer, body.scr-mk #mkNote, body.scr-mk #mkGuestName, body.scr-mk #mkPubBtn, body.scr-mk #mkPvBtn, body.scr-mk #mkSaveBtn, body.scr-mk .mkyameru, body.scr-mk #mkApplyNote{display:none!important}
+body.scr-mk #mk label{display:none!important}
+body:not(.scr-mk) #mkBigWrap{display:none!important}
+body.scr-mk #mkBigWrap{display:block!important}
+#mkDrawer .drwBtns, #mkDrawer #psList{display:none!important}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
@@ -162,6 +164,10 @@ gtag('config', 'G-00QSZME258');
   </div>
   <button id="applybtn" data-a="apply" style="display:none"></button>
   <div class="dots" id="dots"></div>
+    <div class="mknori" id="mkBigWrap">
+      <button id="mkCreate" data-a="mkMain">カード作成</button>
+      <div id="mkHint">再生しながら押すと、その位置にカードができます(長さは仮の5秒)。できたカードをタップすると中身や長さを直せます。</div>
+    </div>
   <div id="barwrap">
     <div id="barin"><input type="range" id="bar" min="0" max="240" step="0.1" value="0" aria-label="シークバー"><div id="mkBand" style="display:none"></div><div id="mkKnob" style="display:none" role="slider" aria-label="選択中カードの位置"><div id="mkBub"></div></div></div>
     <div class="times"><span id="tm">0:00</span><span id="dur">0:00</span></div>
@@ -201,11 +207,6 @@ gtag('config', 'G-00QSZME258');
     <h2>推しコールを作る <span class="mkmode">作成画面</span></h2>
     <button class="gstart" data-a="guideStart">ガイドモードで作成</button>
     <!-- build 64: 作成の2モード制。表示する操作UIは選択中のモード分だけ。切替えても作りかけのカードは保持される -->
-    <div id="mkOnboardHint" role="status" aria-live="polite"></div>
-    <div id="mkModeTabs" role="group" aria-label="作り方のモードを選ぶ">
-      <button type="button" class="mktab sel" data-a="mkMode" data-i="nori" data-mkmode="nori">♪ ノリノリながらモード</button>
-      <button type="button" class="mktab" data-a="mkMode" data-i="oki" data-mkmode="oki">お気に置きにいっちゃうモード</button>
-    </div>
     <p id="mkModeDesc"></p>
     <!-- build 64: 拡大タイムライン。ドラッグ中・長押し中は約30秒表示になり、画面下部に浮いて出続けます(元の位置には同じ高さの空きを残します) -->
     <div id="mkTlBox">
@@ -215,10 +216,6 @@ gtag('config', 'G-00QSZME258');
         <div id="mkTlSlide"><div id="mkTlInner"></div><div id="mkTlPlay"></div><div id="mkTlKnob" role="slider" aria-label="選択中のカードの位置つまみ" aria-valuemin="0" aria-valuemax="240" aria-valuenow="0"></div></div>
       </div>
       <p class="mktl-note" id="mkTlNote">長押ししている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。打ったカードの開始〜終了も表示されます。</p>
-    </div>
-    <div class="mknori" id="mkBigWrap">
-      <button id="mkCreate" data-a="mkMain">カード作成</button>
-      <div id="mkHint">再生しながら押すと、その位置にカードができます(長さは仮の5秒)。できたカードをタップすると中身や長さを直せます。</div>
     </div>
     <!-- build 64: お気に置きにいっちゃうモード。プリセットチップか「つかむ」を押さえて左右へ動かすと、シーク連動スクラブで置く場所を探ります -->
     <div id="mkPresets" class="mkoki">
@@ -257,7 +254,10 @@ gtag('config', 'G-00QSZME258');
         </div>
       </div>
     </div>
-    <div id="mkList"></div>
+    <div class="mk-card-list">
+      <h3 style="margin:4px 0 0;font-size:14px">コールカード一覧</h3>
+      <div id="mkList"></div>
+    </div>
     <!-- build 64: カード再編集(両モード共通)。カードを選んだ時だけ出ます -->
     <div id="mkPosEdit" style="display:none">
       <div class="mkpe-head"><span id="mkPosTitle">選択中のカード</span><span id="mkPosTime"></span></div>
@@ -560,10 +560,15 @@ gtag('config', 'G-00QSZME258');
 
 <div id="mkDrawer">
   <div id="mkDrawerBody">
+    <div id="mkModeTabs" role="group" aria-label="作り方のモードを選ぶ">
+      <button type="button" class="mktab sel" data-a="mkMode" data-i="nori" data-mkmode="nori">♪ ノリノリながらモード</button>
+      <button type="button" class="mktab" data-a="mkMode" data-i="oki" data-mkmode="oki">お気に置きにいっちゃうモード</button>
+    </div>
     <div class="drwBtns"><button class="drwBtn" data-a="psOpen">プリセットコール</button></div>
     <div id="psList" style="display:none"></div>
   </div>
-  <button id="mkDrawerBar" data-a="psDrawer" aria-expanded="false">ツール<span class="drwHint">タップで開く</span></button>
+    <div id="mkOnboardHint" role="status" aria-live="polite"></div>
+  <button id="mkDrawerBar" data-a="psDrawer" aria-expanded="false">作成モード<span class="drwHint">タップで開く</span></button>
 </div>
 
 <!-- build 62: ウェルカムカード(トップを開いたとき最上レイヤーに表示) -->
@@ -645,7 +650,7 @@ gtag('config', 'G-00QSZME258');
 <div id="toast"></div>
 
 <script src="ui.js?v=64" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="appP2.js?v=15" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
+<script src="appP2.js?v=16" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
 </body>
