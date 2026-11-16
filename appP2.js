@@ -241,7 +241,8 @@ function loop(ts) {
   const t = now(), st = playerState(), pl = st === 1;
   $("fsplay").textContent = pl ? "一時停止" : "再生";
   const pb = $("play");   // build 59: 大きな再生ボタンは常に「再生/一時停止」のまま(長さ指定は作成画面の大きなボタンが担当)
-  pb.textContent = pl ? "一時停止" : "再生"; pb.classList.remove("meas");
+  if (screen === "mk" && mkMode === "oki") paintPlaceBtn();   // プロトタイプ2 移植3: お気に置きモードでは「置きに行く」表示にする
+  else { pb.textContent = pl ? "一時停止" : "再生"; pb.dataset.a = "play"; pb.disabled = false; pb.classList.remove("meas", "place-ready", "place-idle"); }
   const mp1 = $("mkPlayBtn"); if (mp1) mp1.textContent = pl ? "⏸ 一時停止" : "▶ 再生";
   const mp2 = $("spPlayBtn"); if (mp2) mp2.textContent = pl ? "⏸ 一時停止" : "▶ 再生";
   if (screen === "mk") paintKnob();
@@ -500,7 +501,7 @@ function openMkContentPanel(target) {
   p.style.display = "flex";
 }
 function closeMkContentPanel() { const p = $("mkContentPanel"); if (p) p.style.display = "none"; }
-function renderMk() { $("mkList").innerHTML = mkCardsHtml(mk.scenes, mkSel); paintMkBtn(); paintKnob(); paintPosEdit(); renderMkTl(); applyGuide(); }
+function renderMk() { $("mkList").innerHTML = mkCardsHtml(mk.scenes, mkSel); paintMkBtn(); paintPlaceBtn(); paintKnob(); paintPosEdit(); renderMkTl(); applyGuide(); }
 function paintPvBtn() { const b = $("mkPvBtn"); if (b) b.textContent = mkPv ? "プレビューを止める" : "プレビュー"; }
 /* 画面切替: プレイヤー(#mvwrap・iframe)はDOM上で一切動かさず、他のUIの表示/非表示だけで切り替える */
 function setScreen(name) {
@@ -511,6 +512,22 @@ function setScreen(name) {
   $("mk").style.display = name === "mk" ? "flex" : "none";
   $("spPanel").style.display = name === "sp" ? "flex" : "none";
   if (name !== "mk") paintKnob();
+}
+/* プロトタイプ2 移植3: お気に置きモードで未配置カードを選ぶと、大きな再生ボタンが「置きに行く」に変わって光る */
+function paintPlaceBtn() {
+  const b = $("play"); if (!b) return;
+  const placing = screen === "mk" && mkMode === "oki";
+  if (!placing) {
+    b.dataset.a = "play"; b.disabled = false;
+    b.classList.remove("place-ready", "place-idle");
+    b.setAttribute("aria-label", "再生");
+    return;
+  }
+  const sc = mkSel >= 0 ? mk.scenes[mkSel] : null;
+  const ready = !!sc && !mkIsPlaced(sc);
+  b.dataset.a = "place"; b.textContent = "置きに行く"; b.disabled = !ready; b.classList.remove("meas");
+  b.classList.toggle("place-ready", ready); b.classList.toggle("place-idle", !ready);
+  b.setAttribute("aria-label", ready ? "選択したカードをタイムラインに置く" : "未配置カードを選択してください");
 }
 function paintMkPub() { const b = $("mkPubBtn"); if (b) b.textContent = mkPub ? "公開で保存" : "下書きで保存"; }
 /* 大きなボタンの表示名と働きは状態で変わる: カード作成 / 長さ指定 / ここで終わり */
@@ -1712,6 +1729,7 @@ const A = {
   },
   /* プロトタイプ2 移植1: お気に置きモードで、文言と種類だけ決めて未配置カードを作る(配置は移植3で入れる) */
   mkContentCancel: () => { mkCpTarget = null; closeMkContentPanel(); },
+  place: () => { if (screen === "mk" && mkMode === "oki" && mkSel >= 0 && !mkIsPlaced(mk.scenes[mkSel])) toast("見た目の確認用です。実際に置く処理は次の段階でつなぎます"); },   // プロトタイプ2 移植3(見た目のみ)
   mkContentTextNext: () => { if (!$("mkContentTextInput").value.trim()) return toast("コールの内容を入力してください"); mkCpStep = 2; paintMkContentPanel(); },
   mkContentBack: () => { mkCpStep = 1; paintMkContentPanel(); },
   mkContentChoose: i => { mkCpType = i; paintMkContentPanel(); },
@@ -2150,6 +2168,34 @@ $("mkTlInner").addEventListener("click", e => {
 /* build 64: 手打ちテキストの「つかむ」にもスクラブを付ける(種類は現在の種類ボタン、文言は入力欄の内容) */
 const mkGripEl = $("mkGrip");
 if (mkGripEl) mkBindScr(mkGripEl, () => ({k: mk.type, x: $("mkText").value.trim() || LAB[mk.type], grip: true}), false);
+/* プロトタイプ2 移植3(見た目のみ): 置きに行くボタンを押さえると丸いゴーストと拡大タイムライン(浮き表示)が出る。離してもまだ置かない */
+let mkPlaceLook = null;
+function bindMkPlaceButton() {
+  const b = $("play"); if (!b || b.dataset.mkPlaceBound) return;
+  b.dataset.mkPlaceBound = "1";
+  const endLook = () => {
+    if (!mkPlaceLook) return;
+    mkPlaceLook = null;
+    if (mkGhost) { mkGhost.classList.remove("on"); mkGhost.classList.remove("round"); }
+    mkSetZoom(false);
+  };
+  b.addEventListener("pointerdown", e => {
+    if (screen !== "mk" || mkMode !== "oki") return;
+    const sc = mkSel >= 0 ? mk.scenes[mkSel] : null;
+    if (!sc || mkIsPlaced(sc)) return;
+    e.preventDefault();
+    try { b.setPointerCapture(e.pointerId); } catch (err) {}
+    mkPlaceLook = {pid: e.pointerId};
+    mkShowGhost(e, {k: sc.k, x: sc.x}, now() || 0);
+    if (mkGhost) mkGhost.classList.add("round");
+    mkSetZoom(true, now() || 0);
+  });
+  b.addEventListener("pointermove", e => { if (mkPlaceLook && e.pointerId === mkPlaceLook.pid) mkMoveGhost(e, mkBandAbs(e.clientX)); });
+  b.addEventListener("pointerup", e => { if (mkPlaceLook && e.pointerId === mkPlaceLook.pid) endLook(); });
+  b.addEventListener("pointercancel", endLook);
+  b.addEventListener("contextmenu", e => { if (screen === "mk" && mkMode === "oki") e.preventDefault(); });
+}
+bindMkPlaceButton();
 /* build 64: 操作感の調整(即時反映・localStorage保存) */
 const tuneGainEl = $("tuneGain"); if (tuneGainEl) tuneGainEl.addEventListener("input", e => { mkTune.gain = parseFloat(e.target.value) || 0.5; try { localStorage.setItem("momo_drag_gain", String(mkTune.gain)); } catch (err) {} paintTune(); });
 const tuneDeadEl = $("tuneDead"); if (tuneDeadEl) tuneDeadEl.addEventListener("input", e => { mkTune.dead = Math.round(parseFloat(e.target.value) || 0); try { localStorage.setItem("momo_drag_dead", String(mkTune.dead)); } catch (err) {} paintTune(); });

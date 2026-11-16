@@ -18,6 +18,14 @@
 #mkContentPanel .mkcp-actions button{flex:1}
 #mkContentPanel .mkcp-primary{background:#e94f91;border-color:#e94f91}
 #mkContentPanel .mkcp-step{display:none}
+/* プロトタイプ2 移植3(見た目のみ): 置きに行くボタンの発光と丸いゴースト。旧プロトタイプ indexp と同じ見た目 */
+body.scr-mk #play{touch-action:none;-webkit-user-select:none;user-select:none}
+body.scr-mk #play.place-ready{background:#ffd23f;color:#2a2410;box-shadow:0 0 0 4px rgba(255,210,63,.28),0 0 24px rgba(255,210,63,.9);animation:mkPlacePulse 1.35s ease-in-out infinite}
+body.scr-mk #play.place-idle{opacity:.48;filter:saturate(.45)}
+@keyframes mkPlacePulse{0%,100%{box-shadow:0 0 0 3px rgba(255,210,63,.2),0 0 15px rgba(255,210,63,.55)}50%{box-shadow:0 0 0 6px rgba(255,210,63,.36),0 0 30px rgba(255,210,63,1)}}
+#dragGhost.round{width:76px;height:76px;max-width:none;padding:7px;border-radius:50%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+#dragGhost.round.on{display:flex}
+#dragGhost.round small{font-size:9px;line-height:1.1;margin-top:2px}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
@@ -575,7 +583,7 @@ gtag('config', 'G-00QSZME258');
 <div id="toast"></div>
 
 <script src="ui.js?v=64" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="appP2.js?v=4" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
+<script src="appP2.js?v=5" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
 </body>
