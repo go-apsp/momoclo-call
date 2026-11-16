@@ -1957,6 +1957,7 @@ const A = {
     /* build 62: ゲスト(非ログイン)でも保存できる。ゲストは保存時の名前入力が作者名になり、ownerUid は null で紐づける */
     /* プロトタイプ2 移植4: 終了フローから呼ばれた時は finishMeta(名前/タイトル/バージョン名/備考)を使い、保存結果を返す */
     if (!mk.scenes.length) return toast("場面を追加してください");
+    if (!me && !+pub) return toast("ゲストは下書き保存できません");   // プロトタイプ2: ゲスト下書きは廃止(祐治の決定 2026-11-16)。ゲストの保存は公開のみ
     const ver = finishMeta ? String(finishMeta.versionName || "").trim() : $("mkVer").value.trim();
     if (me && prof && calls.some(c => c.ownerUid === me.uid) && !ver) return toast("2つ目以降はバージョン名を入れてください");
     if (+pub && mk.from && JSON.stringify(mk.scenes) === mk.base) return toast("参考にした推しコールと全く同じなので公開できません。少し変えてください");

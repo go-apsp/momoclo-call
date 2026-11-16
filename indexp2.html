@@ -38,6 +38,8 @@ body.scr-mk #mkFinishBtn{display:block}
 .mkFinishActions button.mkFinishPrimary{background:rgba(75,115,180,.88);border-color:rgba(160,195,255,.7)}
 #mkFinishError{display:none;margin:14px 0 0;color:#ffb3c1;font-size:13px;font-weight:700;line-height:1.5;text-align:center}
 #toast{z-index:100003}
+/* プロトタイプ2 移植6: 黒幕B案。作成画面ではYouTube映像だけを黒幕で隠す(iframeと音声再生は維持する) */
+body.scr-mk #yt::after{content:"";position:absolute;inset:0;z-index:1;background:rgba(0,0,0,.94);pointer-events:none}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
@@ -613,7 +615,7 @@ gtag('config', 'G-00QSZME258');
 <div id="toast"></div>
 
 <script src="ui.js?v=64" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="appP2.js?v=8" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
+<script src="appP2.js?v=9" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
 </body>
