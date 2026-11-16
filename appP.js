@@ -710,12 +710,19 @@ const MK_FINISH_FIELDS = [
   {key:"versionName", prompt:"バージョン名は？", max:20, placeholder:"バージョン名"},
   {key:"note", prompt:"備考は？", max:100, placeholder:"備考（任意）"}
 ];
+function setMkFinishError(msg) {
+  const el = $("mkFinishError");
+  if (!el) { if (msg) toast(msg, 4000); return; }
+  el.textContent = msg || "";
+  el.style.display = msg ? "block" : "none";
+}
 function paintMkFinishStep() {
   if (!mkFinishDraft) return;
   const field = MK_FINISH_FIELDS[mkFinishDraft.step];
   const overlay = $("mkFinishOverlay"), prompt = $("mkFinishPrompt"), input = $("mkFinishInput");
   const actions = $("mkFinishActions"), choices = $("mkFinishChoices");
   if (!field || !overlay || !prompt || !input || !actions || !choices) return;
+  setMkFinishError("");
   prompt.textContent = field.prompt;
   input.maxLength = field.max;
   input.placeholder = field.placeholder;
@@ -737,6 +744,7 @@ function paintMkFinishStart() {
   const actions = $("mkFinishActions"), choices = $("mkFinishChoices");
   const draftButton = $("mkFinishDraftSave");
   if (!overlay || !prompt || !input || !actions || !choices) return;
+  setMkFinishError("");
   prompt.textContent = "制作を終了しますか？";
   input.style.display = "none";
   actions.style.display = "none";
@@ -775,11 +783,12 @@ function cancelMkFinish() {
 function advanceMkFinish() {
   if (!mkFinishDraft || mkFinishSaving) return;
   try {
+    if (mkFinishDraft.step >= MK_FINISH_FIELDS.length) { saveMkFinish(); return; }   // 終端で詰んだ場合も「決定」で保存を再試行できるようにする
     const field = MK_FINISH_FIELDS[mkFinishDraft.step], input = $("mkFinishInput");
     if (!field || !input) return;
     mkFinishDraft[field.key] = String(input.value == null ? "" : input.value).trim();
-    if (field.key === "name" && !(me && prof) && !mkFinishDraft.name) { toast("お名前を入力してください"); return; }
-    if (field.key === "versionName" && me && prof && calls.some(c => c.ownerUid === me.uid) && !mkFinishDraft.versionName) { toast("2つ目以降はバージョン名を入れてください"); return; }
+    if (field.key === "name" && !(me && prof) && !mkFinishDraft.name) { toast("お名前を入力してください"); setMkFinishError("お名前を入力してください"); return; }
+    if (field.key === "versionName" && me && prof && calls.some(c => c.ownerUid === me.uid) && !mkFinishDraft.versionName) { toast("2つ目以降はバージョン名を入れてください"); setMkFinishError("2つ目以降はバージョン名を入れてください"); return; }
     if (mkFinishDraft.step < MK_FINISH_FIELDS.length - 1) {
       mkFinishDraft.step++;
       paintMkFinishStep();
@@ -789,21 +798,33 @@ function advanceMkFinish() {
     saveMkFinish();
   } catch (e) {
     toast("入力を進められませんでした。もう一度お試しください");
+    setMkFinishError("入力を進められませんでした。もう一度お試しください");
   }
+}
+function failMkFinish(msg) {
+  // 保存に失敗したら終端(step=全項目数)のままにせず、最後の入力(備考)へ戻して再試行できるようにする。入力内容は保持する
+  if (!mkFinishDraft) return;
+  mkFinishDraft.step = MK_FINISH_FIELDS.length - 1;
+  paintMkFinishStep();
+  setMkFinishError(msg);
 }
 async function saveMkFinish() {
   if (!mkFinishDraft || mkFinishDraft.step !== MK_FINISH_FIELDS.length || typeof mkFinishDraft.pub !== "boolean" || mkFinishSaving) return;
-  if (!mk.scenes.length) { toast("カードを作成してください"); return; }
+  if (!mk.scenes.length) { toast("カードを作成してください"); failMkFinish("カードを作成してください"); return; }
   const publish = mkFinishDraft.pub;
-  if (!me && !publish) { toast("ゲストは下書き保存できません"); return; }
+  if (!me && !publish) { toast("ゲストは下書き保存できません"); failMkFinish("ゲストは下書き保存できません"); return; }
   const meta = {name:mkFinishDraft.name, title:mkFinishDraft.title, versionName:mkFinishDraft.versionName, note:mkFinishDraft.note};
   mkFinishSaving = true;
   const buttons = ["mkFinishDraftSave", "mkFinishRegister", "mkFinishNoSave", "mkFinishChoiceCancel"]
     .map(id => $(id)).filter(Boolean);
   buttons.forEach(b => { b.disabled = true; });
   try {
-    const saved = await A.save(publish ? "1" : "0", meta);
-    if (!saved || saved === true) return;
+    // 保存応答が返らないまま全操作が塞がり続けないよう、20秒で見切ってロックを解除する
+    const saved = await Promise.race([
+      A.save(publish ? "1" : "0", meta),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("mkFinishTimeout")), 20000))
+    ]);
+    if (!saved || saved === true) { failMkFinish("保存できませんでした。入力内容は残っています。「決定」でもう一度保存できます。"); return; }
     const overlay = $("mkFinishOverlay");
     if (overlay) overlay.style.display = "none";
     mkFinishDraft = null;
@@ -816,7 +837,13 @@ async function saveMkFinish() {
     try { applyAct(); render(); } catch (e) {}
     alert(publish ? "推しコールが登録されました" : "下書き保存されました");
   } catch (e) {
-    toast("保存処理でエラーが発生しました。制作内容を確認して、もう一度お試しください");
+    if (e && e.message === "mkFinishTimeout") {
+      toast("保存の確認ができませんでした。通信を確認してもう一度お試しください");
+      failMkFinish("保存の確認ができませんでした。入力内容は残っています。通信を確認して「決定」でもう一度保存できます。");
+    } else {
+      toast("保存処理でエラーが発生しました。制作内容を確認して、もう一度お試しください");
+      failMkFinish("保存処理でエラーが発生しました。入力内容は残っています。「決定」でもう一度保存できます。");
+    }
   } finally {
     mkFinishSaving = false;
     if (mkFinishDraft) buttons.forEach(b => { b.disabled = false; });

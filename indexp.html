@@ -88,6 +88,8 @@ body.scr-mk #mkFinishBtn{display:block}
 .mkFinishActions{display:flex;gap:12px;margin-top:18px}
 .mkFinishActions button{flex:1;min-height:44px;border:1px solid rgba(255,255,255,.28);border-radius:10px;background:rgba(125,125,125,.52);color:#fff;font-size:15px;font-weight:800}
 .mkFinishActions button.mkFinishPrimary{background:rgba(75,115,180,.88);border-color:rgba(160,195,255,.7)}
+#mkFinishError{display:none;margin:14px 0 0;color:#ffb3c1;font-size:13px;font-weight:700;line-height:1.5;text-align:center}
+#toast{z-index:100003}
 </style>
 </head>
 <body>
@@ -645,6 +647,7 @@ body.scr-mk #mkFinishBtn{display:block}
   <div id="mkFinishCard">
     <h3 id="mkFinishPrompt"></h3>
     <input id="mkFinishInput" type="text" autocomplete="off">
+    <p id="mkFinishError" role="alert"></p>
     <div id="mkFinishActions" class="mkFinishActions">
       <button id="mkFinishCancel" type="button">キャンセル</button>
       <button id="mkFinishNext" type="button" class="mkFinishPrimary">決定</button>
@@ -660,7 +663,7 @@ body.scr-mk #mkFinishBtn{display:block}
 <div id="toast"></div>
 
 <script src="ui.js?v=64" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="appP.js?v=9" onerror="window.__show('appP.js を読み込めません。appP.js がアップロードされているか確認してください')"></script>
+<script src="appP.js?v=10" onerror="window.__show('appP.js を読み込めません。appP.js がアップロードされているか確認してください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
 </body>
