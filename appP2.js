@@ -698,10 +698,27 @@ function paintKnob() {
   kn.style.display = "block"; kn.style.left = (sc.t / D * 100) + "%"; kn.style.background = col;
   const bub = $("mkBub"); if (bub) bub.textContent = fmt(sc.t);
 }
+/* プロトタイプ2 移植8: モード別7秒案内。案内カードを出し、対象を点滅させて7秒で消す */
+let mkOnboardTimer = null;
+function clearMkOnboard() {
+  if (mkOnboardTimer !== null) { clearTimeout(mkOnboardTimer); mkOnboardTimer = null; }
+  document.querySelectorAll(".mk-onboard-blink").forEach(el => el.classList.remove("mk-onboard-blink"));
+  const hint = $("mkOnboardHint"); if (hint) { hint.textContent = ""; hint.style.display = "none"; }
+}
+function showMkOnboard(message, targetId) {
+  clearMkOnboard();
+  const hint = $("mkOnboardHint"), target = $(targetId);
+  if (!hint || !target) return;
+  hint.textContent = message;
+  hint.style.display = "block";
+  target.classList.add("mk-onboard-blink");
+  mkOnboardTimer = setTimeout(clearMkOnboard, 7000);
+}
 function enterMk() {
   const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "none";
   spStep = 0; paintSpStep();
   setScreen("mk");
+  showMkOnboard("作成モードを選択", "mkModeTabs");
   applyRate();
   paintMkMode();
   renderMk();
@@ -710,6 +727,7 @@ function enterMk() {
   $("mvwrap").scrollIntoView({behavior: "smooth"});
 }
 function exitMk() {
+  clearMkOnboard();
   const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "";
   setScreen("play");
   const drw = $("mkDrawer"); if (drw) drw.classList.remove("open");
@@ -760,7 +778,8 @@ function setMkMode(m) {
   if (m !== "nori" && m !== "oki") return;
   mkMode = m;
   try { localStorage.setItem("momo_mkmode", m); } catch (e) {}
-  paintMkMode();
+  paintMkMode(); paintPlaceBtn();
+  showMkOnboard(m === "nori" ? "曲に合わせて叫ぶコールの間押す" : "まずはコールカードを作成", m === "nori" ? "play" : "mkAddUnplaced");
   guideEvent("mode");
 }
 
