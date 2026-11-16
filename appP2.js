@@ -481,6 +481,24 @@ function mkCardsHtml(scenes, sel) {
   return (placed.length ? '<div style="font-size:11px;color:var(--mut);padding:5px 2px 2px">配置済み（曲時間順）</div>' + placed.map(card).join("") : "")
     + (unplaced.length ? '<div style="font-size:11px;color:var(--mut);padding:8px 2px 2px">未配置（作成順）</div>' + unplaced.map(card).join("") : "");
 }
+/* プロトタイプ2 移植2(見た目のみ): 共通パネルの開閉とステップ切替だけ。カードへの反映は次の段階でつなぐ */
+let mkCpStep = 1, mkCpType = "call";
+function paintMkContentPanel() {
+  const t = $("mkContentTextStep"), y = $("mkContentTypeStep");
+  if (t) t.style.display = mkCpStep === 1 ? "block" : "none";
+  if (y) y.style.display = mkCpStep === 2 ? "block" : "none";
+  document.querySelectorAll("#mkContentPanel [data-a='mkContentChoose']").forEach(b => b.classList.toggle("sel", b.dataset.i === mkCpType));
+}
+function openMkContentPanel() {
+  const p = $("mkContentPanel"); if (!p) return;
+  mkCpStep = 1;
+  const sc = (mkSel >= 0 && mk.scenes[mkSel]) ? mk.scenes[mkSel] : null;
+  const inp = $("mkContentTextInput"); if (inp) inp.value = sc ? sc.x : "";
+  if (sc) mkCpType = sc.k;
+  paintMkContentPanel();
+  p.style.display = "flex";
+}
+function closeMkContentPanel() { const p = $("mkContentPanel"); if (p) p.style.display = "none"; }
 function renderMk() { $("mkList").innerHTML = mkCardsHtml(mk.scenes, mkSel); paintMkBtn(); paintKnob(); paintPosEdit(); renderMkTl(); applyGuide(); }
 function paintPvBtn() { const b = $("mkPvBtn"); if (b) b.textContent = mkPv ? "プレビューを止める" : "プレビュー"; }
 /* 画面切替: プレイヤー(#mvwrap・iframe)はDOM上で一切動かさず、他のUIの表示/非表示だけで切り替える */
@@ -1627,7 +1645,7 @@ const A = {
   /* build 58: 埋め込みパネルのカードをタップ → そのカードの中身を編集(もう一度タップで終了) */
   mkPick: i => {
     i = +i;
-    if (mkSel === i) { mkSel = -1; mkLenPhase = null; mkSelOrigT = null; renderMk(); return; }
+    if (mkSel === i) { openMkContentPanel(); return; }   // プロトタイプ2 移植2: 選択中のカードをもう一度タップで内容パネルを開く
     const sc = mk.scenes[i]; if (!sc) return;
     mkSel = i; mkLenPhase = null; mkSelOrigT = sc.t;   // build 64: 「戻す」用に、選んだときの位置を覚える
     mk.type = sc.k;
@@ -1692,6 +1710,11 @@ const A = {
     }
   },
   /* プロトタイプ2 移植1: お気に置きモードで、文言と種類だけ決めて未配置カードを作る(配置は移植3で入れる) */
+  mkContentCancel: () => closeMkContentPanel(),
+  mkContentTextNext: () => { if (!$("mkContentTextInput").value.trim()) return toast("コールの内容を入力してください"); mkCpStep = 2; paintMkContentPanel(); },
+  mkContentBack: () => { mkCpStep = 1; paintMkContentPanel(); },
+  mkContentChoose: i => { mkCpType = i; paintMkContentPanel(); },
+  mkContentConfirm: () => { closeMkContentPanel(); toast("見た目の確認用です。カードへの反映は次の段階でつなぎます"); },
   mkAddUnplaced: () => {
     const sc = {t: null, d: 5, placed: false, k: mk.type, x: $("mkText").value.trim() || LAB[mk.type]};
     mk.scenes.push(sc); mkSortScenes();

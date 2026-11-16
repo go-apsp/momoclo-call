@@ -5,6 +5,20 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ももクロコール共有(テスト中)</title>
 <link rel="stylesheet" href="style.css?v=64">
+<style id="mkContentPanelStyles">
+/* プロトタイプ2 移植2(見た目のみ): カード内容の共通パネル。旧プロトタイプ indexp と同じ見た目 */
+#mkContentPanel{position:fixed;inset:0;z-index:10050;display:none;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;background:rgba(0,0,0,.58)}
+#mkContentPanel .mkcp-card{width:min(100%,420px);box-sizing:border-box;padding:24px 20px;border:1px solid rgba(255,255,255,.18);border-radius:20px;background:rgba(10,10,18,.94);box-shadow:0 18px 55px rgba(0,0,0,.48);color:#fff}
+#mkContentPanel h3{margin:0 0 18px;font-size:20px;text-align:center}
+#mkContentPanel input{width:100%;box-sizing:border-box;padding:13px 14px;border:1px solid rgba(255,255,255,.3);border-radius:12px;background:rgba(255,255,255,.1);color:#fff;font:inherit;font-size:17px}
+#mkContentPanel .mkcp-types{display:grid;grid-template-columns:1fr;gap:10px}
+#mkContentPanel button{min-height:46px;padding:10px 14px;border:1px solid rgba(255,255,255,.22);border-radius:12px;background:rgba(255,255,255,.10);color:#fff;font:inherit;font-weight:800}
+#mkContentPanel button.sel{border-color:#ff8fc0;background:rgba(255,105,170,.28)}
+#mkContentPanel .mkcp-actions{display:flex;gap:10px;margin-top:18px}
+#mkContentPanel .mkcp-actions button{flex:1}
+#mkContentPanel .mkcp-primary{background:#e94f91;border-color:#e94f91}
+#mkContentPanel .mkcp-step{display:none}
+</style>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
 <script>
@@ -172,6 +186,24 @@ gtag('config', 'G-00QSZME258');
     <div id="mkEdit" style="display:none">
       <div class="fineRow"><span>位置</span><button id="mkFineM" data-a="mkFine" data-i="-0.1">−0.1秒</button><button id="mkFineP" data-a="mkFine" data-i="0.1">＋0.1秒</button></div>
       <button id="mkDelBtn" data-a="mkDelSel">このカードを削除</button>
+    </div>
+    <div id="mkContentPanel" role="dialog" aria-modal="true" aria-label="カード内容の設定">
+      <div class="mkcp-card">
+        <div id="mkContentTextStep" class="mkcp-step">
+          <h3>叫ぶコールは？</h3>
+          <input id="mkContentTextInput" type="text" maxlength="30" placeholder="例：ハイ！ハイ！" autocomplete="off">
+          <div class="mkcp-actions"><button type="button" data-a="mkContentCancel">キャンセル</button><button type="button" class="mkcp-primary" data-a="mkContentTextNext">決定</button></div>
+        </div>
+        <div id="mkContentTypeStep" class="mkcp-step">
+          <h3>種類を選んでね</h3>
+          <div class="mkcp-types">
+            <button type="button" data-a="mkContentChoose" data-i="call">コール</button>
+            <button type="button" data-a="mkContentChoose" data-i="sing">シンガロン</button>
+            <button type="button" data-a="mkContentChoose" data-i="koko">ココ好き!</button>
+          </div>
+          <div class="mkcp-actions"><button type="button" data-a="mkContentBack">戻る</button><button type="button" class="mkcp-primary" data-a="mkContentConfirm">決定</button></div>
+        </div>
+      </div>
     </div>
     <div id="mkList"></div>
     <!-- build 64: カード再編集(両モード共通)。カードを選んだ時だけ出ます -->
@@ -543,7 +575,7 @@ gtag('config', 'G-00QSZME258');
 <div id="toast"></div>
 
 <script src="ui.js?v=64" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="appP2.js?v=2" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
+<script src="appP2.js?v=3" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
 </body>
