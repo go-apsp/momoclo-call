@@ -381,7 +381,18 @@ function applyAct() {
 /* ---------- 一覧(一番上のレイヤー) ---------- */
 function render() { $("list").innerHTML = UI.list(calls, {me, liked: me ? liked : guestLiked, openId, cmts, myNick: prof ? prof.nick : "", mySession}); renderPEv(); }
 let pEvOpen = false, evFor = null;
-function renderPEv() { const el = $("pEv"); if (!el) return; const c = calls.find(x => x.id === act); if (c) { el.innerHTML = UI.evHtml(c, {me, liked: me ? liked : guestLiked, cmts, myNick: prof ? prof.nick : "", open: pEvOpen, mySession}); return; } if (refPlay && curRef) { el.innerHTML = '<div class="evBox"><div class="evBody"><button class="w" style="width:100%;height:44px;border-radius:12px" data-a="spOpenRef" data-i="' + curRef.id + '">シェアポイントを作る</button></div></div>'; return; } el.innerHTML = ""; }
+/* プロトタイプ2 移植10: 再生画面のコールカード一覧。再生対象(EV)を時刻つきで並べ、タップで開始6秒前へシーク */
+function paintPlaySceneList() {
+  const box = $("playSceneList"), items = $("playSceneItems");
+  if (!box || !items) return;
+  if (screen !== "play" || !Array.isArray(EV) || !EV.length) { box.classList.remove("on"); items.innerHTML = ""; return; }
+  items.innerHTML = EV.map((sc, i) => {
+    const label = String(sc.x || LAB[sc.k] || "コール").trim();
+    return '<button type="button" class="psl-item" data-a="playSceneJump" data-i="' + i + '"><span class="psl-time">' + esc(fmt(Math.max(0, +sc.t || 0))) + '</span><span class="psl-text">' + esc(label) + '</span></button>';
+  }).join("");
+  box.classList.add("on");
+}
+function renderPEv() { paintPlaySceneList(); const el = $("pEv"); if (!el) return; const c = calls.find(x => x.id === act); if (c) { el.innerHTML = UI.evHtml(c, {me, liked: me ? liked : guestLiked, cmts, myNick: prof ? prof.nick : "", open: pEvOpen, mySession}); return; } if (refPlay && curRef) { el.innerHTML = '<div class="evBox"><div class="evBody"><button class="w" style="width:100%;height:44px;border-radius:12px" data-a="spOpenRef" data-i="' + curRef.id + '">シェアポイントを作る</button></div></div>'; return; } el.innerHTML = ""; }
 /* ---------- 感想(承認制) ---------- */
 async function loadCmts(id) {
   const c = calls.find(x => x.id === id); if (!c) return;
@@ -1806,6 +1817,7 @@ const A = {
   /* build 59: 保存先の切替(公開/下書き)と、保存の確定ボタン「保存して戻る」 */
   mkPubTgl: () => { mkPub = !mkPub; paintMkPub(); },
   mkSaveBack: async () => { const ok = await A.save(mkPub ? "1" : "0"); if (ok) exitMk(); },
+  playSceneJump: i => { const sc = EV[+i]; if (!sc) return; playerSeek(Math.max(0, (+sc.t || 0) - 6)); },   // プロトタイプ2 移植10
   mkDelSel: () => { if (mkSel >= 0 && mk.scenes[mkSel]) A.delScene(mkSel); },
   /* build 60: 作成画面下部の引き出し(バーで開閉 / プリセット一覧の表示 / 選択中カードへ適用) */
   psDrawer: (i, b) => { const d = $("mkDrawer"); if (!d) return; d.classList.toggle("open"); if (b) b.setAttribute("aria-expanded", d.classList.contains("open") ? "true" : "false"); },
