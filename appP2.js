@@ -731,7 +731,7 @@ function enterMk() {
   const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "none";
   spStep = 0; paintSpStep();
   setScreen("mk");
-  showMkOnboard("作成モードを選択", "mkModeTabs");
+  showMkOnboard("作成モードを選択", "mkDrawerBar");
   applyRate();
   paintMkMode();
   renderMk();
@@ -804,7 +804,9 @@ function setMkMode(m) {
   mkMode = m;
   try { localStorage.setItem("momo_mkmode", m); } catch (e) {}
   paintMkMode(); paintPlaceBtn();
-  showMkOnboard(m === "nori" ? "曲に合わせて叫ぶコールの間押す" : "まずはコールカードを作成", m === "nori" ? "play" : "mkAddUnplaced");
+  const drw = $("mkDrawer"); if (drw) drw.classList.remove("open");
+  const drwBar = $("mkDrawerBar"); if (drwBar) drwBar.setAttribute("aria-expanded", "false");
+  showMkOnboard(m === "nori" ? "曲に合わせて叫ぶコールの間押す" : "まずはコールカードを作成", m === "nori" ? "play" : "mkCreate");
   guideEvent("mode");
 }
 
@@ -2253,8 +2255,9 @@ document.addEventListener("input", e => {
     if (screen !== "mk" || mkLenPhase === "run") return;
     e.preventDefault();
     try { btn.setPointerCapture(e.pointerId); } catch (err) {}
-    const sel = (mkSel >= 0 && mk.scenes[mkSel]) ? mk.scenes[mkSel] : null;
-    if (sel && !mkIsPlaced(sel)) { toast("未配置のカードです。配置の操作は次の移植で入ります"); return; }
+    let sel = (mkSel >= 0 && mk.scenes[mkSel]) ? mk.scenes[mkSel] : null;
+    if (mkMode === "oki" && !(sel && mkIsPlaced(sel))) { mkHoldClickAt = Date.now(); openMkContentPanel(null); return; }
+    if (sel && !mkIsPlaced(sel)) sel = null;
     let t0 = Math.round(clampT(now()) * 10) / 10;
     if (sel) { t0 = sel.t; if (playerReady()) { playerSeek(sel.t); playerPlay(); } }   // 選択中: そのカードの位置から再生して長さを決め直す
     mkHoldSt = {t0: t0, at: performance.now(), d: 0.5, rel: sel, timer: null};
