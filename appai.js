@@ -172,7 +172,7 @@
     $("avalanche-label").classList.add("show");
     burstParticles();
   }
-  function burstParticles() {
+  function burstParticles(intensity = 1) {
     const canvas = $("burst-canvas");
     const rect = canvas.getBoundingClientRect();
     const ratio = window.devicePixelRatio || 1;
@@ -183,9 +183,9 @@
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     const cx = rect.width / 2, cy = rect.height / 2;
     const colors = ["#ff3fa4", "#40e7ff", "#c9ff58", "#ffffff", "#9b70ff"];
-    for (let i = 0; i < 95; i++) {
+    for (let i = 0; i < (intensity > 0.8 ? 95 : 16); i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = 1.5 + Math.random() * 6;
+      const speed = (intensity > 0.8 ? 1.5 : .7) + Math.random() * (intensity > 0.8 ? 6 : 2.5);
       state.particles.push({ x:cx, y:cy, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed, life:1, decay:.012+Math.random()*.012, size:1.5+Math.random()*3.5, color:colors[Math.floor(Math.random()*colors.length)] });
     }
     if (!state.raf) state.raf = requestAnimationFrame(drawParticles);
@@ -226,6 +226,7 @@
     state.records[track.id].push(record);
     saveRecords();
     addDanmaku(phrase, { mine:true, perfect:grade === "PERFECT" });
+    burstParticles(.35);
     eventHeat("mine", phrase);
     renderStats();
     renderTrackList();
