@@ -944,6 +944,14 @@ function mkBandAbs(clientX) {
   r = Math.max(0, Math.min(1, r));
   return r * mkTlD();
 }
+/* プロトタイプ2: 置きに行くドラッグ専用の指位置→時刻。タイムラインの箱の左端=曲の頭、右端=曲の最後として、指の横位置そのままを時刻にする */
+function mkScrAbs(clientX, src) {
+  if (src && src.fromPlaceButton) {
+    const vw = $("mkTlView");
+    if (vw) { const rc = vw.getBoundingClientRect(); if (rc.width > 10) return Math.max(0, Math.min(1, (clientX - rc.left) / rc.width)) * mkTlD(); }
+  }
+  return mkBandAbs(clientX);
+}
 let mkGhost = null;
 function mkGhostEl() { if (!mkGhost) { mkGhost = document.createElement("div"); mkGhost.id = "dragGhost"; document.body.appendChild(mkGhost); } return mkGhost; }
 function mkShowGhost(e, src, t) {
@@ -973,9 +981,9 @@ function mkScrMove(e) {
     if (playerReady()) playerPlay();   // 再生を押していなくても、掴んで動かし始めるとその位置の音がプレビューで流れる
   } else if (Math.abs(e.clientX - scr.anchorX) <= dead) { return; }   // 手ブレ抑制: 前回位置を更新した地点から dead(px) 未満の動きは無視
   else { scr.anchorX = e.clientX; if (scr.src.fromPlaceButton) scr.moved = true; }   // プロトタイプ2 移植3: 置きに行くは「動かした」ことの記録
-  const absT = mkBandAbs(e.clientX);
+  const absT = mkScrAbs(e.clientX, scr.src);
   const g = mkTune.gain;
-  let target = g >= 1 ? absT : scr.target + (absT - scr.target) * g;   // 反応の鈍さ: gain が小さいほど、再生位置は指の絶対位置へゆっくり近づく
+  let target = scr.src.fromPlaceButton ? absT : (g >= 1 ? absT : scr.target + (absT - scr.target) * g);   // 置きに行くは指と1対1。それ以外は反応の鈍さ: gain が小さいほど、再生位置は指の絶対位置へゆっくり近づく
   target = Math.max(0, Math.min(mkTlD(), target));
   scr.target = target; mkTlCenter = target; mkTlApplyView();
   mkMoveGhost(e, target);
@@ -984,7 +992,7 @@ function mkScrMove(e) {
   if (scr.settle) clearTimeout(scr.settle);
   scr.settle = setTimeout(() => {   // 指を止めたら(約320ms)、指の絶対位置から再生して聞き直せる
     if (!mkScrSt || !mkScrSt.active) return;
-    const t = Math.max(0, Math.min(mkTlD(), Math.round(mkBandAbs(mkScrSt.lastX) * 10) / 10));
+    const t = Math.max(0, Math.min(mkTlD(), Math.round(mkScrAbs(mkScrSt.lastX, mkScrSt.src) * 10) / 10));
     mkScrSt.target = t; mkScrSt.lastSeek = t; mkTlCenter = t; mkTlApplyView();
     mkMoveGhost({clientX: mkScrSt.lastX, clientY: mkScrSt.lastY}, t);
     playerSeek(t); if (playerReady()) playerPlay();
@@ -999,7 +1007,7 @@ function mkScrEnd(commit, upX) {
     mkSetZoom(false);
     if (sc.src.fromPlaceButton && !sc.moved) return;   // プロトタイプ2 移植3: ただのタップでは配置しない
     if (commit) {
-      if (upX != null) sc.target = mkBandAbs(upX);
+      if (upX != null) sc.target = mkScrAbs(upX, sc.src);
       const t = Math.max(0, Math.min(mkTlD() - 0.5, Math.round(sc.target * 10) / 10));
       if (sc.src.scene && mk.scenes.includes(sc.src.scene)) {   // プロトタイプ2 移植3: 未配置カードそのものを配置する
         const target = sc.src.scene;
