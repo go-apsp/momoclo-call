@@ -2152,6 +2152,7 @@ function applyGuide() {
 }
 function paintGuide() {
   const bar = $("guideBar"); if (!bar) return;
+  const gb = $("mkGuideBtn"); if (gb) gb.textContent = guide ? "ガイドモードをやめる" : "ガイドモードで作る";
   if (!guide) { bar.style.display = "none"; applyGuide(); return; }
   bar.style.display = "block";
   const done = guide.step === "nd" || guide.step === "od" || guide.step === "sp5";

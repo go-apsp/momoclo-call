@@ -98,6 +98,7 @@ body.scr-mk.mk-tl-on #mkTlZoomBox{display:flex}
 .mkflow-foot button{flex:1;padding:11px 4px;border-radius:12px;border:2px solid #d9b93f;background:#fffdf4;color:#4a3b08;font-weight:900;font-size:13px;cursor:pointer}
 #mkFlowCloseBtn{background:#ffd23f;border-color:#ffd23f}
 #mkFlowShowBtn{display:block;margin:10px auto 2px;background:none;border:0;color:#cfd2f2;font-size:12px;text-decoration:underline;cursor:pointer}
+#mkGuideBtn{display:block;width:100%;margin-top:12px;padding:12px;border-radius:12px;border:1.5px solid var(--pink);background:#3a3f6b;color:#fff;font:inherit;font-weight:900;font-size:15px;cursor:pointer}
 /* ガイドの帯は、内容パネルや終了フローの上でも見えるようにする */
 #guideBar{z-index:100100}
 </style>
@@ -638,11 +639,12 @@ gtag('config', 'G-00QSZME258');
 
 <div id="mkDrawer">
   <div id="mkDrawerBody">
-      <button id="mkFlowShowBtn" data-a="flowShow">作り方の流れを見る</button>
     <div id="mkModeTabs" role="group" aria-label="作り方のモードを選ぶ">
       <button type="button" class="mktab sel" data-a="mkMode" data-i="nori" data-mkmode="nori">♪ ノリノリながらモード</button>
       <button type="button" class="mktab" data-a="mkMode" data-i="oki" data-mkmode="oki">お気に置きにいっちゃうモード</button>
     </div>
+    <button id="mkGuideBtn" data-a="guideStart">ガイドモードで作る</button>
+    <button id="mkFlowShowBtn" data-a="flowShow">作り方の流れを見る</button>
     <div class="drwBtns"><button class="drwBtn" data-a="psOpen">プリセットコール</button></div>
     <div id="psList" style="display:none"></div>
   </div>
@@ -729,7 +731,7 @@ gtag('config', 'G-00QSZME258');
 <div id="toast"></div>
 
 <script src="ui.js?v=64" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="appP2.js?v=20" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
+<script src="appP2.js?v=21" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
 </body>
