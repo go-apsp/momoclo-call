@@ -288,7 +288,11 @@ requestAnimationFrame(loop);
   if (style !== "bubble") style = "stack";
   var stEl = document.createElement("style");
   stEl.textContent = "#bubbles{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:7}"
-    + ".p2bub{position:absolute;transform:translateX(-50%);padding:9px 18px;border-radius:999px;color:#fff;text-align:center;max-width:86%;background:rgba(255,255,255,.16);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.35);box-shadow:0 4px 18px rgba(0,0,0,.25);opacity:0;animation-name:p2floatUp;animation-timing-function:ease-out;animation-fill-mode:forwards}"
+    + ".p2bub{position:absolute;transform:translateX(-50%);padding:9px 18px;border-radius:999px;color:#fff;text-align:center;max-width:86%;background:rgba(255,255,255,.16);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.35);box-shadow:0 4px 18px rgba(0,0,0,.25),inset 0 2px 6px rgba(255,255,255,.35),inset 0 -6px 12px rgba(255,255,255,.08);opacity:0;animation-name:p2floatUp;animation-timing-function:ease-out;animation-fill-mode:forwards}"
+    + ".p2bub::before{content:\"\";position:absolute;top:12%;left:10%;width:34%;height:26%;border-radius:50%;background:rgba(255,255,255,.38);filter:blur(2px);pointer-events:none}"
+    + ".p2bubIn{display:block;animation:p2sway 1.7s ease-in-out infinite}"
+    + "@keyframes p2sway{0%,100%{transform:translateX(-4px) rotate(-1.1deg) scale(1.04,.96)}25%{transform:translateX(3px) rotate(.8deg) scale(.97,1.04)}50%{transform:translateX(5px) rotate(1.2deg) scale(1.02,.98)}75%{transform:translateX(-3px) rotate(-.8deg) scale(.98,1.02)}}"
+    + "@media (prefers-reduced-motion:reduce){.p2bubIn{animation:none}}"
     + ".p2bub strong{font-size:16px;line-height:1.35}"
     + ".p2bub em{display:block;font-size:10px;font-style:normal;opacity:.85}"
     + ".p2bub.b-call{background:rgba(255,45,110,.55)}"
@@ -318,7 +322,7 @@ requestAnimationFrame(loop);
       el.style.left = "calc(50% + " + OFFS[hashOf(k) % OFFS.length] + "px)";
       el.style.bottom = (26 + idx * 54) + "px";
       el.style.animationDuration = Math.max(0.6, (e.t + e.d) - t).toFixed(2) + "s";
-      el.innerHTML = "<strong>" + UI.esc(e.x) + "</strong>" + (e.mine ? "<em>このスコアは反映されません</em>" : "");
+      el.innerHTML = "<span class=\"p2bubIn\"><strong>" + UI.esc(e.x) + "</strong>" + (e.mine ? "<em>このスコアは反映されません</em>" : "") + "</span>";
       bub.appendChild(el); alive[k] = el;
     });
     Object.keys(alive).forEach(function (k) { if (!seen[k]) { alive[k].remove(); delete alive[k]; } });
