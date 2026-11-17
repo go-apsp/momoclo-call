@@ -283,9 +283,10 @@ requestAnimationFrame(loop);
 /* P2CS-BEGIN */
 (function () {
   var origCards = UI.cards.bind(UI);
+  var STYLES = ["stack", "bubble", "slide", "carousel", "pulse"];
   var style = "stack";
   try { style = localStorage.getItem("momo_p2_cardstyle") || "stack"; } catch (e) {}
-  if (style !== "bubble") style = "stack";
+  if (STYLES.indexOf(style) < 0) style = "stack";
   var stEl = document.createElement("style");
   stEl.textContent = "#bubbles{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:7}"
     + ".p2bub{position:absolute;transform:translateX(-50%);padding:9px 18px;border-radius:999px;color:#fff;text-align:center;max-width:86%;background:rgba(255,255,255,.16);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.35);box-shadow:0 4px 18px rgba(0,0,0,.25),inset 0 2px 6px rgba(255,255,255,.35),inset 0 -6px 12px rgba(255,255,255,.08);opacity:0;animation-name:p2floatUp;animation-timing-function:ease-out;animation-fill-mode:forwards}"
@@ -299,18 +300,48 @@ requestAnimationFrame(loop);
     + ".p2bub.b-sing{background:rgba(30,136,229,.55)}"
     + ".p2bub.b-koko{background:rgba(255,190,0,.68);color:#3a2a00}"
     + "@keyframes p2floatUp{0%{transform:translate(-50%,10px) scale(.8);opacity:0}12%{opacity:1;transform:translate(-50%,0) scale(1.06)}22%{transform:translate(-50%,-8px) scale(1)}78%{opacity:1;transform:translate(-50%,-96px) scale(1)}100%{opacity:0;transform:translate(-50%,-138px) scale(.92)}}"
-    + ".p2csbtns{display:inline-flex;gap:6px}"
+    /* Geminiの下書き(2026-11-18)を土台に、段移動をtransformへ寄せて滑らかにした3スタイル */
+    + ".p2c{position:absolute;left:50%;width:84%;max-width:340px;padding:10px 14px;border-radius:12px;color:#fff;text-align:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);box-shadow:0 8px 24px rgba(0,0,0,.35);will-change:transform,opacity}"
+    + ".p2c strong{font-size:15px;line-height:1.3}"
+    + ".p2c em{display:block;font-size:10px;font-style:normal;opacity:.85}"
+    + ".p2c.k-call{background:rgba(255,45,110,.55)}"
+    + ".p2c.k-sing{background:rgba(30,136,229,.55)}"
+    + ".p2c.k-koko{background:rgba(255,190,0,.68);color:#2b1a00}"
+    + ".p2c.s-slide{bottom:8px;transform:translateX(-50%) translateY(120%);opacity:0;transition:transform .45s cubic-bezier(.22,.9,.35,1),opacity .45s ease}"
+    + ".p2c.s-slide.pp0{transform:translateX(-50%) translateY(0) scale(1);opacity:1;z-index:5}"
+    + ".p2c.s-slide.pp1{transform:translateX(-50%) translateY(-56px) scale(.92);opacity:.88;z-index:4}"
+    + ".p2c.s-slide.pp2{transform:translateX(-50%) translateY(-104px) scale(.84);opacity:.72;z-index:3}"
+    + ".p2c.s-slide.pp3{transform:translateX(-50%) translateY(-144px) scale(.78);opacity:.58;z-index:2}"
+    + ".p2c.s-slide.pp4{transform:translateX(-50%) translateY(-178px) scale(.74);opacity:.45;z-index:1}"
+    + ".p2c.s-slide.leaving{transform:translateX(-50%) translateY(-32px) scale(.9);opacity:0}"
+    + ".p2c.s-carousel{bottom:8px;transform:translateX(-50%) translateY(24px) scale(.92);opacity:0;transition:transform .45s cubic-bezier(.22,.9,.35,1),opacity .45s ease}"
+    + ".p2c.s-carousel.pp0{transform:translateX(-50%) translateY(0) scale(1);opacity:1;z-index:5}"
+    + ".p2c.s-carousel.pp1{transform:translateX(-50%) translateY(-7px) scale(.94);opacity:.88;z-index:4}"
+    + ".p2c.s-carousel.pp2{transform:translateX(-50%) translateY(-14px) scale(.88);opacity:.72;z-index:3}"
+    + ".p2c.s-carousel.pp3{transform:translateX(-50%) translateY(-20px) scale(.83);opacity:.55;z-index:2}"
+    + ".p2c.s-carousel.pp4{transform:translateX(-50%) translateY(-25px) scale(.79);opacity:.4;z-index:1}"
+    + ".p2c.s-carousel.leaving{transform:translateX(-50%) translateY(-18px) scale(.8);opacity:0}"
+    + ".p2c.s-pulse{bottom:10px;transform:translateX(-50%) scale(1.1);opacity:0;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s ease}"
+    + ".p2c.s-pulse.pp0{transform:translateX(-50%) translateY(0) scale(1);opacity:1;z-index:5}"
+    + ".p2c.s-pulse.pp1{transform:translateX(-50%) translateY(-9px) scale(.95);opacity:.8;z-index:4}"
+    + ".p2c.s-pulse.pp2{transform:translateX(-50%) translateY(-16px) scale(.9);opacity:.45;z-index:3}"
+    + ".p2c.s-pulse.pp3{transform:translateX(-50%) translateY(-21px) scale(.86);opacity:.3;z-index:2}"
+    + ".p2c.s-pulse.pp4{transform:translateX(-50%) translateY(-25px) scale(.83);opacity:.22;z-index:1}"
+    + ".p2c.s-pulse.leaving{transform:translateX(-50%) scale(.85);opacity:0}"
+    + ".p2csbtns{display:inline-flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}"
     + ".p2csbtns button{padding:5px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.08);color:#f4f4fb;font-size:12px}"
     + ".p2csbtns button.sel{background:var(--pink,#ff5d8f);border-color:transparent;font-weight:700}";
   document.head.appendChild(stEl);
   var bub = document.createElement("div");
   bub.id = "bubbles";
   $("mv").appendChild(bub);
-  var alive = {}, lastOn = [];
+  var alive = {}, aliveP = {}, lastOn = [];
   function keyOf(e) { return e.t + "|" + e.k + "|" + e.x; }
   function hashOf(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); }
   var OFFS = [-58, -29, 0, 29, 58];
-  function clearBubbles() { bub.innerHTML = ""; alive = {}; }
+  function clearCustom() { bub.innerHTML = ""; alive = {}; aliveP = {}; }
+  function cardHTML(e) { return "<strong>" + UI.esc(e.x) + "</strong>" + (e.mine ? "<em>このスコアは反映されません</em>" : ""); }
+  /* バブル: カードごとに独立して浮き上がる */
   function renderBubble(on) {
     var t = now(), seen = {};
     var sorted = on.slice().sort(function (a, b) { return a.t - b.t; });
@@ -322,20 +353,49 @@ requestAnimationFrame(loop);
       el.style.left = "calc(50% + " + OFFS[hashOf(k) % OFFS.length] + "px)";
       el.style.bottom = (26 + idx * 54) + "px";
       el.style.animationDuration = Math.max(0.6, (e.t + e.d) - t).toFixed(2) + "s";
-      el.innerHTML = "<span class=\"p2bubIn\"><strong>" + UI.esc(e.x) + "</strong>" + (e.mine ? "<em>このスコアは反映されません</em>" : "") + "</span>";
+      el.innerHTML = "<span class=\"p2bubIn\">" + cardHTML(e) + "</span>";
       bub.appendChild(el); alive[k] = el;
     });
     Object.keys(alive).forEach(function (k) { if (!seen[k]) { alive[k].remove(); delete alive[k]; } });
   }
+  /* スライド/カルーセル/パルス: 段クラス(pp0=最新)を付け替えて滑らかに動かす */
+  function applyPos(rec) { rec.el.className = "p2c s-" + style + " k-" + rec.kind + " pp" + Math.min(rec.pos, 4); }
+  function leaveEl(el) { el.classList.add("leaving"); setTimeout(function () { el.remove(); }, 650); }
+  function renderPos(on) {
+    var seen = {};
+    var main = on.filter(function (e) { return e.k !== "koko"; }).slice(-3);
+    var koko = on.filter(function (e) { return e.k === "koko"; }).slice(-2);
+    var all = main.concat(koko).sort(function (a, b) { return a.t - b.t; });
+    var n = all.length;
+    all.forEach(function (e, idx) {
+      var k = keyOf(e); seen[k] = 1;
+      var rec = aliveP[k];
+      if (!rec) {
+        var el = document.createElement("div");
+        el.className = "p2c s-" + style + " k-" + e.k;
+        el.innerHTML = cardHTML(e);
+        bub.appendChild(el);
+        rec = aliveP[k] = { el: el, kind: e.k, pos: n - 1 - idx, entered: false };
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () { if (aliveP[k] !== rec) return; rec.entered = true; applyPos(rec); });
+        });
+      } else {
+        rec.pos = n - 1 - idx;
+        if (rec.entered) applyPos(rec);
+      }
+    });
+    Object.keys(aliveP).forEach(function (k) { if (!seen[k]) { var rec = aliveP[k]; delete aliveP[k]; leaveEl(rec.el); } });
+  }
+  function renderCustom(on) { if (style === "bubble") renderBubble(on); else renderPos(on); }
   UI.cards = function (on) {
     lastOn = on;
-    if (style === "bubble") {
+    if (style === "stack") {
+      if (Object.keys(alive).length || Object.keys(aliveP).length) clearCustom();
+      origCards(on);
+    } else {
       if ($("cards").firstChild) $("cards").innerHTML = "";
       if ($("kokos").firstChild) $("kokos").innerHTML = "";
-      renderBubble(on);
-    } else {
-      if (Object.keys(alive).length) clearBubbles();
-      origCards(on);
+      renderCustom(on);
     }
   };
   /* 切り替えUI: メニューの「カードの位置」行の下に差し込む */
@@ -343,7 +403,10 @@ requestAnimationFrame(loop);
   row.className = "mrow";
   row.innerHTML = "<span>カードの見せ方</span><span class=\"p2csbtns\">"
     + "<button type=\"button\" data-cs=\"stack\">縦積み</button>"
-    + "<button type=\"button\" data-cs=\"bubble\">バブル</button></span>";
+    + "<button type=\"button\" data-cs=\"bubble\">バブル</button>"
+    + "<button type=\"button\" data-cs=\"slide\">スライド</button>"
+    + "<button type=\"button\" data-cs=\"carousel\">カルーセル</button>"
+    + "<button type=\"button\" data-cs=\"pulse\">パルス</button></span>";
   var cposLabel = $("cpos") ? $("cpos").closest("label") : null;
   if (cposLabel && cposLabel.parentNode) cposLabel.parentNode.insertBefore(row, cposLabel.nextSibling);
   else $("menu").appendChild(row);
@@ -354,8 +417,9 @@ requestAnimationFrame(loop);
       style = v;
       try { localStorage.setItem("momo_p2_cardstyle", style); } catch (e) {}
       paintBtns();
-      if (style === "bubble") { $("cards").innerHTML = ""; $("kokos").innerHTML = ""; renderBubble(lastOn); }
-      else { clearBubbles(); origCards([]); origCards(lastOn); }
+      clearCustom();
+      if (style === "stack") { origCards([]); origCards(lastOn); }
+      else { $("cards").innerHTML = ""; $("kokos").innerHTML = ""; renderCustom(lastOn); }
     });
   });
   paintBtns();
