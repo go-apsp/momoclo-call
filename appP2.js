@@ -279,6 +279,85 @@ function loop(ts) {
 }
 requestAnimationFrame(loop);
 
+/* ---------- プロトタイプ2: カード表示スタイル切り替え(まずバブル) ---------- */
+/* P2CS-BEGIN */
+(function () {
+  var origCards = UI.cards.bind(UI);
+  var style = "stack";
+  try { style = localStorage.getItem("momo_p2_cardstyle") || "stack"; } catch (e) {}
+  if (style !== "bubble") style = "stack";
+  var stEl = document.createElement("style");
+  stEl.textContent = "#bubbles{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:7}"
+    + ".p2bub{position:absolute;transform:translateX(-50%);padding:9px 18px;border-radius:999px;color:#fff;text-align:center;max-width:86%;background:rgba(255,255,255,.16);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.35);box-shadow:0 4px 18px rgba(0,0,0,.25);opacity:0;animation-name:p2floatUp;animation-timing-function:ease-out;animation-fill-mode:forwards}"
+    + ".p2bub strong{font-size:16px;line-height:1.35}"
+    + ".p2bub em{display:block;font-size:10px;font-style:normal;opacity:.85}"
+    + ".p2bub.b-call{background:rgba(255,45,110,.55)}"
+    + ".p2bub.b-sing{background:rgba(30,136,229,.55)}"
+    + ".p2bub.b-koko{background:rgba(255,190,0,.68);color:#3a2a00}"
+    + "@keyframes p2floatUp{0%{transform:translate(-50%,10px) scale(.8);opacity:0}12%{opacity:1;transform:translate(-50%,0) scale(1.06)}22%{transform:translate(-50%,-8px) scale(1)}78%{opacity:1;transform:translate(-50%,-96px) scale(1)}100%{opacity:0;transform:translate(-50%,-138px) scale(.92)}}"
+    + ".p2csbtns{display:inline-flex;gap:6px}"
+    + ".p2csbtns button{padding:5px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.08);color:#f4f4fb;font-size:12px}"
+    + ".p2csbtns button.sel{background:var(--pink,#ff5d8f);border-color:transparent;font-weight:700}";
+  document.head.appendChild(stEl);
+  var bub = document.createElement("div");
+  bub.id = "bubbles";
+  $("mv").appendChild(bub);
+  var alive = {}, lastOn = [];
+  function keyOf(e) { return e.t + "|" + e.k + "|" + e.x; }
+  function hashOf(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); }
+  var OFFS = [-58, -29, 0, 29, 58];
+  function clearBubbles() { bub.innerHTML = ""; alive = {}; }
+  function renderBubble(on) {
+    var t = now(), seen = {};
+    var sorted = on.slice().sort(function (a, b) { return a.t - b.t; });
+    sorted.forEach(function (e, idx) {
+      var k = keyOf(e); seen[k] = 1;
+      if (alive[k]) return;
+      var el = document.createElement("div");
+      el.className = "p2bub b-" + e.k;
+      el.style.left = "calc(50% + " + OFFS[hashOf(k) % OFFS.length] + "px)";
+      el.style.bottom = (26 + idx * 54) + "px";
+      el.style.animationDuration = Math.max(0.6, (e.t + e.d) - t).toFixed(2) + "s";
+      el.innerHTML = "<strong>" + UI.esc(e.x) + "</strong>" + (e.mine ? "<em>このスコアは反映されません</em>" : "");
+      bub.appendChild(el); alive[k] = el;
+    });
+    Object.keys(alive).forEach(function (k) { if (!seen[k]) { alive[k].remove(); delete alive[k]; } });
+  }
+  UI.cards = function (on) {
+    lastOn = on;
+    if (style === "bubble") {
+      if ($("cards").firstChild) $("cards").innerHTML = "";
+      if ($("kokos").firstChild) $("kokos").innerHTML = "";
+      renderBubble(on);
+    } else {
+      if (Object.keys(alive).length) clearBubbles();
+      origCards(on);
+    }
+  };
+  /* 切り替えUI: メニューの「カードの位置」行の下に差し込む */
+  var row = document.createElement("div");
+  row.className = "mrow";
+  row.innerHTML = "<span>カードの見せ方</span><span class=\"p2csbtns\">"
+    + "<button type=\"button\" data-cs=\"stack\">縦積み</button>"
+    + "<button type=\"button\" data-cs=\"bubble\">バブル</button></span>";
+  var cposLabel = $("cpos") ? $("cpos").closest("label") : null;
+  if (cposLabel && cposLabel.parentNode) cposLabel.parentNode.insertBefore(row, cposLabel.nextSibling);
+  else $("menu").appendChild(row);
+  function paintBtns() { row.querySelectorAll("button[data-cs]").forEach(function (b) { b.classList.toggle("sel", b.dataset.cs === style); }); }
+  row.querySelectorAll("button[data-cs]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var v = b.dataset.cs; if (v === style) return;
+      style = v;
+      try { localStorage.setItem("momo_p2_cardstyle", style); } catch (e) {}
+      paintBtns();
+      if (style === "bubble") { $("cards").innerHTML = ""; $("kokos").innerHTML = ""; renderBubble(lastOn); }
+      else { clearBubbles(); origCards([]); origCards(lastOn); }
+    });
+  });
+  paintBtns();
+})();
+/* P2CS-END */
+
 UI.songSel(si);
 loadSongs();
 checkSpHash();
