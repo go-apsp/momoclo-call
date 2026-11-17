@@ -744,6 +744,8 @@ function enterMk() {
   const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "none";
   spStep = 0; paintSpStep();
   setScreen("mk");
+  const drwIn = $("mkDrawer"); if (drwIn) drwIn.classList.remove("open");   // プロトタイプ2: 作成画面に入る時はサブメニュー(引き出し)を閉じた状態から始める
+  const drwBarIn = $("mkDrawerBar"); if (drwBarIn) drwBarIn.setAttribute("aria-expanded", "false");
   showMkOnboard("作成モードを選択", "mkDrawerBar");
   maybeShowMkFlow();
   applyRate();
@@ -2154,7 +2156,7 @@ function startGuide(mode) {
   }
   paintGuide();
 }
-function endGuide() { guide = null; paintGuide(); }
+function endGuide() { guide = null; paintGuide(); const drw = $("mkDrawer"); if (drw) drw.classList.remove("open"); const drwBar = $("mkDrawerBar"); if (drwBar) drwBar.setAttribute("aria-expanded", "false"); }
 function guideEvent(name) {
   if (!guide) return;
   const st = guide.step;
