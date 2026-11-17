@@ -352,6 +352,7 @@ async function loadCalls() {
   render(); checkPending(true);
 }
 function applyRef(c) {
+  if (screen === "mk") exitMk();   // プロトタイプ2: 作成画面から参考コール再生へ移る時は、作成画面を正しく抜ける(制作終了ボタンが残るバグ対策)
   wakuHold = null;
   refPlay = true; randPlay = false; act = null; curRef = c; sess = null; paintApply();
   EV = mkPlaybackScenes(c.scenes).map(x => ({...x})).sort((a, b) => a.t - b.t);
@@ -744,7 +745,7 @@ function enterMk() {
   const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "none";
   spStep = 0; paintSpStep();
   setScreen("mk");
-  const mnIn = $("menu"); if (mnIn) mnIn.style.display = "none";   // プロトタイプ2: 右上のサブメニューを閉じてから入る
+  const mnIn = $("menu"); if (mnIn) { mnIn.style.display = "none"; document.body.classList.remove("menu-open"); }   // プロトタイプ2: 右上のサブメニューを閉じてから入る
   const drwIn = $("mkDrawer"); if (drwIn) drwIn.classList.remove("open");   // プロトタイプ2: 作成画面に入る時は引き出しも閉じた状態から始める
   const drwBarIn = $("mkDrawerBar"); if (drwBarIn) drwBarIn.setAttribute("aria-expanded", "false");
   showMkOnboard("作成モードを選択", "mkDrawerBar");
@@ -1548,8 +1549,8 @@ const A = {
     mkPv = null; refPlay = false; randPlay = false; spRange = null;
     mk = {scenes: [], type: "call", from: null, base: ""}; mkSel = -1; mkLenPhase = null; renderMk(); UI.songSel(si); sess = null; paintApply(); applyAct(); loadCalls();
   },
-  menu: () => { const m = $("menu"); m.style.display = m.style.display === "block" ? "none" : "block"; },
-  openOv: () => { $("menu").style.display = "none"; $("ov").style.display = "block"; render(); },
+  menu: () => { const m = $("menu"); m.style.display = m.style.display === "block" ? "none" : "block"; document.body.classList.toggle("menu-open", m.style.display === "block"); },
+  openOv: () => { $("menu").style.display = "none"; document.body.classList.remove("menu-open"); $("ov").style.display = "block"; render(); },
   closeOv: () => { $("ov").style.display = "none"; },
   play: () => {
     if (spMode && !spHasTrack()) return toast("この曲はSpotifyでは再生できません");
@@ -1700,6 +1701,7 @@ const A = {
     toast("参考コールで再生します");
   },
   randomPlay: () => {
+    if (screen === "mk") exitMk();   // プロトタイプ2: 作成画面からランダム再生へ移る時も、作成画面を正しく抜ける
     const pubs = calls.filter(c => c.public);
     if (!pubs.length) return toast("公開中の推しコールがまだありません");
     const byT = new Map();
@@ -1778,7 +1780,7 @@ const A = {
     try { await deleteDoc(doc(db, "calls", p[0], "comments", p[1])); await loadCmts(p[0]); await checkPending(false); render(); renderReview(); toast("感想を公開しませんでした"); }
     catch (e) { toast("処理できませんでした"); }
   },
-  review: () => { $("menu").style.display = "none"; renderReview(); $("cmov").style.display = "block"; },
+  review: () => { $("menu").style.display = "none"; document.body.classList.remove("menu-open"); renderReview(); $("cmov").style.display = "block"; },
   evToggle: () => { pEvOpen = !pEvOpen; renderPEv(); },
   edit: id => {
     if (!guard()) return;

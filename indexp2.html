@@ -29,6 +29,7 @@ body.scr-mk #play.place-idle{opacity:.48;filter:saturate(.45)}
 /* プロトタイプ2 移植4(見た目のみ): 制作を終了フロー。旧プロトタイプ indexp と同じ見た目(エラー表示欄つき) */
 #mkFinishBtn{display:none;position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:100001;padding:10px 14px;border:1px solid rgba(255,255,255,.45);border-radius:12px;background:rgba(125,125,125,.62);color:#fff;font-size:14px;font-weight:800;box-shadow:0 3px 12px rgba(0,0,0,.28);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
 body.scr-mk #mkFinishBtn{display:block}
+body.menu-open #mkFinishBtn{display:none!important}
 #mkFinishOverlay{display:none;position:fixed;inset:0;z-index:100002;box-sizing:border-box;align-items:center;justify-content:center;padding:22px;background:rgba(0,0,0,.88)}
 #mkFinishCard{width:min(100%,420px);box-sizing:border-box;padding:22px 18px 18px;border:1px solid rgba(255,255,255,.2);border-radius:18px;background:rgba(54,54,54,.94);color:#fff;box-shadow:0 12px 38px rgba(0,0,0,.5)}
 #mkFinishPrompt{margin:0 0 18px;text-align:center;font-size:20px;font-weight:900;line-height:1.4}
@@ -731,7 +732,7 @@ gtag('config', 'G-00QSZME258');
 <div id="toast"></div>
 
 <script src="ui.js?v=64" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="appP2.js?v=26" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
+<script src="appP2.js?v=27" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
 </body>
