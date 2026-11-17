@@ -92,11 +92,11 @@ body.scr-mk.mk-tl-on #mkTlZoomBox{display:flex}
 .mkflow-card p,.mkflow-card li{font-size:14px;line-height:1.75}
 .mkflow-card ol{margin:0;padding-left:20px}
 .mkflow-x{position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(74,59,8,.12);color:#4a3b08;font-size:18px;font-weight:900;cursor:pointer}
-.mkflow-dots{text-align:center;color:#b89b3e;font-size:13px;letter-spacing:2px;margin:12px 0 8px}
-.mkflow-nav{display:flex;gap:10px}
-.mkflow-nav button{flex:1;padding:12px;border-radius:12px;border:2px solid #d9b93f;background:#fffdf4;color:#4a3b08;font-weight:900;font-size:15px;cursor:pointer}
-.mkflow-nav button:disabled{opacity:.35}
-#mkFlowNext{background:#ffd23f;border-color:#ffd23f}
+.mkflow-fig{text-align:center;margin:0 0 6px}
+.mkflow-note{margin:10px 0 0;font-size:13px;color:#7a6414}
+.mkflow-foot{display:flex;gap:8px;margin-top:14px}
+.mkflow-foot button{flex:1;padding:11px 4px;border-radius:12px;border:2px solid #d9b93f;background:#fffdf4;color:#4a3b08;font-weight:900;font-size:13px;cursor:pointer}
+#mkFlowCloseBtn{background:#ffd23f;border-color:#ffd23f}
 #mkFlowShowBtn{display:block;margin:10px auto 2px;background:none;border:0;color:#cfd2f2;font-size:12px;text-decoration:underline;cursor:pointer}
 /* ガイドの帯は、内容パネルや終了フローの上でも見えるようにする */
 #guideBar{z-index:100100}
@@ -593,12 +593,13 @@ gtag('config', 'G-00QSZME258');
 <div id="mkFlowOverlay" role="dialog" aria-modal="true" aria-label="作り方の流れ">
   <div class="mkflow-card">
     <button class="mkflow-x" data-a="flowClose" aria-label="閉じる">×</button>
-    <section class="mkflow-page">
+    <section class="mkflow-page" data-flow="intro">
       <h3>推しコールの作り方</h3>
-      <p>作り方は2つあります。曲を聞きながら打つ「♪ ノリノリながらモード」と、文言を先に作ってから置きに行く「お気に置きにいっちゃうモード」です。下の「作成モード」のバーから、いつでも切り替えられます。</p>
+      <p>作り方は2つあります。曲を聞きながら打つ「♪ ノリノリながらモード」と、文言を先に作ってから置きに行く「お気に置きにいっちゃうモード」です。下の「作成モード」のバーからモードを選んでください（あとから切り替えることもできます）。モードを選ぶと、その作り方の流れが出ます。</p>
     </section>
-    <section class="mkflow-page">
-      <h3>♪ ノリノリながらモード</h3>
+    <section class="mkflow-page" data-flow="nori">
+      <div class="mkflow-fig" aria-hidden="true"><svg width="120" height="64" viewBox="0 0 120 64"><circle cx="46" cy="32" r="20" fill="#ffd23f" stroke="#b89b3e" stroke-width="2.5"/><text x="46" y="40" text-anchor="middle" font-size="17" font-weight="900" fill="#4a3b08">♪</text><path d="M24 14a26 26 0 0 1 8-6M96 14a26 26 0 0 0-8-6" stroke="#b89b3e" stroke-width="2.5" fill="none" stroke-linecap="round" transform="translate(-4 8)"/><path d="M78 32h26M98 24l8 8-8 8" stroke="#b89b3e" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <h3>♪ ノリノリながらモードの流れ</h3>
       <ol>
         <li>曲を再生して、よく聞きます</li>
         <li>コールのところで、大きな「カード作成」ボタンを長押しします（押している間、カードが伸びていきます）</li>
@@ -606,25 +607,23 @@ gtag('config', 'G-00QSZME258');
         <li>聞き続けながら、次のコールでも繰り返します</li>
         <li>できたら、右上の「制作を終了」から保存します</li>
       </ol>
+      <p class="mkflow-note">作ったカードは、あとから内容や長さを直せます。</p>
     </section>
-    <section class="mkflow-page">
-      <h3>お気に置きにいっちゃうモード</h3>
+    <section class="mkflow-page" data-flow="oki">
+      <div class="mkflow-fig" aria-hidden="true"><svg width="120" height="64" viewBox="0 0 120 64"><rect x="14" y="18" width="40" height="28" rx="6" fill="#ffd23f" stroke="#b89b3e" stroke-width="2.5"/><path d="M22 28h24M22 36h16" stroke="#4a3b08" stroke-width="2.5" stroke-linecap="round"/><path d="M62 32h34M88 22l10 10-10 10" stroke="#b89b3e" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect x="94" y="18" width="18" height="28" rx="5" fill="none" stroke="#b89b3e" stroke-width="2" stroke-dasharray="4 3"/></svg></div>
+      <h3>お気に置きにいっちゃうモードの流れ</h3>
       <ol>
         <li>大きな「カード作成」ボタンを押して、パネルで文言と種類を決めます（未配置のカードができます）</li>
         <li>下の一覧で、そのカードをタップして選びます</li>
         <li>黄色く光る「置きに行く」を押さえたまま左右に動かし、置きたい場所で離します</li>
         <li>できたら、右上の「制作を終了」から保存します</li>
       </ol>
+      <p class="mkflow-note">作ったカードは、あとから内容や長さを直せます。</p>
     </section>
-    <section class="mkflow-page">
-      <h3>あとから直せます</h3>
-      <p>作ったカードは、下の一覧でタップして選ぶと、もう一度タップで内容の書き換え、大きなボタンの長押しで長さの決め直しができます。</p>
-      <p>くわしい案内がほしいときは、再生画面の「ガイドモードで作成」から、ガイド付きで作ることもできます。</p>
-    </section>
-    <div class="mkflow-dots" id="mkFlowDots"></div>
-    <div class="mkflow-nav">
-      <button data-a="flowPrev" id="mkFlowPrev">戻る</button>
-      <button data-a="flowNext" id="mkFlowNext">次へ</button>
+    <div class="mkflow-foot">
+      <button data-a="flowView" data-i="nori">ノリノリの流れ</button>
+      <button data-a="flowView" data-i="oki">お気に置きの流れ</button>
+      <button data-a="flowClose" id="mkFlowCloseBtn">閉じる</button>
     </div>
   </div>
 </div>
@@ -730,7 +729,7 @@ gtag('config', 'G-00QSZME258');
 <div id="toast"></div>
 
 <script src="ui.js?v=64" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="appP2.js?v=19" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
+<script src="appP2.js?v=20" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
 </body>

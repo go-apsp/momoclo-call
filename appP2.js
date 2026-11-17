@@ -727,32 +727,27 @@ function showMkOnboard(message, targetId) {
   target.classList.add("mk-onboard-blink");
   mkOnboardTimer = setTimeout(clearMkOnboard, 7000);
 }
-/* プロトタイプ2: 初めて作成画面を開いた人だけに、作り方の流れを数枚のカードで見せる(両モード分)。閉じたら印を付けて次回からは出さない */
-let mkFlowPage = 0;
-const MK_FLOW_KEY = "momo_p2_flow_seen";
+/* プロトタイプ2: 作り方の流れカード(計3枚)。入口の1枚は初めて作成画面を開いたときだけ、モード別の1枚はそのモードを初めて選んだときだけ自動で出す。閉じたら印を付けて次回からは出さない */
+let mkFlowView = "intro", mkFlowAuto = null;
+const MK_FLOW_KEYS = {intro: "momo_p2_flow_seen", nori: "momo_p2_flow_nori", oki: "momo_p2_flow_oki"};
 function paintMkFlow() {
-  const pages = document.querySelectorAll(".mkflow-page");
-  pages.forEach((el, i) => { el.style.display = i === mkFlowPage ? "block" : "none"; });
-  const dots = $("mkFlowDots");
-  if (dots) dots.textContent = Array.from(pages).map((_, i) => i === mkFlowPage ? "●" : "○").join(" ");
-  const prev = $("mkFlowPrev"); if (prev) prev.disabled = mkFlowPage === 0;
-  const next = $("mkFlowNext"); if (next) next.textContent = mkFlowPage === pages.length - 1 ? "はじめる" : "次へ";
+  document.querySelectorAll(".mkflow-page").forEach(el => { el.style.display = el.dataset.flow === mkFlowView ? "block" : "none"; });
 }
-function openMkFlow() {
+function openMkFlow(view, auto) {
   const ov = $("mkFlowOverlay"); if (!ov) return;
-  mkFlowPage = 0;
+  mkFlowView = view || "intro";
+  mkFlowAuto = auto ? mkFlowView : null;
   clearMkOnboard();
   paintMkFlow();
   ov.classList.add("on");
 }
 function closeMkFlow() {
   const ov = $("mkFlowOverlay"); if (ov) ov.classList.remove("on");
-  try { localStorage.setItem(MK_FLOW_KEY, "1"); } catch (e) {}
+  if (mkFlowAuto) { try { localStorage.setItem(MK_FLOW_KEYS[mkFlowAuto], "1"); } catch (e) {} mkFlowAuto = null; }
 }
-function maybeShowMkFlow() {
-  try { if (localStorage.getItem(MK_FLOW_KEY)) return; } catch (e) {}
-  openMkFlow();
-}
+function mkFlowSeen(view) { try { return !!localStorage.getItem(MK_FLOW_KEYS[view]); } catch (e) { return false; } }
+function maybeShowMkFlow() { if (!mkFlowSeen("intro")) openMkFlow("intro", true); }
+function maybeShowModeFlow(m) { if (guide) return; if (!mkFlowSeen(m)) openMkFlow(m, true); }
 function enterMk() {
   mkReturnScrollY = window.scrollY || document.documentElement.scrollTop || 0;
   const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "none";
@@ -836,6 +831,7 @@ function setMkMode(m) {
   const drwBar = $("mkDrawerBar"); if (drwBar) drwBar.setAttribute("aria-expanded", "false");
   showMkOnboard(m === "nori" ? "曲に合わせて叫ぶコールの間押す" : "まずはコールカードを作成", m === "nori" ? "play" : "mkCreate");
   guideEvent("mode");
+  maybeShowModeFlow(m);
 }
 
 /* ---------- build 64: 選択中カードの位置編集パネルと、種類・文言の適用先の表示 ---------- */
@@ -1998,10 +1994,9 @@ const A = {
     }
   },
   mkAddUnplaced: () => { openMkContentPanel(null); },   // プロトタイプ2 移植2: 未配置カードの新規作成は共通パネルから
-  flowNext: () => { const pages = document.querySelectorAll(".mkflow-page"); if (mkFlowPage >= pages.length - 1) { closeMkFlow(); return; } mkFlowPage++; paintMkFlow(); },
-  flowPrev: () => { if (mkFlowPage > 0) { mkFlowPage--; paintMkFlow(); } },
   flowClose: () => closeMkFlow(),
-  flowShow: () => openMkFlow(),
+  flowShow: () => openMkFlow("intro"),
+  flowView: v => { if (v === "nori" || v === "oki" || v === "intro") { mkFlowView = v; paintMkFlow(); } },
   addScene: () => {   // 旧UIの「この位置に追加」用(build 58で要素は廃止。新方式は mkMain。互換のため残す)
     const durEl = $("mkDur");
     mk.scenes.push({t: Math.round(clampT(now())), d: (durEl ? parseFloat(durEl.value) : NaN) || 6, placed: true, k: mk.type, x: $("mkText").value.trim() || LAB[mk.type]});
