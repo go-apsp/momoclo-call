@@ -1690,9 +1690,10 @@ const A = {
     try { const snap = await getDocs(query(collection(db, "refs"), where("videoId", "==", VID))); refCalls = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(r => r.draft !== true); }
     catch (e) { refCalls = []; }
     $("refList").innerHTML = UI.refs(refCalls);
+    document.body.classList.add("ref-open");
     $("refov").style.display = "block";
   },
-  closeRef: () => { $("refov").style.display = "none"; },
+  closeRef: () => { $("refov").style.display = "none"; document.body.classList.remove("ref-open"); },
   useRef: id => {
     const c = refCalls.find(x => x.id === id); if (!c) return;
     applyRef(c);
@@ -1780,7 +1781,7 @@ const A = {
     try { await deleteDoc(doc(db, "calls", p[0], "comments", p[1])); await loadCmts(p[0]); await checkPending(false); render(); renderReview(); toast("感想を公開しませんでした"); }
     catch (e) { toast("処理できませんでした"); }
   },
-  review: () => { $("menu").style.display = "none"; document.body.classList.remove("menu-open"); renderReview(); $("cmov").style.display = "block"; },
+  review: () => { $("menu").style.display = "none"; document.body.classList.remove("menu-open"); document.body.classList.add("cm-open"); renderReview(); $("cmov").style.display = "block"; },
   evToggle: () => { pEvOpen = !pEvOpen; renderPEv(); },
   edit: id => {
     if (!guard()) return;
@@ -1792,7 +1793,7 @@ const A = {
     A.closeOv(); enterMk();
     toast("編集モード: 保存するとスコアと感想はリセットされます");
   },
-  closeReview: () => { $("cmov").style.display = "none"; },
+  closeReview: () => { $("cmov").style.display = "none"; document.body.classList.remove("cm-open"); },
   use: id => { if (screen === "mk") exitMk(); act = id; refPlay = false; randPlay = false; spRange = null; sess = null; paintApply(); applyAct(); A.closeOv(); },   // プロトタイプ2 移植11: 作成画面で選んだら再生画面へ戻す
   heart: async id => {
     /* build 62: この訪問中に作ったコールには押せない(ログイン/ゲスト共通) */
