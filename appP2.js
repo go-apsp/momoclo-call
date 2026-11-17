@@ -744,7 +744,8 @@ function enterMk() {
   const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "none";
   spStep = 0; paintSpStep();
   setScreen("mk");
-  const drwIn = $("mkDrawer"); if (drwIn) drwIn.classList.remove("open");   // プロトタイプ2: 作成画面に入る時はサブメニュー(引き出し)を閉じた状態から始める
+  const mnIn = $("menu"); if (mnIn) mnIn.style.display = "none";   // プロトタイプ2: 右上のサブメニューを閉じてから入る
+  const drwIn = $("mkDrawer"); if (drwIn) drwIn.classList.remove("open");   // プロトタイプ2: 作成画面に入る時は引き出しも閉じた状態から始める
   const drwBarIn = $("mkDrawerBar"); if (drwBarIn) drwBarIn.setAttribute("aria-expanded", "false");
   showMkOnboard("作成モードを選択", "mkDrawerBar");
   maybeShowMkFlow();
@@ -1828,7 +1829,7 @@ const A = {
   },
   editProf: () => { A.menu(); $("mypage").style.display = "none"; openSheet(true); },
   closeSheet: () => { $("sheet").style.display = "none"; },
-  startMk: () => { mk.editId = null; mkSel = -1; mkLenPhase = null; mkSelOrigT = null; A.menu(); enterMk(); },   // build 62: ゲストでも作成画面に入れる
+  startMk: () => { mk.editId = null; mkSel = -1; mkLenPhase = null; mkSelOrigT = null; const mn = $("menu"); if (mn) mn.style.display = "none"; enterMk(); },   // build 62: ゲストでも作成画面に入れる。プロトタイプ2: 右上のサブメニューは開閉切替でなく必ず閉じる(閉じた状態から入ると開いてしまうバグがあった)
   endMk: () => { guideEvent("cancel"); exitMk(); },
   /* build 58: 作成ボタン。状態で働きが変わる(カード作成 → 長さを決める / 再編集=長さ測り直しの開始) */
   /* build 59: 大きなボタン。状態で働きが変わる(カード作成 → 長さ指定 → ここで終わり) */
