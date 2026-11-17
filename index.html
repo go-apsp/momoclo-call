@@ -5,6 +5,104 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ももクロコール共有(テスト中)</title>
 <link rel="stylesheet" href="style.css?v=64">
+<style id="mkContentPanelStyles">
+/* プロトタイプ2 移植2(見た目のみ): カード内容の共通パネル。旧プロトタイプ indexp と同じ見た目 */
+#mkContentPanel{position:fixed;inset:0;z-index:10050;display:none;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;background:rgba(0,0,0,.58)}
+#mkContentPanel .mkcp-card{width:min(100%,420px);box-sizing:border-box;padding:24px 20px;border:1px solid rgba(255,255,255,.18);border-radius:20px;background:rgba(10,10,18,.94);box-shadow:0 18px 55px rgba(0,0,0,.48);color:#fff}
+#mkContentPanel h3{margin:0 0 18px;font-size:20px;text-align:center}
+#mkContentPanel input{width:100%;box-sizing:border-box;padding:13px 14px;border:1px solid rgba(255,255,255,.3);border-radius:12px;background:rgba(255,255,255,.1);color:#fff;font:inherit;font-size:17px}
+#mkContentPanel .mkcp-types{display:grid;grid-template-columns:1fr;gap:10px}
+#mkContentPanel button{min-height:46px;padding:10px 14px;border:1px solid rgba(255,255,255,.22);border-radius:12px;background:rgba(255,255,255,.10);color:#fff;font:inherit;font-weight:800}
+#mkContentPanel button.sel{border-color:#ff8fc0;background:rgba(255,105,170,.28)}
+#mkContentPanel .mkcp-actions{display:flex;gap:10px;margin-top:18px}
+#mkContentPanel .mkcp-actions button{flex:1}
+#mkContentPanel .mkcp-primary{background:#e94f91;border-color:#e94f91}
+#mkContentPanel .mkcp-step{display:none}
+/* プロトタイプ2 移植3(見た目のみ): 置きに行くボタンの発光と丸いゴースト。旧プロトタイプ indexp と同じ見た目 */
+body.scr-mk #play{touch-action:none;-webkit-user-select:none;user-select:none}
+body.scr-mk #play.place-ready{background:#ffd23f;color:#2a2410;box-shadow:0 0 0 4px rgba(255,210,63,.28),0 0 24px rgba(255,210,63,.9);animation:mkPlacePulse 1.35s ease-in-out infinite}
+body.scr-mk #play.place-idle{opacity:.48;filter:saturate(.45)}
+@keyframes mkPlacePulse{0%,100%{box-shadow:0 0 0 3px rgba(255,210,63,.2),0 0 15px rgba(255,210,63,.55)}50%{box-shadow:0 0 0 6px rgba(255,210,63,.36),0 0 30px rgba(255,210,63,1)}}
+#dragGhost.round{width:76px;height:76px;max-width:none;padding:7px;border-radius:50%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+#dragGhost.round.on{display:flex}
+#dragGhost.round small{font-size:9px;line-height:1.1;margin-top:2px}
+/* プロトタイプ2 移植4(見た目のみ): 制作を終了フロー。旧プロトタイプ indexp と同じ見た目(エラー表示欄つき) */
+#mkFinishBtn{display:none;position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:100001;padding:10px 14px;border:1px solid rgba(255,255,255,.45);border-radius:12px;background:rgba(125,125,125,.62);color:#fff;font-size:14px;font-weight:800;box-shadow:0 3px 12px rgba(0,0,0,.28);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+body.scr-mk #mkFinishBtn{display:block}
+body.menu-open #mkFinishBtn, body.ov-open #mkFinishBtn, body.ref-open #mkFinishBtn, body.cm-open #mkFinishBtn{display:none!important}
+#mkFinishOverlay{display:none;position:fixed;inset:0;z-index:100002;box-sizing:border-box;align-items:center;justify-content:center;padding:22px;background:rgba(0,0,0,.88)}
+#mkFinishCard{width:min(100%,420px);box-sizing:border-box;padding:22px 18px 18px;border:1px solid rgba(255,255,255,.2);border-radius:18px;background:rgba(54,54,54,.94);color:#fff;box-shadow:0 12px 38px rgba(0,0,0,.5)}
+#mkFinishPrompt{margin:0 0 18px;text-align:center;font-size:20px;font-weight:900;line-height:1.4}
+#mkFinishInput{display:block;width:100%;min-height:46px;box-sizing:border-box;padding:10px 12px;border:1px solid rgba(255,255,255,.35);border-radius:10px;background:rgba(0,0,0,.48);color:#fff;font-size:16px}
+.mkFinishActions{display:flex;gap:12px;margin-top:18px}
+.mkFinishActions button{flex:1;min-height:44px;border:1px solid rgba(255,255,255,.28);border-radius:10px;background:rgba(125,125,125,.52);color:#fff;font-size:15px;font-weight:800}
+.mkFinishActions button.mkFinishPrimary{background:rgba(75,115,180,.88);border-color:rgba(160,195,255,.7)}
+#mkFinishError{display:none;margin:14px 0 0;color:#ffb3c1;font-size:13px;font-weight:700;line-height:1.5;text-align:center}
+#toast{z-index:100003}
+/* プロトタイプ2 移植6: 黒幕B案。作成画面ではYouTube映像だけを黒幕で隠す(iframeと音声再生は維持する) */
+body.scr-mk #yt::after{content:"";position:absolute;inset:0;z-index:1;background:rgba(0,0,0,.94);pointer-events:none}
+/* プロトタイプ2 移植7: 作成画面でも選曲バーを出す(選択の仕組みは既存のまま) */
+body.scr-mk #songbox{display:block!important}
+/* プロトタイプ2 移植8: モード別7秒案内(黄色い案内カード+対象の点滅)。旧プロトタイプと同じ文言・色 */
+#mkOnboardHint{display:none;box-sizing:border-box;margin:0 0 10px;padding:12px 15px;border:1px solid rgba(255,226,105,.95);border-radius:14px;background:rgba(255,210,63,.84);color:#29220b;text-align:center;font-size:15px;font-weight:900;line-height:1.45;box-shadow:0 5px 20px rgba(0,0,0,.3)}
+.mk-onboard-blink{animation:mkOnboardBlink .8s ease-in-out infinite!important}
+@keyframes mkOnboardBlink{0%,100%{filter:brightness(1);box-shadow:0 0 0 2px rgba(255,210,63,.22),0 0 8px rgba(255,210,63,.3)}50%{filter:brightness(1.55);box-shadow:0 0 0 5px rgba(255,210,63,.85),0 0 24px rgba(255,210,63,.95)}}
+/* プロトタイプ2 移植9: 作成画面の速度選択(再生ボタン一式の直下に全幅)。作成画面でのみ表示 */
+#mkRateSelect{display:block;width:100%;height:48px;box-sizing:border-box;margin:8px 0 12px;padding:0 14px;border:1px solid rgba(255,255,255,.24);border-radius:10px;background:#252943;color:#fff;font:inherit;font-size:16px;font-weight:800}
+body:not(.scr-mk) #mkRateSelect{display:none}
+#mkRateSelect option{background:#252943;color:#fff}
+/* プロトタイプ2 移植10: 再生画面のコールカード一覧 */
+#playSceneList{display:none;margin:10px 0 14px;padding:10px;border:1px solid rgba(255,255,255,.18);border-radius:12px;background:rgba(15,17,31,.88);color:#fff}
+#playSceneList.on{display:block}
+#playSceneList .psl-title{margin:0 0 8px;font-size:14px;font-weight:900}
+#playSceneList .psl-items{display:grid;gap:6px;max-height:190px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#playSceneList .psl-item{display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:8px 10px;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:rgba(255,255,255,.07);color:#fff;text-align:left;font:inherit}
+#playSceneList .psl-time{flex:0 0 auto;color:#aee9e2;font-size:12px;font-weight:900;font-variant-numeric:tabular-nums}
+#playSceneList .psl-text{min-width:0;overflow-wrap:anywhere;font-size:14px;font-weight:700}
+body.scr-mk #playSceneList,body.scr-sp #playSceneList{display:none!important}
+/* プロトタイプ2 移植11: 再生画面へ戻ったときのパッド表示を復元する */
+body:not(.scr-mk):not(.scr-sp) .pads{display:flex!important}
+/* プロトタイプ2 旧プロトタイプの感じに寄せた作成画面(見た目のみ): 大きなカード作成ボタンをシークバーの直上に置き、道具類は隠してカード一覧パネルだけを残す。モード選択は下の「作成モード」バーの引き出しの中 */
+body.scr-mk #mkModeDesc, body.scr-mk .gstart{display:none!important}
+body.scr-mk #mkPresets, body.scr-mk #mkTypes, body.scr-mk .mkTextRow, body.scr-mk #mkEdit, body.scr-mk #mkPosEdit, body.scr-mk #mkTuneBtn, body.scr-mk #mkTunePanel, body.scr-mk #mkVer, body.scr-mk #mkNote, body.scr-mk #mkGuestName, body.scr-mk #mkPubBtn, body.scr-mk #mkPvBtn, body.scr-mk #mkSaveBtn, body.scr-mk .mkyameru, body.scr-mk #mkApplyNote{display:none!important}
+body.scr-mk #mk label{display:none!important}
+body:not(.scr-mk) #mkBigWrap{display:none!important}
+body.scr-mk #mkBigWrap{display:block!important}
+#mkDrawer .drwBtns, #mkDrawer #psList{display:none!important}
+/* プロトタイプ2 タイムライン2つ表示: メイン(全体)は元の位置に固定、拡大(15秒)は画面中央に浮かぶ。押下・ドラッグ中だけ両方出て、離すと消える */
+body.scr-mk #mkTlBox{display:none!important}
+body.scr-mk.mk-tl-on #mkTlBox{display:flex!important}
+#mkTlZoomBox{display:none;position:fixed;left:8px;right:8px;top:50%;transform:translateY(-50%);max-width:464px;margin:0 auto;z-index:90;flex-direction:column;gap:6px;padding:10px;border-radius:14px;background:rgba(20,21,43,.96);border:1.5px solid var(--pink);box-shadow:0 12px 34px rgba(0,0,0,.65);pointer-events:none}
+body.scr-mk.mk-tl-on #mkTlZoomBox{display:flex}
+#mkTlZoomView{display:flex;gap:6px}
+#mkTlZoomLabs{flex:0 0 52px;display:flex;flex-direction:column;font-size:9px;font-weight:900;color:#cfd2f2}
+#mkTlZoomLabs span{height:20px;margin-bottom:3px;display:flex;align-items:center}
+#mkTlZoomLabs span:last-child{height:20px;margin-bottom:0}
+#mkTlZoomSlide{position:relative;flex:1;overflow:hidden;border-radius:8px;background:rgba(255,255,255,.05);min-height:92px}
+#mkTlZoomInner{position:absolute;left:0;top:0;bottom:0;width:100%;transition:transform .55s cubic-bezier(.3,1.25,.35,1),width .55s cubic-bezier(.3,1.25,.35,1);will-change:transform,width}
+#mkTlZoomPlay{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 6px #fff;pointer-events:none;display:none}
+#mkTlZoomPos{margin-left:auto;font-size:11px;color:var(--mut);font-weight:700;text-align:right}
+#mkTlZoomBox .mktl-bar span{display:inline}
+#mkTlZoomBox .mktl-tlab{color:#f4f4fb;font-size:10px;font-weight:900}
+#mkTlZoomPrev{position:absolute;height:16px;border-radius:5px;border:2px dashed #ffd23f;background:rgba(255,210,63,.35);color:#ffd23f;font-size:9px;font-weight:900;line-height:16px;padding:0 4px;white-space:nowrap;overflow:visible;z-index:2}
+/* プロトタイプ2: 初回だけ出る「作り方の流れ」カード(優しい黄色のレイヤー) */
+#mkFlowOverlay{display:none;position:fixed;inset:0;z-index:100060;background:rgba(24,20,4,.5);align-items:center;justify-content:center;padding:18px}
+#mkFlowOverlay.on{display:flex}
+.mkflow-card{position:relative;width:100%;max-width:440px;max-height:86vh;overflow-y:auto;border-radius:18px;padding:22px 20px 16px;background:linear-gradient(180deg,#fff8d2,#ffedb3);color:#4a3b08;box-shadow:0 18px 44px rgba(0,0,0,.5)}
+.mkflow-card h3{margin:0 0 10px;font-size:18px}
+.mkflow-card p,.mkflow-card li{font-size:14px;line-height:1.75}
+.mkflow-card ol{margin:0;padding-left:20px}
+.mkflow-x{position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(74,59,8,.12);color:#4a3b08;font-size:18px;font-weight:900;cursor:pointer}
+.mkflow-fig{text-align:center;margin:0 0 6px}
+.mkflow-note{margin:10px 0 0;font-size:13px;color:#7a6414}
+.mkflow-foot{display:flex;gap:8px;margin-top:14px}
+.mkflow-foot button{flex:1;padding:11px 4px;border-radius:12px;border:2px solid #d9b93f;background:#fffdf4;color:#4a3b08;font-weight:900;font-size:13px;cursor:pointer}
+#mkFlowCloseBtn{background:#ffd23f;border-color:#ffd23f}
+#mkFlowShowBtn{display:block;margin:10px auto 2px;background:none;border:0;color:#cfd2f2;font-size:12px;text-decoration:underline;cursor:pointer}
+#mkGuideBtn{display:block;width:100%;margin-top:12px;padding:12px;border-radius:12px;border:1.5px solid var(--pink);background:#3a3f6b;color:#fff;font:inherit;font-weight:900;font-size:15px;cursor:pointer}
+/* ガイドの帯は、内容パネルや終了フローの上でも見えるようにする */
+#guideBar{z-index:100100}
+</style>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
 <script>
@@ -99,6 +197,10 @@ gtag('config', 'G-00QSZME258');
   </div>
   <button id="applybtn" data-a="apply" style="display:none"></button>
   <div class="dots" id="dots"></div>
+    <div class="mknori" id="mkBigWrap">
+      <button id="mkCreate" data-a="mkMain">カード作成</button>
+      <div id="mkHint">再生しながら押すと、その位置にカードができます(長さは仮の5秒)。できたカードをタップすると中身や長さを直せます。</div>
+    </div>
   <div id="barwrap">
     <div id="barin"><input type="range" id="bar" min="0" max="240" step="0.1" value="0" aria-label="シークバー"><div id="mkBand" style="display:none"></div><div id="mkKnob" style="display:none" role="slider" aria-label="選択中カードの位置"><div id="mkBub"></div></div></div>
     <div class="times"><span id="tm">0:00</span><span id="dur">0:00</span></div>
@@ -110,6 +212,13 @@ gtag('config', 'G-00QSZME258');
     <button class="skb" data-a="pseek" data-i="10">+10秒</button>
     <button class="skb" data-a="pseek" data-i="30">+30秒</button>
   </div>
+  <select id="mkRateSelect" data-c="rateSelect" aria-label="再生速度">
+    <option value="0.25">速度 0.25倍速</option>
+    <option value="0.5">速度 0.5倍速</option>
+    <option value="0.75">速度 0.75倍速</option>
+    <option value="1" selected>速度 1倍速</option>
+  </select>
+  <div id="playSceneList" aria-label="コールカード一覧"><div class="psl-title">コールカード一覧</div><div class="psl-items" id="playSceneItems"></div></div>
   <div id="pEv"></div>
   <div id="spPanel" style="display:none">
     <div class="spHead"><b>シェアポイント作成</b></div>
@@ -131,15 +240,7 @@ gtag('config', 'G-00QSZME258');
     <h2>推しコールを作る <span class="mkmode">作成画面</span></h2>
     <button class="gstart" data-a="guideStart">ガイドモードで作成</button>
     <!-- build 64: 作成の2モード制。表示する操作UIは選択中のモード分だけ。切替えても作りかけのカードは保持される -->
-    <div id="mkModeTabs" role="group" aria-label="作り方のモードを選ぶ">
-      <button type="button" class="mktab sel" data-a="mkMode" data-i="nori" data-mkmode="nori">♪ ノリノリながらモード</button>
-      <button type="button" class="mktab" data-a="mkMode" data-i="oki" data-mkmode="oki">お気に置きにいっちゃうモード</button>
-    </div>
     <p id="mkModeDesc"></p>
-    <div class="subctl">
-      <button id="mkPlayBtn" data-a="play">▶ 再生</button>
-      <button class="ratebtn" data-a="rate">速度 1倍</button>
-    </div>
     <!-- build 64: 拡大タイムライン。ドラッグ中・長押し中は約30秒表示になり、画面下部に浮いて出続けます(元の位置には同じ高さの空きを残します) -->
     <div id="mkTlBox">
       <div class="mktl-head"><span>タイムライン</span><span id="mkTlMode">全体表示</span><span id="mkTlPos"></span></div>
@@ -148,10 +249,6 @@ gtag('config', 'G-00QSZME258');
         <div id="mkTlSlide"><div id="mkTlInner"></div><div id="mkTlPlay"></div><div id="mkTlKnob" role="slider" aria-label="選択中のカードの位置つまみ" aria-valuemin="0" aria-valuemax="240" aria-valuenow="0"></div></div>
       </div>
       <p class="mktl-note" id="mkTlNote">長押ししている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。打ったカードの開始〜終了も表示されます。</p>
-    </div>
-    <div class="mknori" id="mkBigWrap">
-      <button id="mkCreate" data-a="mkMain">カード作成</button>
-      <div id="mkHint">再生しながら押すと、その位置にカードができます(長さは仮の5秒)。できたカードをタップすると中身や長さを直せます。</div>
     </div>
     <!-- build 64: お気に置きにいっちゃうモード。プリセットチップか「つかむ」を押さえて左右へ動かすと、シーク連動スクラブで置く場所を探ります -->
     <div id="mkPresets" class="mkoki">
@@ -166,12 +263,34 @@ gtag('config', 'G-00QSZME258');
     <div class="mkTextRow">
       <input type="text" id="mkText" placeholder="内容(例: ハイ!ハイ!)" maxlength="30">
       <button id="mkGrip" class="mkoki" type="button" aria-label="入力した文言をつかんで移動">⠿ つかむ</button>
+      <button id="mkAddUnplaced" class="mkoki" type="button" data-a="mkAddUnplaced">＋ 未配置で作る</button>
     </div>
     <div id="mkEdit" style="display:none">
       <div class="fineRow"><span>位置</span><button id="mkFineM" data-a="mkFine" data-i="-0.1">−0.1秒</button><button id="mkFineP" data-a="mkFine" data-i="0.1">＋0.1秒</button></div>
       <button id="mkDelBtn" data-a="mkDelSel">このカードを削除</button>
     </div>
-    <div id="mkList"></div>
+    <div id="mkContentPanel" role="dialog" aria-modal="true" aria-label="カード内容の設定">
+      <div class="mkcp-card">
+        <div id="mkContentTextStep" class="mkcp-step">
+          <h3>叫ぶコールは？</h3>
+          <input id="mkContentTextInput" type="text" maxlength="30" placeholder="例：ハイ！ハイ！" autocomplete="off">
+          <div class="mkcp-actions"><button type="button" data-a="mkContentCancel">キャンセル</button><button type="button" class="mkcp-primary" data-a="mkContentTextNext">決定</button></div>
+        </div>
+        <div id="mkContentTypeStep" class="mkcp-step">
+          <h3>種類を選んでね</h3>
+          <div class="mkcp-types">
+            <button type="button" data-a="mkContentChoose" data-i="call">コール</button>
+            <button type="button" data-a="mkContentChoose" data-i="sing">シンガロン</button>
+            <button type="button" data-a="mkContentChoose" data-i="koko">ココ好き!</button>
+          </div>
+          <div class="mkcp-actions"><button type="button" data-a="mkContentBack">戻る</button><button type="button" class="mkcp-primary" data-a="mkContentConfirm">決定</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="mk-card-list">
+      <h3 style="margin:4px 0 0;font-size:14px">コールカード一覧</h3>
+      <div id="mkList"></div>
+    </div>
     <!-- build 64: カード再編集(両モード共通)。カードを選んだ時だけ出ます -->
     <div id="mkPosEdit" style="display:none">
       <div class="mkpe-head"><span id="mkPosTitle">選択中のカード</span><span id="mkPosTime"></span></div>
@@ -215,7 +334,7 @@ gtag('config', 'G-00QSZME258');
   <div id="info"></div>
   <button id="mkvBtn" data-a="mkv">ももクリDelivery特集<span class="newStamp">NEW</span></button>
   <div id="freearea"></div>
-  <div style="text-align:center;font-size:10px;color:#8e91b8">build 64</div>
+  <div style="text-align:center;font-size:10px;color:#8e91b8">build 65</div>
   <div style="text-align:center"><button data-a="wcShow" style="font-size:10px;color:#8e91b8;text-decoration:underline;background:none;border:0;cursor:pointer">ようこそカードを再表示</button></div>
 
 </div>
@@ -472,12 +591,65 @@ gtag('config', 'G-00QSZME258');
   </div>
 </div>
 
+<div id="mkFlowOverlay" role="dialog" aria-modal="true" aria-label="作り方の流れ">
+  <div class="mkflow-card">
+    <button class="mkflow-x" data-a="flowClose" aria-label="閉じる">×</button>
+    <section class="mkflow-page" data-flow="intro">
+      <h3>推しコールの作り方</h3>
+      <p>作り方は2つあります。曲を聞きながら打つ「♪ ノリノリながらモード」と、文言を先に作ってから置きに行く「お気に置きにいっちゃうモード」です。下の「作成モード」のバーからモードを選んでください（あとから切り替えることもできます）。モードを選ぶと、その作り方の流れが出ます。</p>
+    </section>
+    <section class="mkflow-page" data-flow="nori">
+      <div class="mkflow-fig" aria-hidden="true"><svg width="120" height="64" viewBox="0 0 120 64"><circle cx="46" cy="32" r="20" fill="#ffd23f" stroke="#b89b3e" stroke-width="2.5"/><text x="46" y="40" text-anchor="middle" font-size="17" font-weight="900" fill="#4a3b08">♪</text><path d="M24 14a26 26 0 0 1 8-6M96 14a26 26 0 0 0-8-6" stroke="#b89b3e" stroke-width="2.5" fill="none" stroke-linecap="round" transform="translate(-4 8)"/><path d="M78 32h26M98 24l8 8-8 8" stroke="#b89b3e" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <h3>♪ ノリノリながらモードの流れ</h3>
+      <ol>
+        <li>曲を再生して、よく聞きます</li>
+        <li>コールのところで、大きな「カード作成」ボタンを長押しします（押している間、カードが伸びていきます）</li>
+        <li>離すと、その長さでカードができます</li>
+        <li>聞き続けながら、次のコールでも繰り返します</li>
+        <li>できたら、右上の「制作を終了」から保存します</li>
+      </ol>
+      <p class="mkflow-note">作ったカードは、あとから内容や長さを直せます。</p>
+    </section>
+    <section class="mkflow-page" data-flow="oki">
+      <div class="mkflow-fig" aria-hidden="true"><svg width="120" height="64" viewBox="0 0 120 64"><rect x="14" y="18" width="40" height="28" rx="6" fill="#ffd23f" stroke="#b89b3e" stroke-width="2.5"/><path d="M22 28h24M22 36h16" stroke="#4a3b08" stroke-width="2.5" stroke-linecap="round"/><path d="M62 32h34M88 22l10 10-10 10" stroke="#b89b3e" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect x="94" y="18" width="18" height="28" rx="5" fill="none" stroke="#b89b3e" stroke-width="2" stroke-dasharray="4 3"/></svg></div>
+      <h3>お気に置きにいっちゃうモードの流れ</h3>
+      <ol>
+        <li>大きな「カード作成」ボタンを押して、パネルで文言と種類を決めます（未配置のカードができます）</li>
+        <li>下の一覧で、そのカードをタップして選びます</li>
+        <li>黄色く光る「置きに行く」を押さえたまま左右に動かし、置きたい場所で離します</li>
+        <li>できたら、右上の「制作を終了」から保存します</li>
+      </ol>
+      <p class="mkflow-note">作ったカードは、あとから内容や長さを直せます。</p>
+    </section>
+    <div class="mkflow-foot">
+      <button data-a="flowView" data-i="nori">ノリノリの流れ</button>
+      <button data-a="flowView" data-i="oki">お気に置きの流れ</button>
+      <button data-a="flowClose" id="mkFlowCloseBtn">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div id="mkTlZoomBox" aria-hidden="true">
+  <div class="mktl-head"><span>拡大タイムライン（15秒）</span><span id="mkTlZoomPos"></span></div>
+  <div id="mkTlZoomView">
+    <div id="mkTlZoomLabs"><span>コール</span><span>シンガロン</span><span>ココ好き!</span><span></span></div>
+    <div id="mkTlZoomSlide"><div id="mkTlZoomInner"></div><div id="mkTlZoomPlay"></div></div>
+  </div>
+</div>
+
 <div id="mkDrawer">
   <div id="mkDrawerBody">
+    <div id="mkModeTabs" role="group" aria-label="作り方のモードを選ぶ">
+      <button type="button" class="mktab sel" data-a="mkMode" data-i="nori" data-mkmode="nori">♪ ノリノリながらモード</button>
+      <button type="button" class="mktab" data-a="mkMode" data-i="oki" data-mkmode="oki">お気に置きにいっちゃうモード</button>
+    </div>
+    <button id="mkGuideBtn" data-a="guideStart">ガイドモードで作る</button>
+    <button id="mkFlowShowBtn" data-a="flowShow">作り方の流れを見る</button>
     <div class="drwBtns"><button class="drwBtn" data-a="psOpen">プリセットコール</button></div>
     <div id="psList" style="display:none"></div>
   </div>
-  <button id="mkDrawerBar" data-a="psDrawer" aria-expanded="false">ツール<span class="drwHint">タップで開く</span></button>
+    <div id="mkOnboardHint" role="status" aria-live="polite"></div>
+  <button id="mkDrawerBar" data-a="psDrawer" aria-expanded="false">作成モード<span class="drwHint">タップで開く</span></button>
 </div>
 
 <!-- build 62: ウェルカムカード(トップを開いたとき最上レイヤーに表示) -->
@@ -538,10 +710,28 @@ gtag('config', 'G-00QSZME258');
   </div>
 </div>
 
+<button id="mkFinishBtn" type="button">制作を終了</button>
+<div id="mkFinishOverlay" role="dialog" aria-modal="true" aria-labelledby="mkFinishPrompt">
+  <div id="mkFinishCard">
+    <h3 id="mkFinishPrompt"></h3>
+    <input id="mkFinishInput" type="text" autocomplete="off">
+    <p id="mkFinishError" role="alert"></p>
+    <div id="mkFinishActions" class="mkFinishActions">
+      <button id="mkFinishCancel" type="button">キャンセル</button>
+      <button id="mkFinishNext" type="button" class="mkFinishPrimary">決定</button>
+    </div>
+    <div id="mkFinishChoices" class="mkFinishActions" style="display:none;flex-direction:column">
+      <button id="mkFinishRegister" type="button" class="mkFinishPrimary">登録する</button>
+      <button id="mkFinishDraftSave" type="button">下書きする</button>
+      <button id="mkFinishNoSave" type="button">どちらもせずに終了</button>
+      <button id="mkFinishChoiceCancel" type="button">キャンセル</button>
+    </div>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script src="ui.js?v=64" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="app.js?v=65" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
+<script src="app.js?v=66" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
 </body>

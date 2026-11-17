@@ -59,6 +59,7 @@ const $ = id => document.getElementById(id);
 function toast(s, ms) { const t = $("toast"); t.textContent = s; t.classList.add("on"); clearTimeout(toast.id); toast.id = setTimeout(() => t.classList.remove("on"), ms || 2400); }
 
 let me = null, prof = null, calls = [], liked = new Set(), act = null, openId = null;
+let authStateReady = false, pendingMkFinishOpen = false;   // プロトタイプ2 移植4: 終了フローは認証状態が確定してから開く
 let EV = [], cur = null, sess = null, pickI = 0, native = false;
 const LIMIT = 600000;   // 湧きを数えるのは、再生を始めてから10分
 let mk = {scenes: [], type: "call", from: null, base: ""};
@@ -67,6 +68,7 @@ let cmts = {}, pendAll = [], pendKnown = new Set();
 let spRange = null, spEdit = null, mySps = [], spRef = null, curRef = null;
 let screen = "play";            // build 59: 画面切替 "play"(再生画面) | "mk"(推しコール作成画面) | "sp"(シェアポイント作成画面)。プレイヤー(#mvwrap)は移動しない
 let mkSel = -1;                 // 作成画面: 選択中の場面インデックス(-1=未選択)
+let mkReturnScrollY = null;    // プロトタイプ2 移植11: 作成画面へ入る直前のスクロール位置。戻るときにプレイ画面の表示位置を復元
 let mkLenPhase = null;          // 作成画面: 長さ指定の計測中は "run"
 let spStep = 0;                 // シェアポイント作成の段階 0=始点を決める 1=終点を決める 2=作成する
 let mkPub = true;               // 作成画面: 保存先(公開=true / 下書き=false)。確定は「保存して戻る」
@@ -241,14 +243,15 @@ function loop(ts) {
   const t = now(), st = playerState(), pl = st === 1;
   $("fsplay").textContent = pl ? "一時停止" : "再生";
   const pb = $("play");   // build 59: 大きな再生ボタンは常に「再生/一時停止」のまま(長さ指定は作成画面の大きなボタンが担当)
-  pb.textContent = pl ? "一時停止" : "再生"; pb.classList.remove("meas");
+  if (screen === "mk" && mkMode === "oki") paintPlaceBtn();   // プロトタイプ2 移植3: お気に置きモードでは「置きに行く」表示にする
+  else { pb.textContent = pl ? "一時停止" : "再生"; pb.dataset.a = "play"; pb.disabled = false; pb.classList.remove("meas", "place-ready", "place-idle"); }
   const mp1 = $("mkPlayBtn"); if (mp1) mp1.textContent = pl ? "⏸ 一時停止" : "▶ 再生";
   const mp2 = $("spPlayBtn"); if (mp2) mp2.textContent = pl ? "⏸ 一時停止" : "▶ 再生";
   if (screen === "mk") paintKnob();
   if (st === 0 && sess) { sess = null; paintApply(); }   // 曲が終わったら、次回の再生でリセット
   if (mkPv && t >= mkPv.until) { mkPv = null; playerPause(); paintPvBtn(); toast("プレビューが終わりました"); }   // プレビューは表示終了+3秒で止める
   if (pl !== loop.prevPl) { loop.prevPl = pl; guideEvent(pl ? "play" : "pause"); }   // build 62: ガイドモードの再生/停止の検知
-  const R = curRange(); if (R && pl && !mkPv && t >= R.e) playerPause();   // 再生範囲の終わりで止める
+  const R = curRange(); if (R && pl && !mkPv && !(mkScrSt && mkScrSt.active) && t >= R.e) playerPause();   // 再生範囲の終わりで止める(配置ドラッグ中は止めない: プロトタイプ2)
   if (spRange && pl && !mkPv && t >= spRange.b) { spRange = null; playerPause(); toast("シェアポイントの範囲が終わりました"); }   // シェアポイントの終点で止める
   const kr = mkPv ? null : kanranRange();   // build 63: 観覧モードの有効範囲(作成中プレビューでは効かせない)
   if (kr && pl) {   // 観覧モード: 指定範囲の外には出ない(手前なら始点へ寄せ、終点で止めて始点へ戻す)
@@ -288,6 +291,8 @@ onAuthStateChanged(auth, async u => {
     const d = await getDoc(doc(db, "users", u.uid));
     if (d.exists()) prof = d.data(); else openSheet();   // 最初のログイン = ユーザー登録(推しはここで一度だけ決める)
   }
+  authStateReady = true;
+  if (pendingMkFinishOpen) { pendingMkFinishOpen = false; openMkFinish(); }
   paintLogin(); await loadCalls();
 });
 function paintLogin() {
@@ -347,9 +352,10 @@ async function loadCalls() {
   render(); checkPending(true);
 }
 function applyRef(c) {
+  if (screen === "mk") exitMk();   // プロトタイプ2: 作成画面から参考コール再生へ移る時は、作成画面を正しく抜ける(制作終了ボタンが残るバグ対策)
   wakuHold = null;
   refPlay = true; randPlay = false; act = null; curRef = c; sess = null; paintApply();
-  EV = c.scenes.map(x => ({...x})).sort((a, b) => a.t - b.t);
+  EV = mkPlaybackScenes(c.scenes).map(x => ({...x})).sort((a, b) => a.t - b.t);
   $("who").innerHTML = '<div class="st">♪ ' + esc(SONGS[si].title) + '</div><div class="wn">参考コール' + (c.versionName ? "<i>" + esc(c.versionName) + "</i>" : "") + "</div>";
   $("info").textContent = "";
   $("panelbody").innerHTML = "参考コールで再生中です";
@@ -360,7 +366,7 @@ function applyAct() {
   wakuHold = null;
   curRef = null;
   const c = calls.find(x => x.id === act);
-  EV = c ? c.scenes.map(x => ({...x, mine: !!me && c.ownerUid === me.uid})).sort((a, b) => a.t - b.t) : [];
+  EV = c ? mkPlaybackScenes(c.scenes).map(x => ({...x, mine: !!me && c.ownerUid === me.uid})).sort((a, b) => a.t - b.t) : [];
   UI.who(SONGS[si].title, c ? c.ownerName : "", c ? c.versionName : "", isAuthorLinkable(c));   // build 63: ゲスト作のときは「この作者の他の推しコール」ボタンを出さない
   $("info").textContent = c ? "" : "まだ推しコールがありません。ログインして作ってみましょう";
   UI.total(calls.filter(x => x.public).reduce((n, x) => n + (x.used || 0), 0)); $("panelbody").innerHTML = UI.panel(c);
@@ -377,7 +383,18 @@ function applyAct() {
 /* ---------- 一覧(一番上のレイヤー) ---------- */
 function render() { $("list").innerHTML = UI.list(calls, {me, liked: me ? liked : guestLiked, openId, cmts, myNick: prof ? prof.nick : "", mySession}); renderPEv(); }
 let pEvOpen = false, evFor = null;
-function renderPEv() { const el = $("pEv"); if (!el) return; const c = calls.find(x => x.id === act); if (c) { el.innerHTML = UI.evHtml(c, {me, liked: me ? liked : guestLiked, cmts, myNick: prof ? prof.nick : "", open: pEvOpen, mySession}); return; } if (refPlay && curRef) { el.innerHTML = '<div class="evBox"><div class="evBody"><button class="w" style="width:100%;height:44px;border-radius:12px" data-a="spOpenRef" data-i="' + curRef.id + '">シェアポイントを作る</button></div></div>'; return; } el.innerHTML = ""; }
+/* プロトタイプ2 移植10: 再生画面のコールカード一覧。再生対象(EV)を時刻つきで並べ、タップで開始6秒前へシーク */
+function paintPlaySceneList() {
+  const box = $("playSceneList"), items = $("playSceneItems");
+  if (!box || !items) return;
+  if (screen !== "play" || !Array.isArray(EV) || !EV.length) { box.classList.remove("on"); items.innerHTML = ""; return; }
+  items.innerHTML = EV.map((sc, i) => {
+    const label = String(sc.x || LAB[sc.k] || "コール").trim();
+    return '<button type="button" class="psl-item" data-a="playSceneJump" data-i="' + i + '"><span class="psl-time">' + esc(fmt(Math.max(0, +sc.t || 0))) + '</span><span class="psl-text">' + esc(label) + '</span></button>';
+  }).join("");
+  box.classList.add("on");
+}
+function renderPEv() { paintPlaySceneList(); const el = $("pEv"); if (!el) return; const c = calls.find(x => x.id === act); if (c) { el.innerHTML = UI.evHtml(c, {me, liked: me ? liked : guestLiked, cmts, myNick: prof ? prof.nick : "", open: pEvOpen, mySession}); return; } if (refPlay && curRef) { el.innerHTML = '<div class="evBox"><div class="evBody"><button class="w" style="width:100%;height:44px;border-radius:12px" data-a="spOpenRef" data-i="' + curRef.id + '">シェアポイントを作る</button></div></div>'; return; } el.innerHTML = ""; }
 /* ---------- 感想(承認制) ---------- */
 async function loadCmts(id) {
   const c = calls.find(x => x.id === id); if (!c) return;
@@ -455,7 +472,186 @@ setInterval(() => { if (me && prof) checkPending(true); }, 60000);
 
 /* ---------- 作成(build 58: 再生画面のまま切り替える制作モード) ---------- */
 /* ---------- 作成(build 59: 画面切り替え式の作成画面。プレイヤーは移動しない) ---------- */
-function renderMk() { $("mkList").innerHTML = UI.mkCards(mk.scenes, mkSel); paintMkBtn(); paintKnob(); paintPosEdit(); renderMkTl(); applyGuide(); }
+/* プロトタイプ2 移植1: 未配置カード(placed:false / t:null)。再生系には出さず、一覧では配置済みと分けて出す */
+function mkIsPlaced(sc) { return !!sc && sc.placed !== false && sc.t !== null && sc.t !== undefined && Number.isFinite(Number(sc.t)); }
+function mkPlaybackScenes(scenes) { return (scenes || []).filter(mkIsPlaced); }
+function mkSortScenes() {
+  mk.scenes.sort((a, b) => {
+    const ap = mkIsPlaced(a), bp = mkIsPlaced(b);
+    if (ap !== bp) return ap ? -1 : 1;
+    if (!ap) return 0;
+    return Number(a.t) - Number(b.t);
+  });
+}
+function mkCardsHtml(scenes, sel) {
+  if (!scenes.length) return '<div style="font-size:12px;color:var(--mut);padding:8px 2px">まだカードがありません。カード作成ボタンから内容を作成できます。</div>';
+  const entries = scenes.map((e, i) => ({e, i}));
+  const placed = entries.filter(o => mkIsPlaced(o.e));
+  const unplaced = entries.filter(o => !mkIsPlaced(o.e));
+  const card = o => {
+    const e = o.e, i = o.i, isPlaced = mkIsPlaced(e);
+    return '<div class="mkcard' + (i === sel ? " sel" : "") + (!isPlaced ? " mkcard-unplaced" : "") + '">'
+      + '<button class="mkpick" data-a="mkPick" data-i="' + i + '">'
+      + '<span class="mkt">' + (isPlaced ? fmt(e.t) : "未配置") + '</span><span class="mkk">' + LAB[e.k] + '</span><span class="mkx">' + esc(e.x) + '</span><span class="mkd">' + (isPlaced ? e.d + "秒" : "まだ置いていません") + '</span></button>'
+      + '<button class="mkdel" aria-label="削除" data-a="delScene" data-i="' + i + '">×</button></div>';
+  };
+  return (placed.length ? '<div style="font-size:11px;color:var(--mut);padding:5px 2px 2px">配置済み（曲時間順）</div>' + placed.map(card).join("") : "")
+    + (unplaced.length ? '<div style="font-size:11px;color:var(--mut);padding:8px 2px 2px">未配置（作成順）</div>' + unplaced.map(card).join("") : "");
+}
+/* プロトタイプ2 移植2(見た目のみ): 共通パネルの開閉とステップ切替だけ。カードへの反映は次の段階でつなぐ */
+let mkCpStep = 1, mkCpType = "call", mkCpTarget = null;
+function paintMkContentPanel() {
+  const t = $("mkContentTextStep"), y = $("mkContentTypeStep");
+  if (t) t.style.display = mkCpStep === 1 ? "block" : "none";
+  if (y) y.style.display = mkCpStep === 2 ? "block" : "none";
+  document.querySelectorAll("#mkContentPanel [data-a='mkContentChoose']").forEach(b => b.classList.toggle("sel", b.dataset.i === mkCpType));
+}
+function openMkContentPanel(target) {
+  const p = $("mkContentPanel"); if (!p) return;
+  mkCpStep = 1;
+  mkCpTarget = target || null;
+  const inp = $("mkContentTextInput");
+  if (inp) inp.value = mkCpTarget ? mkCpTarget.x : $("mkText").value;
+  mkCpType = mkCpTarget ? mkCpTarget.k : mk.type;
+  paintMkContentPanel();
+  p.style.display = "flex";
+}
+function closeMkContentPanel() { const p = $("mkContentPanel"); if (p) p.style.display = "none"; }
+/* プロトタイプ2 移植4: 制作を終了フロー。選択→4段階入力→A.save で保存し、再生画面へ戻る。保存失敗時は備考ステップへ戻して再試行可、保存は20秒で見切る */
+const MK_FINISH_FIELDS = [
+  {key:"name", prompt:"あなたのお名前は？", max:20, placeholder:"お名前"},
+  {key:"title", prompt:"推しコールのタイトル？", max:40, placeholder:"推しコールのタイトル"},
+  {key:"versionName", prompt:"バージョン名は？", max:20, placeholder:"バージョン名"},
+  {key:"note", prompt:"備考は？", max:100, placeholder:"備考（任意）"}
+];
+let mkFinishDraft = null;
+let mkFinishSaving = false;   // プロトタイプ2 移植4: 保存の二重実行防止
+function setMkFinishError(msg) {
+  const el = $("mkFinishError");
+  if (!el) { if (msg) toast(msg, 4000); return; }
+  el.textContent = msg || "";
+  el.style.display = msg ? "block" : "none";
+}
+function paintMkFinishStep() {
+  if (!mkFinishDraft) return;
+  const field = MK_FINISH_FIELDS[mkFinishDraft.step];
+  const overlay = $("mkFinishOverlay"), prompt = $("mkFinishPrompt"), input = $("mkFinishInput");
+  const actions = $("mkFinishActions"), choices = $("mkFinishChoices");
+  if (!field || !overlay || !prompt || !input || !actions || !choices) return;
+  setMkFinishError("");
+  prompt.textContent = field.prompt;
+  input.maxLength = field.max;
+  input.placeholder = field.placeholder;
+  input.value = String(mkFinishDraft[field.key] || "");
+  input.style.display = "block";
+  actions.style.display = "flex";
+  choices.style.display = "none";
+  overlay.style.display = "flex";
+}
+function paintMkFinishStart() {
+  if (!mkFinishDraft) return;
+  const overlay = $("mkFinishOverlay"), prompt = $("mkFinishPrompt"), input = $("mkFinishInput");
+  const actions = $("mkFinishActions"), choices = $("mkFinishChoices");
+  const draftButton = $("mkFinishDraftSave");
+  if (!overlay || !prompt || !input || !actions || !choices) return;
+  setMkFinishError("");
+  prompt.textContent = "制作を終了しますか？";
+  input.style.display = "none";
+  actions.style.display = "none";
+  choices.style.display = "flex";
+  if (draftButton) draftButton.style.display = me ? "" : "none";
+  overlay.style.display = "flex";
+}
+function openMkFinish() {
+  if (screen !== "mk" || mkFinishSaving) return;
+  if (!authStateReady) { pendingMkFinishOpen = true; return; }   // 認証状態が確定するまで開かない(下書きボタンの出し分けが誤らないように)
+  mkFinishDraft = {step:-1, pub:null, name:"", title:"", versionName:"", note:""};
+  paintMkFinishStart();
+}
+function chooseMkFinish(pub) {
+  if (!mkFinishDraft || mkFinishSaving || (!me && !pub)) return;
+  mkFinishDraft.pub = !!pub;
+  mkFinishDraft.step = 0;
+  paintMkFinishStep();
+}
+function cancelMkFinish() {
+  if (mkFinishSaving) return;
+  const overlay = $("mkFinishOverlay");
+  if (overlay) overlay.style.display = "none";
+  mkFinishDraft = null;
+}
+function finishMkWithoutSave() { guideEvent("cancel");
+  if (!mkFinishDraft || mkFinishSaving) return;
+  const overlay = $("mkFinishOverlay");
+  if (overlay) overlay.style.display = "none";
+  mkFinishDraft = null;
+  exitMk();
+}
+function advanceMkFinish() {
+  if (!mkFinishDraft || mkFinishSaving) return;
+  try {
+    if (mkFinishDraft.step >= MK_FINISH_FIELDS.length) { saveMkFinish(); return; }   // 終端で詰んでも「決定」で保存を再試行できる
+    const field = MK_FINISH_FIELDS[mkFinishDraft.step], input = $("mkFinishInput");
+    if (!field || !input) return;
+    mkFinishDraft[field.key] = String(input.value == null ? "" : input.value).trim();
+    if (field.key === "name" && !(me && prof) && !mkFinishDraft.name) { toast("お名前を入力してください"); setMkFinishError("お名前を入力してください"); return; }
+    if (field.key === "versionName" && me && prof && calls.some(c => c.ownerUid === me.uid) && !mkFinishDraft.versionName) { toast("2つ目以降はバージョン名を入れてください"); setMkFinishError("2つ目以降はバージョン名を入れてください"); return; }
+    if (mkFinishDraft.step < MK_FINISH_FIELDS.length - 1) { mkFinishDraft.step++; paintMkFinishStep(); return; }
+    mkFinishDraft.step = MK_FINISH_FIELDS.length;
+    saveMkFinish();
+  } catch (e) {
+    toast("入力を進められませんでした。もう一度お試しください");
+    setMkFinishError("入力を進められませんでした。もう一度お試しください");
+  }
+}
+function failMkFinish(msg) {
+  // 保存に失敗したら終端(step=全項目数)のままにせず、最後の入力(備考)へ戻して再試行できるようにする。入力内容は保持する
+  if (!mkFinishDraft) return;
+  mkFinishDraft.step = MK_FINISH_FIELDS.length - 1;
+  paintMkFinishStep();
+  setMkFinishError(msg);
+}
+async function saveMkFinish() {
+  if (!mkFinishDraft || mkFinishDraft.step !== MK_FINISH_FIELDS.length || typeof mkFinishDraft.pub !== "boolean" || mkFinishSaving) return;
+  if (!mk.scenes.length) { toast("カードを作成してください"); failMkFinish("カードを作成してください"); return; }
+  const publish = mkFinishDraft.pub;
+  if (!me && !publish) { toast("ゲストは下書き保存できません"); failMkFinish("ゲストは下書き保存できません"); return; }
+  const meta = {name:mkFinishDraft.name, title:mkFinishDraft.title, versionName:mkFinishDraft.versionName, note:mkFinishDraft.note};
+  mkFinishSaving = true;
+  const buttons = ["mkFinishDraftSave", "mkFinishRegister", "mkFinishNoSave", "mkFinishChoiceCancel"].map(id => $(id)).filter(Boolean);
+  buttons.forEach(b => { b.disabled = true; });
+  try {
+    // 保存応答が返らないまま全操作が塞がり続けないよう、20秒で見切ってロックを解除する
+    const saved = await Promise.race([
+      A.save(publish ? "1" : "0", meta),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("mkFinishTimeout")), 20000))
+    ]);
+    if (!saved || saved === true) { failMkFinish("保存できませんでした。入力内容は残っています。「決定」でもう一度保存できます。"); return; }
+    const overlay = $("mkFinishOverlay");
+    if (overlay) overlay.style.display = "none";
+    mkFinishDraft = null;
+    exitMk();
+    refPlay = false; randPlay = false; spRange = null; sess = null;
+    act = saved.id;
+    try { await loadCalls(); } catch (e) {}
+    if (!calls.some(c => c.id === saved.id)) calls.unshift(saved.record);
+    act = saved.id;
+    try { applyAct(); render(); } catch (e) {}
+    alert(publish ? "推しコールが登録されました" : "下書き保存されました");
+  } catch (e) {
+    if (e && e.message === "mkFinishTimeout") {
+      toast("保存の確認ができませんでした。通信を確認してもう一度お試しください");
+      failMkFinish("保存の確認ができませんでした。入力内容は残っています。通信を確認して「決定」でもう一度保存できます。");
+    } else {
+      toast("保存処理でエラーが発生しました。制作内容を確認して、もう一度お試しください");
+      failMkFinish("保存処理でエラーが発生しました。入力内容は残っています。「決定」でもう一度保存できます。");
+    }
+  } finally {
+    mkFinishSaving = false;
+    if (mkFinishDraft) buttons.forEach(b => { b.disabled = false; });
+  }
+}
+function renderMk() { $("mkList").innerHTML = mkCardsHtml(mk.scenes, mkSel); paintMkBtn(); paintPlaceBtn(); paintKnob(); paintPosEdit(); renderMkTl(); applyGuide(); }
 function paintPvBtn() { const b = $("mkPvBtn"); if (b) b.textContent = mkPv ? "プレビューを止める" : "プレビュー"; }
 /* 画面切替: プレイヤー(#mvwrap・iframe)はDOM上で一切動かさず、他のUIの表示/非表示だけで切り替える */
 function setScreen(name) {
@@ -467,24 +663,31 @@ function setScreen(name) {
   $("spPanel").style.display = name === "sp" ? "flex" : "none";
   if (name !== "mk") paintKnob();
 }
+/* プロトタイプ2 移植3: お気に置きモードで未配置カードを選ぶと、大きな再生ボタンが「置きに行く」に変わって光る */
+function paintPlaceBtn() {
+  const b = $("play"); if (!b) return;
+  const placing = screen === "mk" && mkMode === "oki";
+  if (!placing) {
+    b.dataset.a = "play"; b.disabled = false;
+    b.classList.remove("place-ready", "place-idle");
+    b.setAttribute("aria-label", "再生");
+    return;
+  }
+  const sc = mkSel >= 0 ? mk.scenes[mkSel] : null;
+  const ready = !!sc && !mkIsPlaced(sc);
+  b.dataset.a = "place"; b.textContent = "置きに行く"; b.disabled = !ready; b.classList.remove("meas");
+  b.classList.toggle("place-ready", ready); b.classList.toggle("place-idle", !ready);
+  b.setAttribute("aria-label", ready ? "選択したカードをタイムラインに置く" : "未配置カードを選択してください");
+}
 function paintMkPub() { const b = $("mkPubBtn"); if (b) b.textContent = mkPub ? "公開で保存" : "下書きで保存"; }
-/* 大きなボタンの表示名と働きは状態で変わる: カード作成 / 長さ指定 / ここで終わり */
+/* プロトタイプ2: 大きなボタンは常に「カード作成」専用(長さは長押しの時間でのみ決まる) */
 function paintMkBtn() {
   const b = $("mkCreate"); if (!b) return;
   const hint = $("mkHint");
   const ed = $("mkEdit"); if (ed) ed.style.display = (mkSel >= 0 && mk.scenes[mkSel]) ? "flex" : "none";
   b.classList.remove("go", "edit");
-  if (mkLenPhase === "run" && mkSel >= 0 && mk.scenes[mkSel]) {
-    b.textContent = "ここで終わり"; b.classList.add("go");
-    if (hint) hint.textContent = "再生中です。表示を終わらせたい位置で「ここで終わり」を押してください。";
-  } else if (mkSel >= 0 && mk.scenes[mkSel]) {
-    const sc = mk.scenes[mkSel];
-    b.textContent = "長さ指定"; b.classList.add("edit");
-    if (hint) hint.textContent = fmt(sc.t) + " のカードを選択中です。「長さ指定」を押すか、このボタンを長押しすると、その位置から再生して長さを決め直せます。シークバーのつまみや下の位置編集でも直せます。もう一度カードを押すと選択を終わります。";
-  } else {
-    b.textContent = "カード作成";
-    if (hint) hint.textContent = "再生しながらタップすると5秒のカード、長押しすると押している長さのカードができます(0.5〜20秒)。止まっている時は今の位置にできます。できたカードをタップすると中身や長さを直せます。";
-  }
+  b.textContent = "カード作成";
+  if (hint) hint.textContent = "再生しながらタップすると5秒のカード、長押しすると押している長さのカードができます(0.5〜20秒)。止まっている時は今の位置にできます。できたカードをタップすると中身や長さを直せます。";
   paintMkPub();
 }
 /* 選択中カードの帯とつまみをシークバー上に描く(作成画面で選択中だけ表示) */
@@ -499,10 +702,54 @@ function paintKnob() {
   kn.style.display = "block"; kn.style.left = (sc.t / D * 100) + "%"; kn.style.background = col;
   const bub = $("mkBub"); if (bub) bub.textContent = fmt(sc.t);
 }
+/* プロトタイプ2 移植8: モード別7秒案内。案内カードを出し、対象を点滅させて7秒で消す */
+let mkOnboardTimer = null;
+function clearMkOnboard() {
+  if (mkOnboardTimer !== null) { clearTimeout(mkOnboardTimer); mkOnboardTimer = null; }
+  document.querySelectorAll(".mk-onboard-blink").forEach(el => el.classList.remove("mk-onboard-blink"));
+  const hint = $("mkOnboardHint"); if (hint) { hint.textContent = ""; hint.style.display = "none"; }
+}
+function showMkOnboard(message, targetId) {
+  if (guide) return;
+  clearMkOnboard();
+  const hint = $("mkOnboardHint"), target = $(targetId);
+  if (!hint || !target) return;
+  hint.textContent = message;
+  hint.style.display = "block";
+  target.classList.add("mk-onboard-blink");
+  mkOnboardTimer = setTimeout(clearMkOnboard, 7000);
+}
+/* プロトタイプ2: 作り方の流れカード(計3枚)。入口の1枚は初めて作成画面を開いたときだけ、モード別の1枚はそのモードを初めて選んだときだけ自動で出す。閉じたら印を付けて次回からは出さない */
+let mkFlowView = "intro", mkFlowAuto = null;
+const MK_FLOW_KEYS = {intro: "momo_flow_seen", nori: "momo_flow_nori", oki: "momo_flow_oki"};
+function paintMkFlow() {
+  document.querySelectorAll(".mkflow-page").forEach(el => { el.style.display = el.dataset.flow === mkFlowView ? "block" : "none"; });
+}
+function openMkFlow(view, auto) {
+  const ov = $("mkFlowOverlay"); if (!ov) return;
+  mkFlowView = view || "intro";
+  mkFlowAuto = auto ? mkFlowView : null;
+  clearMkOnboard();
+  paintMkFlow();
+  ov.classList.add("on");
+}
+function closeMkFlow() {
+  const ov = $("mkFlowOverlay"); if (ov) ov.classList.remove("on");
+  if (mkFlowAuto) { try { localStorage.setItem(MK_FLOW_KEYS[mkFlowAuto], "1"); } catch (e) {} mkFlowAuto = null; }
+}
+function mkFlowSeen(view) { try { return !!localStorage.getItem(MK_FLOW_KEYS[view]); } catch (e) { return false; } }
+function maybeShowMkFlow() { if (!mkFlowSeen("intro")) openMkFlow("intro", true); }
+function maybeShowModeFlow(m) { if (guide) return; if (!mkFlowSeen(m)) openMkFlow(m, true); }
 function enterMk() {
+  mkReturnScrollY = window.scrollY || document.documentElement.scrollTop || 0;
   const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "none";
   spStep = 0; paintSpStep();
   setScreen("mk");
+  const mnIn = $("menu"); if (mnIn) { mnIn.style.display = "none"; document.body.classList.remove("menu-open"); }   // プロトタイプ2: 右上のサブメニューを閉じてから入る
+  const drwIn = $("mkDrawer"); if (drwIn) drwIn.classList.remove("open");   // プロトタイプ2: 作成画面に入る時は引き出しも閉じた状態から始める
+  const drwBarIn = $("mkDrawerBar"); if (drwBarIn) drwBarIn.setAttribute("aria-expanded", "false");
+  showMkOnboard("作成モードを選択", "mkDrawerBar");
+  maybeShowMkFlow();
   applyRate();
   paintMkMode();
   renderMk();
@@ -511,12 +758,25 @@ function enterMk() {
   $("mvwrap").scrollIntoView({behavior: "smooth"});
 }
 function exitMk() {
+  clearMkOnboard();
   const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "";
   setScreen("play");
   const drw = $("mkDrawer"); if (drw) drw.classList.remove("open");
   mkSel = -1; mkLenPhase = null; mkSelOrigT = null; mkSetZoom(false);
   if (mkMeas !== null) { mkMeas = null; const b = $("mkMeas"); if (b) b.textContent = "▶ 再生して表示時間を測る"; }
   const pb = $("play"); if (pb) pb.classList.remove("meas");
+  const restoreY = mkReturnScrollY; mkReturnScrollY = null;
+  if (restoreY !== null) {
+    // enterMk() のsmooth scrollが残っていても、プレイ画面の元位置を優先して復元する
+    const root = document.documentElement;
+    const prevScrollBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = "auto";
+    window.scrollTo(0, restoreY);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, restoreY);
+      root.style.scrollBehavior = prevScrollBehavior;
+    });
+  }
 }
 function enterSp() {
   setScreen("sp");
@@ -526,7 +786,7 @@ function enterSp() {
 }
 /* 再生速度(1 → 0.5 → 0.25)を YouTube プレイヤーへ実際に効かせる */
 function applyRate() { try { if (yt && yt.setPlaybackRate) yt.setPlaybackRate(mkRate); } catch (e) {} paintRate(); }
-function paintRate() { document.querySelectorAll(".ratebtn").forEach(b => b.textContent = "速度 " + mkRate + "倍"); }
+function paintRate() { document.querySelectorAll(".ratebtn").forEach(b => b.textContent = "速度 " + mkRate + "倍"); const rs = $("mkRateSelect"); if (rs) rs.value = String(mkRate); }
 
 /* ---------- build 60: プリセットコール(作成画面下部の引き出しから、選択中カードへ種類+文言を適用) ---------- */
 async function loadPresets() {
@@ -546,8 +806,8 @@ const MKMODE_DESC = {
   oki: "文言を先に用意してから置きに行くモードです。プリセットを選ぶか文字を書いておいて、掴んで左右に動かすと、その位置の音を頼りに置く場所を探れます。再生ボタンを押していなくても、掴んで動かし始めるとその位置の音が自動で流れます。指を止めると、その位置からの音が流れるので、聞いて確かめてから離してください。離した位置にカードが置けて、長さは後から変えられます。"
 };
 const MKMODE_TLNOTE = {
-  nori: "長押ししている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。打ったカードの開始〜終了も表示されます。",
-  oki: "掴んで動かしている間は、このタイムラインが現在の位置を中心に拡大します（約30秒表示・1秒ごとの目盛り）。指の横の位置が、そのまま曲の位置になります。"
+  nori: "長押ししている間だけ、タイムラインが2つ出ます。こちらは曲全体で、画面中央に出る拡大タイムライン（15秒・1秒ごとの目盛り）で細かい位置が分かります。打ったカードの開始〜終了も表示されます。",
+  oki: "掴んで動かしている間だけ、タイムラインが2つ出ます。こちらは曲全体で、画面中央に出る拡大タイムライン（15秒・1秒ごとの目盛り）で細かい位置が分かります。指の横の位置が、そのまま曲の位置になります。"
 };
 function paintMkMode() {
   document.querySelectorAll("#mkModeTabs .mktab").forEach(b => b.classList.toggle("sel", b.dataset.mkmode === mkMode));
@@ -561,8 +821,12 @@ function setMkMode(m) {
   if (m !== "nori" && m !== "oki") return;
   mkMode = m;
   try { localStorage.setItem("momo_mkmode", m); } catch (e) {}
-  paintMkMode();
+  paintMkMode(); paintPlaceBtn();
+  const drw = $("mkDrawer"); if (drw) drw.classList.remove("open");
+  const drwBar = $("mkDrawerBar"); if (drwBar) drwBar.setAttribute("aria-expanded", "false");
+  showMkOnboard(m === "nori" ? "曲に合わせて叫ぶコールの間押す" : "まずはコールカードを作成", m === "nori" ? "play" : "mkCreate");
   guideEvent("mode");
+  maybeShowModeFlow(m);
 }
 
 /* ---------- build 64: 選択中カードの位置編集パネルと、種類・文言の適用先の表示 ---------- */
@@ -576,7 +840,7 @@ function paintPosEdit() {
   if (!sc) { box.style.display = "none"; return; }
   box.style.display = "flex";
   $("mkPosTitle").textContent = "選択中: " + LAB[sc.k] + "「" + sc.x + "」";
-  $("mkPosTime").textContent = fmt(sc.t) + "〜" + fmt(sc.t + sc.d);
+  $("mkPosTime").textContent = mkIsPlaced(sc) ? fmt(sc.t) + "〜" + fmt(sc.t + sc.d) : "未配置";
 }
 
 /* ---------- build 64: 作成画面のタイムライン(通常は曲全体。ドラッグ中/長押し中は現在位置を中心に約30秒へ拡大し、画面下部に浮かせて出し続ける。元の位置にはプレースホルダを残す) ---------- */
@@ -591,53 +855,68 @@ function mkTlWin() {
   a = Math.max(0, Math.min(Math.max(0, d - span), a));
   return {a: a, span: span};
 }
+/* プロトタイプ2: 拡大タイムライン用の窓(15秒)。mkTlCenterを中心にし、端では寄せて収める */
+function mkTlWin15() {
+  const d = mkTlD();
+  const span = Math.min(15, d);
+  let a = mkTlCenter - span / 2;
+  a = Math.max(0, Math.min(Math.max(0, d - span), a));
+  return {a: a, span: span};
+}
 function renderMkTl() {
   const inner = $("mkTlInner"); if (!inner) return;
   const d = mkTlD();
-  let html = "";
+  let barsHtml = "";
   MK_TL_KINDS.forEach(k => {
-    const bars = mk.scenes.filter(s => s.k === k).map(s => {
+    const bars = mk.scenes.filter(s => mkIsPlaced(s) && s.k === k).map(s => {
       const l = Math.max(0, s.t / d * 100), w = Math.max(0.8, s.d / d * 100), idx = mk.scenes.indexOf(s), sel2 = idx === mkSel;
       return '<div class="mktl-bar mb-' + k + (sel2 ? " selb2" : "") + '" data-mksel="' + idx + '" style="left:' + l + '%;width:' + w + '%" title="' + fmt(s.t) + "〜" + fmt(s.t + s.d) + " " + LAB[k] + " " + esc(s.x) + '"><span>' + fmt(s.t) + "〜" + fmt(s.t + s.d) + " " + esc(s.x) + "</span></div>";
     }).join("");
-    html += '<div class="mktl-lane">' + bars + "</div>";
+    barsHtml += '<div class="mktl-lane">' + bars + "</div>";
   });
-  let ticks = "";
-  if (mkTlZoom) {
-    for (let t = 0; t <= d; t += 1) {
-      const big = t % 5 === 0, l2 = t / d * 100;
-      ticks += '<div class="mktl-tick' + (big ? " big" : "") + '" style="left:' + l2 + '%"></div>' + (big ? '<span class="mktl-tlab" style="left:' + l2 + '%">' + fmt(t) + "</span>" : "");
-    }
-  } else {
-    const steps = [5, 10, 15, 20, 30, 60]; let step = 60;
-    for (let si2 = 0; si2 < steps.length; si2++) { if (d / steps[si2] <= 14) { step = steps[si2]; break; } }
-    for (let t2 = 0; t2 <= d; t2 += step) {
-      const l3 = t2 / d * 100;
-      ticks += '<div class="mktl-tick big" style="left:' + l3 + '%"></div><span class="mktl-tlab" style="left:' + l3 + '%">' + fmt(t2) + "</span>";
-    }
+  let ticksFull = "";
+  const steps = [5, 10, 15, 20, 30, 60]; let step = 60;
+  for (let si2 = 0; si2 < steps.length; si2++) { if (d / steps[si2] <= 14) { step = steps[si2]; break; } }
+  for (let t2 = 0; t2 <= d; t2 += step) {
+    const l3 = t2 / d * 100;
+    ticksFull += '<div class="mktl-tick big" style="left:' + l3 + '%"></div><span class="mktl-tlab" style="left:' + l3 + '%">' + fmt(t2) + "</span>";
   }
-  html += '<div class="mktl-ticks">' + ticks + "</div>";
-  inner.innerHTML = html;
-  const box = $("mkTlBox"); if (box) box.classList.toggle("zoom", mkTlZoom);
-  const md = $("mkTlMode"); if (md) md.textContent = mkTlZoom ? "拡大表示（約30秒）" : "全体表示";
+  let ticksZoom = "";
+  for (let t = 0; t <= d; t += 1) {
+    const big = t % 5 === 0, l2 = t / d * 100;
+    ticksZoom += '<div class="mktl-tick' + (big ? " big" : "") + '" style="left:' + l2 + '%"></div>' + (big ? '<span class="mktl-tlab" style="left:' + l2 + '%">' + fmt(t) + "</span>" : "");
+  }
+  inner.innerHTML = barsHtml + '<div class="mktl-ticks">' + ticksFull + "</div>";
+  const zinner = $("mkTlZoomInner");
+  if (zinner) zinner.innerHTML = barsHtml + '<div class="mktl-ticks">' + ticksZoom + "</div>";
+  const md = $("mkTlMode"); if (md) md.textContent = "全体表示";
   mkTlApplyView();
 }
 function mkTlApplyView() {
   const inner = $("mkTlInner"); if (!inner) return;
-  const d = mkTlD(), w = mkTlWin();
-  inner.style.width = (d / w.span * 100) + "%";
-  inner.style.transform = "translateX(" + (-(w.a / d * 100)) + "%)";
+  const d = mkTlD();
   const t = now() || 0;
-  const p = (t - w.a) / w.span * 100, pl = $("mkTlPlay");
-  if (pl) { if (p >= 0 && p <= 100) { pl.style.display = "block"; pl.style.left = p + "%"; } else pl.style.display = "none"; }
-  const pos = $("mkTlPos"); if (pos) pos.textContent = "現在 " + fmt(t) + (mkTlZoom ? " ／ 表示範囲 " + fmt(w.a) + "〜" + fmt(w.a + w.span) : "");
+  inner.style.width = "100%";
+  inner.style.transform = "translateX(0%)";
+  const pl = $("mkTlPlay");
+  if (pl) { const p = t / d * 100; if (p >= 0 && p <= 100) { pl.style.display = "block"; pl.style.left = p + "%"; } else pl.style.display = "none"; }
+  const pos = $("mkTlPos"); if (pos) pos.textContent = "現在 " + fmt(t);
   const kn = $("mkTlKnob");
   if (kn) {
     const sc = (mkSel >= 0 && mk.scenes[mkSel]) ? mk.scenes[mkSel] : null;
-    if (sc) {
-      const kp = (sc.t - w.a) / w.span * 100;
+    if (sc && mkIsPlaced(sc)) {
+      const kp = sc.t / d * 100;
       if (kp >= 0 && kp <= 100) { kn.style.display = "block"; kn.style.left = kp + "%"; kn.setAttribute("aria-valuenow", Math.round(sc.t)); } else kn.style.display = "none";
     } else kn.style.display = "none";
+  }
+  const zinner = $("mkTlZoomInner");
+  if (zinner) {
+    const w = mkTlWin15();
+    zinner.style.width = (d / w.span * 100) + "%";
+    zinner.style.transform = "translateX(" + (-(w.a / d * 100)) + "%)";
+    const zp = $("mkTlZoomPlay");
+    if (zp) { const p2 = (t - w.a) / w.span * 100; if (p2 >= 0 && p2 <= 100) { zp.style.display = "block"; zp.style.left = p2 + "%"; } else zp.style.display = "none"; }
+    const zpos = $("mkTlZoomPos"); if (zpos) zpos.textContent = "表示範囲 " + fmt(w.a) + "〜" + fmt(w.a + w.span);
   }
 }
 function mkTlSetFloat(on) {
@@ -651,9 +930,10 @@ function mkTlSetFloat(on) {
   }
 }
 function mkSetZoom(on, c) {
-  mkTlSetFloat(on);
-  if (on === mkTlZoom) { if (on && c != null) { mkTlCenter = c; mkTlApplyView(); } return; }
-  mkTlZoom = on; if (c != null) mkTlCenter = c;
+  if (c != null) mkTlCenter = c;
+  if (on === mkTlZoom) { if (on) mkTlApplyView(); return; }
+  mkTlZoom = on;
+  document.body.classList.toggle("mk-tl-on", on);
   renderMkTl();
 }
 
@@ -667,6 +947,14 @@ function mkBandAbs(clientX) {
   let r = (clientX - m) / width;
   r = Math.max(0, Math.min(1, r));
   return r * mkTlD();
+}
+/* プロトタイプ2: 置きに行くドラッグ専用の指位置→時刻。タイムラインの箱の左端=曲の頭、右端=曲の最後として、指の横位置そのままを時刻にする */
+function mkScrAbs(clientX, src) {
+  if (src && src.fromPlaceButton) {
+    const vw = $("mkTlView");
+    if (vw) { const rc = vw.getBoundingClientRect(); if (rc.width > 10) return Math.max(0, Math.min(1, (clientX - rc.left) / rc.width)) * mkTlD(); }
+  }
+  return mkBandAbs(clientX);
 }
 let mkGhost = null;
 function mkGhostEl() { if (!mkGhost) { mkGhost = document.createElement("div"); mkGhost.id = "dragGhost"; document.body.appendChild(mkGhost); } return mkGhost; }
@@ -696,19 +984,19 @@ function mkScrMove(e) {
     mkShowGhost(e, scr.src, scr.seek0);
     if (playerReady()) playerPlay();   // 再生を押していなくても、掴んで動かし始めるとその位置の音がプレビューで流れる
   } else if (Math.abs(e.clientX - scr.anchorX) <= dead) { return; }   // 手ブレ抑制: 前回位置を更新した地点から dead(px) 未満の動きは無視
-  else { scr.anchorX = e.clientX; }
-  const absT = mkBandAbs(e.clientX);
+  else { scr.anchorX = e.clientX; if (scr.src.fromPlaceButton) scr.moved = true; }   // プロトタイプ2 移植3: 置きに行くは「動かした」ことの記録
+  const absT = mkScrAbs(e.clientX, scr.src);
   const g = mkTune.gain;
-  let target = g >= 1 ? absT : scr.target + (absT - scr.target) * g;   // 反応の鈍さ: gain が小さいほど、再生位置は指の絶対位置へゆっくり近づく
+  let target = scr.src.fromPlaceButton ? absT : (g >= 1 ? absT : scr.target + (absT - scr.target) * g);   // 置きに行くは指と1対1。それ以外は反応の鈍さ: gain が小さいほど、再生位置は指の絶対位置へゆっくり近づく
   target = Math.max(0, Math.min(mkTlD(), target));
   scr.target = target; mkTlCenter = target; mkTlApplyView();
   mkMoveGhost(e, target);
-  if (scr.lastSeek === null || Math.abs(target - scr.lastSeek) >= 0.15) { scr.lastSeek = target; playerSeek(Math.round(target * 10) / 10); }
+  if (scr.lastSeek === null || Math.abs(target - scr.lastSeek) >= 0.15) { scr.lastSeek = target; playerSeek(Math.round(target * 10) / 10); if (playerReady() && playerState() !== 1) playerPlay(); }   // プロトタイプ2: ドラッグ中に何かの理由で止まっても、指の動きで再開する
   scr.lastX = e.clientX; scr.lastY = e.clientY;
   if (scr.settle) clearTimeout(scr.settle);
   scr.settle = setTimeout(() => {   // 指を止めたら(約320ms)、指の絶対位置から再生して聞き直せる
     if (!mkScrSt || !mkScrSt.active) return;
-    const t = Math.max(0, Math.min(mkTlD(), Math.round(mkBandAbs(mkScrSt.lastX) * 10) / 10));
+    const t = Math.max(0, Math.min(mkTlD(), Math.round(mkScrAbs(mkScrSt.lastX, mkScrSt.src) * 10) / 10));
     mkScrSt.target = t; mkScrSt.lastSeek = t; mkTlCenter = t; mkTlApplyView();
     mkMoveGhost({clientX: mkScrSt.lastX, clientY: mkScrSt.lastY}, t);
     playerSeek(t); if (playerReady()) playerPlay();
@@ -718,17 +1006,27 @@ function mkScrEnd(commit, upX) {
   const sc = mkScrSt; if (!sc) return;
   mkScrSt = null;
   if (sc.settle) clearTimeout(sc.settle);
-  if (mkGhost) mkGhost.classList.remove("on");
+  if (mkGhost) mkGhost.classList.remove("on", "round");
   if (sc.active) {
     mkSetZoom(false);
+    if (sc.src.fromPlaceButton && !sc.moved) return;   // プロトタイプ2 移植3: ただのタップでは配置しない
     if (commit) {
-      if (upX != null) sc.target = mkBandAbs(upX);
+      if (upX != null) sc.target = mkScrAbs(upX, sc.src);
       const t = Math.max(0, Math.min(mkTlD() - 0.5, Math.round(sc.target * 10) / 10));
-      const nc = {t: t, d: 5, k: sc.src.k, x: sc.src.x};   // 置いたカードの長さは仮の5秒(本番の作り方に合わせる。後から長さ指定で直せる)
-      mk.scenes.push(nc); mk.scenes.sort((a, b) => a.t - b.t);
+      if (sc.src.scene && mk.scenes.includes(sc.src.scene)) {   // プロトタイプ2 移植3: 未配置カードそのものを配置する
+        const target = sc.src.scene;
+        target.t = t; target.placed = true;
+        mkSortScenes(); mkSel = mk.scenes.indexOf(target); mkSelOrigT = target.t;
+        renderMk();
+        if (playerReady()) { playerSeek(t); playerPlay(); }
+        toast("「" + (target.x || LAB[target.k]) + "」を " + fmt(t) + " に配置しました");
+      } else {
+      const nc = {t: t, d: 5, placed: true, k: sc.src.k, x: sc.src.x};   // 置いたカードの長さは仮の5秒(本番の作り方に合わせる。後から長さ指定で直せる)
+      mk.scenes.push(nc); mkSortScenes();
       if (sc.src.grip) $("mkText").value = "";
       renderMk();
       toast("「" + (nc.x || LAB[nc.k]) + "」を " + fmt(t) + " に置きました");
+      }
       guideEvent("drop");
     }
     return;
@@ -1251,9 +1549,9 @@ const A = {
     mkPv = null; refPlay = false; randPlay = false; spRange = null;
     mk = {scenes: [], type: "call", from: null, base: ""}; mkSel = -1; mkLenPhase = null; renderMk(); UI.songSel(si); sess = null; paintApply(); applyAct(); loadCalls();
   },
-  menu: () => { const m = $("menu"); m.style.display = m.style.display === "block" ? "none" : "block"; },
-  openOv: () => { $("menu").style.display = "none"; $("ov").style.display = "block"; render(); },
-  closeOv: () => { $("ov").style.display = "none"; },
+  menu: () => { const m = $("menu"); m.style.display = m.style.display === "block" ? "none" : "block"; document.body.classList.toggle("menu-open", m.style.display === "block"); },
+  openOv: () => { $("menu").style.display = "none"; document.body.classList.remove("menu-open"); document.body.classList.add("ov-open"); $("ov").style.display = "block"; render(); },
+  closeOv: () => { $("ov").style.display = "none"; document.body.classList.remove("ov-open"); },
   play: () => {
     if (spMode && !spHasTrack()) return toast("この曲はSpotifyでは再生できません");
     if (!playerReady()) return toast(spMode ? "Spotifyプレイヤーの準備中です" : "動画の準備中です");
@@ -1383,7 +1681,7 @@ const A = {
   },
   apply: () => { if (sess) saveWaku(sess); },
   pickIcon: i => { pickI = +i; UI.sheetIcons(pickI); },
-  tl: id => { const c = calls.find(x => x.id === id); if (!c) return; tlId = id; tlZoom = false; tlD = Math.max(dur() || 0, c.scenes.reduce((m, s) => Math.max(m, s.t + s.d), 0), 1); $("tlBody").innerHTML = UI.timeline(c, tlD, false); $("tlov").style.display = "block"; },
+  tl: id => { const raw = calls.find(x => x.id === id); if (!raw) return; const c = {...raw, scenes: mkPlaybackScenes(raw.scenes)}; if (!c.scenes.length) return toast("この推しコールには配置済みカードがありません"); tlId = id; tlZoom = false; tlD = Math.max(dur() || 0, c.scenes.reduce((m, s) => Math.max(m, s.t + s.d), 0), 1); $("tlBody").innerHTML = UI.timeline(c, tlD, false); $("tlov").style.display = "block"; },
   tlZoom: () => { const sc = mkPv ? mkPv.scenes : EV; const c = tlId === "__cur__" ? {id: "__cur__", ownerName: refPlay ? "参考コール" : randPlay ? "ランダム再生" : "プレビュー", versionName: (curRef && curRef.versionName) || "", scenes: sc} : calls.find(x => x.id === tlId); if (!c) return; tlZoom = !tlZoom; $("tlBody").innerHTML = UI.timeline(c, tlD, tlZoom); },
   closeTl: () => { $("tlov").style.display = "none"; tlId = null; tlZoom = false; },
   tlMark: i => { const sc = mkPv ? mkPv.scenes : EV; const c = tlId === "__cur__" ? {scenes: sc} : calls.find(x => x.id === tlId); if (!c || !c.scenes) return; const s2 = c.scenes[+i]; if (s2) $("tlInfo").textContent = fmt(s2.t) + " " + LAB[s2.k] + " 「" + s2.x + "」"; },
@@ -1392,9 +1690,10 @@ const A = {
     try { const snap = await getDocs(query(collection(db, "refs"), where("videoId", "==", VID))); refCalls = snap.docs.map(d => ({id: d.id, ...d.data()})).filter(r => r.draft !== true); }
     catch (e) { refCalls = []; }
     $("refList").innerHTML = UI.refs(refCalls);
+    document.body.classList.add("ref-open");
     $("refov").style.display = "block";
   },
-  closeRef: () => { $("refov").style.display = "none"; },
+  closeRef: () => { $("refov").style.display = "none"; document.body.classList.remove("ref-open"); },
   useRef: id => {
     const c = refCalls.find(x => x.id === id); if (!c) return;
     applyRef(c);
@@ -1403,10 +1702,11 @@ const A = {
     toast("参考コールで再生します");
   },
   randomPlay: () => {
+    if (screen === "mk") exitMk();   // プロトタイプ2: 作成画面からランダム再生へ移る時も、作成画面を正しく抜ける
     const pubs = calls.filter(c => c.public);
     if (!pubs.length) return toast("公開中の推しコールがまだありません");
     const byT = new Map();
-    pubs.forEach(c => (c.scenes || []).forEach(sc => { const k = Math.round(sc.t); if (!byT.has(k)) byT.set(k, []); byT.get(k).push(sc); }));
+    pubs.forEach(c => (c.scenes || []).forEach(sc => { if (!mkIsPlaced(sc)) return; const k = Math.round(sc.t); if (!byT.has(k)) byT.set(k, []); byT.get(k).push(sc); }));
     const scenes = [...byT.keys()].sort((a, b) => a - b).map(t => { const arr = byT.get(t); return {...arr[Math.floor(Math.random() * arr.length)], t}; });
     if (!scenes.length) return toast("場面がまだありません");
     randPlay = true; refPlay = false; act = null; curRef = null; sess = null; paintApply();
@@ -1481,7 +1781,7 @@ const A = {
     try { await deleteDoc(doc(db, "calls", p[0], "comments", p[1])); await loadCmts(p[0]); await checkPending(false); render(); renderReview(); toast("感想を公開しませんでした"); }
     catch (e) { toast("処理できませんでした"); }
   },
-  review: () => { $("menu").style.display = "none"; renderReview(); $("cmov").style.display = "block"; },
+  review: () => { $("menu").style.display = "none"; document.body.classList.remove("menu-open"); document.body.classList.add("cm-open"); renderReview(); $("cmov").style.display = "block"; },
   evToggle: () => { pEvOpen = !pEvOpen; renderPEv(); },
   edit: id => {
     if (!guard()) return;
@@ -1493,8 +1793,8 @@ const A = {
     A.closeOv(); enterMk();
     toast("編集モード: 保存するとスコアと感想はリセットされます");
   },
-  closeReview: () => { $("cmov").style.display = "none"; },
-  use: id => { act = id; refPlay = false; randPlay = false; spRange = null; sess = null; paintApply(); applyAct(); A.closeOv(); },
+  closeReview: () => { $("cmov").style.display = "none"; document.body.classList.remove("cm-open"); },
+  use: id => { if (screen === "mk") exitMk(); act = id; refPlay = false; randPlay = false; spRange = null; sess = null; paintApply(); applyAct(); A.closeOv(); },   // プロトタイプ2 移植11: 作成画面で選んだら再生画面へ戻す
   heart: async id => {
     /* build 62: この訪問中に作ったコールには押せない(ログイン/ゲスト共通) */
     if (mySession.has(id)) return toast("自分のコールには押せないよ");
@@ -1532,38 +1832,18 @@ const A = {
   },
   editProf: () => { A.menu(); $("mypage").style.display = "none"; openSheet(true); },
   closeSheet: () => { $("sheet").style.display = "none"; },
-  startMk: () => { mk.editId = null; mkSel = -1; mkLenPhase = null; mkSelOrigT = null; A.menu(); enterMk(); },   // build 62: ゲストでも作成画面に入れる
+  startMk: () => { mk.editId = null; mkSel = -1; mkLenPhase = null; mkSelOrigT = null; const mn = $("menu"); if (mn) mn.style.display = "none"; enterMk(); },   // build 62: ゲストでも作成画面に入れる。プロトタイプ2: 右上のサブメニューは開閉切替でなく必ず閉じる(閉じた状態から入ると開いてしまうバグがあった)
   endMk: () => { guideEvent("cancel"); exitMk(); },
   /* build 58: 作成ボタン。状態で働きが変わる(カード作成 → 長さを決める / 再編集=長さ測り直しの開始) */
   /* build 59: 大きなボタン。状態で働きが変わる(カード作成 → 長さ指定 → ここで終わり) */
   mkMain: () => {
-    if (Date.now() - mkHoldClickAt < 500) return;   // build 64: 長押しで処理済みのクリックは握りつぶす(二重作成・二重の長さ指定を防ぐ)
-    if (mkLenPhase === "run") {   // 長さ指定の決定: 今の再生位置で、選択中カードの長さが決まる
-      const sc = mk.scenes[mkSel];
-      mkLenPhase = null;
-      if (!sc) { renderMk(); return; }
-      const d = Math.round((now() - sc.t) * 10) / 10;
-      sc.d = Math.max(0.5, Math.min(20, d));
-      renderMk();
-      toast(fmt(sc.t) + " のカードの長さを " + sc.d + " 秒にしました");
-      guideEvent("lenDone");
-      return;
-    }
-    if (mkSel >= 0 && mk.scenes[mkSel]) {   // 長さ指定の開始: そのカードの位置から再生する
-      if (!playerReady()) return toast(spMode ? "Spotifyプレイヤーの準備ができていません" : "動画の準備ができていません");
-      const sc = mk.scenes[mkSel];
-      mkLenPhase = "run";
-      playerSeek(sc.t);
-      playerPlay();
-      renderMk();
-      toast("再生中です。終わりの位置で「ここで終わり」を押してください");
-      return;
-    }
-    // カード作成: 再生中でも停止中でも、今の位置に仮の長さ5秒で1枚作る。種類・文言は「次に作るカード」の設定(種類ボタン・入力欄)を使う(build 64: 仕様5)
+    if (Date.now() - mkHoldClickAt < 500) return;   // 長押しで処理済みのクリックは握りつぶす
+    if (mkMode === "oki") { openMkContentPanel(null); return; }
+    // カード作成だけ: 再生中でも停止中でも、今の位置に仮の長さ5秒で1枚作る
     const t = Math.round(clampT(now()));
-    const sc = {t: t, d: 5, k: mk.type, x: $("mkText").value.trim()};
+    const sc = {t: t, d: 5, placed: true, k: mk.type, x: $("mkText").value.trim()};
     mk.scenes.push(sc);
-    mk.scenes.sort((a, b) => a.t - b.t);
+    mkSortScenes();
     if (sc.x) $("mkText").value = "";
     renderMk();
     const L = $("mkList"); if (L) L.scrollTop = L.scrollHeight;
@@ -1572,9 +1852,12 @@ const A = {
   },
   /* build 59: 速度切替(1倍 → 0.5倍 → 0.25倍) */
   rate: () => { const R = [1, 0.5, 0.25]; mkRate = R[(R.indexOf(mkRate) + 1) % R.length]; applyRate(); toast("再生速度を " + mkRate + "倍にしました"); },
+  /* プロトタイプ2 移植9: 作成画面の速度セレクト(0.25/0.5/0.75/1倍) */
+  rateSelect: v => { const n = Number(v); if (![0.25, 0.5, 0.75, 1].includes(n)) return; mkRate = n; applyRate(); toast("再生速度を " + mkRate + "倍にしました"); },
   /* build 59: 保存先の切替(公開/下書き)と、保存の確定ボタン「保存して戻る」 */
   mkPubTgl: () => { mkPub = !mkPub; paintMkPub(); },
   mkSaveBack: async () => { const ok = await A.save(mkPub ? "1" : "0"); if (ok) exitMk(); },
+  playSceneJump: i => { const sc = EV[+i]; if (!sc) return; playerSeek(Math.max(0, (+sc.t || 0) - 6)); },   // プロトタイプ2 移植10
   mkDelSel: () => { if (mkSel >= 0 && mk.scenes[mkSel]) A.delScene(mkSel); },
   /* build 60: 作成画面下部の引き出し(バーで開閉 / プリセット一覧の表示 / 選択中カードへ適用) */
   psDrawer: (i, b) => { const d = $("mkDrawer"); if (!d) return; d.classList.toggle("open"); if (b) b.setAttribute("aria-expanded", d.classList.contains("open") ? "true" : "false"); },
@@ -1600,14 +1883,14 @@ const A = {
   /* build 58: 埋め込みパネルのカードをタップ → そのカードの中身を編集(もう一度タップで終了) */
   mkPick: i => {
     i = +i;
-    if (mkSel === i) { mkSel = -1; mkLenPhase = null; mkSelOrigT = null; renderMk(); return; }
+    if (mkSel === i) { openMkContentPanel(mk.scenes[i]); return; }   // プロトタイプ2 移植2: 選択中のカードをもう一度タップで内容パネルを開く
     const sc = mk.scenes[i]; if (!sc) return;
     mkSel = i; mkLenPhase = null; mkSelOrigT = sc.t;   // build 64: 「戻す」用に、選んだときの位置を覚える
     mk.type = sc.k;
     document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === sc.k));
     $("mkText").value = sc.x;
     renderMk();
-    if (playerReady()) { playerSeek(sc.t); playerPlay(); }   // build 64: 選んだカードの位置から再生して、どの部分か音で確かめられる
+    if (mkIsPlaced(sc) && playerReady()) { playerSeek(sc.t); playerPlay(); }   // build 64: 選んだカードの位置から再生して、どの部分か音で確かめられる
     const pe = $("mkPosEdit"); if (pe) pe.scrollIntoView({behavior: "smooth", block: "nearest"});
     guideEvent("picked");
   },
@@ -1615,10 +1898,11 @@ const A = {
   mkMode: m => setMkMode(m),
   posHere: () => {
     const sc = mk.scenes[mkSel]; if (!sc) return toast("先にカードを選んでください");
+    if (!mkIsPlaced(sc)) return toast("未配置のカードです。配置の操作は次の移植で入ります");
     const D = Math.max(dur() || 0, 1);
     let v = Math.round(now() * 10) / 10;
     v = Math.max(0, Math.min(Math.max(0, D - sc.d), v));
-    if (v !== sc.t) { sc.t = v; mk.scenes.sort((a, b) => a.t - b.t); mkSel = mk.scenes.indexOf(sc); renderMk(); }
+    if (v !== sc.t) { sc.t = v; mkSortScenes(); mkSel = mk.scenes.indexOf(sc); renderMk(); }
     toast("「" + (sc.x || LAB[sc.k]) + "」を今の再生位置(" + fmt(sc.t) + ")へ持ってきました");
     guideEvent("tweak");
   },
@@ -1626,7 +1910,7 @@ const A = {
     const sc = mk.scenes[mkSel]; if (!sc || mkSelOrigT == null) return;
     const D = Math.max(dur() || 0, 1);
     let v = Math.max(0, Math.min(Math.max(0, D - sc.d), mkSelOrigT));
-    if (v !== sc.t) { sc.t = v; mk.scenes.sort((a, b) => a.t - b.t); mkSel = mk.scenes.indexOf(sc); renderMk(); }
+    if (v !== sc.t) { sc.t = v; mkSortScenes(); mkSel = mk.scenes.indexOf(sc); renderMk(); }
     if (playerReady()) { playerSeek(sc.t); playerPlay(); }
     toast("選んだときの位置(" + fmt(mkSelOrigT) + ")に戻しました");
     guideEvent("tweak");
@@ -1663,15 +1947,50 @@ const A = {
       toast("表示時間を " + c + " 秒にしました");
     }
   },
+  /* プロトタイプ2 移植1: お気に置きモードで、文言と種類だけ決めて未配置カードを作る(配置は移植3で入れる) */
+  mkContentCancel: () => { mkCpTarget = null; closeMkContentPanel(); },
+  place: () => { if (screen === "mk" && mkMode === "oki" && mkSel >= 0 && !mkIsPlaced(mk.scenes[mkSel])) toast("置きに行くボタンを押さえたまま、左右へ動かしてから離してください"); },   // プロトタイプ2 移植3: 配置はドラッグ側で処理。タップだけの時は案内
+  mkContentTextNext: () => { if (!$("mkContentTextInput").value.trim()) return toast("コールの内容を入力してください"); mkCpStep = 2; paintMkContentPanel(); },
+  mkContentBack: () => { mkCpStep = 1; paintMkContentPanel(); },
+  mkContentChoose: i => { mkCpType = i; paintMkContentPanel(); },
+  mkContentConfirm: () => {
+    const x = $("mkContentTextInput").value.trim();
+    if (!x) { mkCpStep = 1; paintMkContentPanel(); return toast("コールの内容を入力してください"); }
+    const k = mkCpType, target = mkCpTarget;
+    mkCpTarget = null;
+    closeMkContentPanel();
+    if (target) {
+      target.x = x; target.k = k;
+      mk.type = k; $("mkText").value = x;
+      document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === k));
+      renderMk();
+      toast("カードの内容を変更しました");
+      guideEvent("contentEdit");
+    } else {
+      const sc = {t: null, d: 5, placed: false, k: k, x: x};
+      mk.scenes.push(sc); mkSortScenes();
+      mkSel = -1; mkSelOrigT = null;
+      $("mkText").value = "";
+      renderMk();
+      const L = $("mkList"); if (L) L.scrollTop = L.scrollHeight;
+      toast("未配置カードを作成しました");
+      guideEvent("contentDone");
+    }
+  },
+  mkAddUnplaced: () => { openMkContentPanel(null); },   // プロトタイプ2 移植2: 未配置カードの新規作成は共通パネルから
+  flowClose: () => closeMkFlow(),
+  flowShow: () => openMkFlow("intro"),
+  flowView: v => { if (v === "nori" || v === "oki" || v === "intro") { mkFlowView = v; paintMkFlow(); } },
   addScene: () => {   // 旧UIの「この位置に追加」用(build 58で要素は廃止。新方式は mkMain。互換のため残す)
     const durEl = $("mkDur");
-    mk.scenes.push({t: Math.round(clampT(now())), d: (durEl ? parseFloat(durEl.value) : NaN) || 6, k: mk.type, x: $("mkText").value.trim() || LAB[mk.type]});
-    mk.scenes.sort((a, b) => a.t - b.t); $("mkText").value = ""; renderMk();
+    mk.scenes.push({t: Math.round(clampT(now())), d: (durEl ? parseFloat(durEl.value) : NaN) || 6, placed: true, k: mk.type, x: $("mkText").value.trim() || LAB[mk.type]});
+    mkSortScenes(); $("mkText").value = ""; renderMk();
   },
   pvScene: i => {
     const sc = mk.scenes[+i]; if (!sc) return;
+    if (!mkIsPlaced(sc)) return toast("未配置カードは、タイムラインに配置してからプレビューできます");
     if (!playerReady()) return toast(spMode ? "Spotifyプレイヤーの準備ができていません" : "動画の準備ができていません");
-    mkPv = {scenes: mk.scenes.map(x => ({...x})), until: sc.t + sc.d + 3};
+    mkPv = {scenes: mkPlaybackScenes(mk.scenes).map(x => ({...x})), until: sc.t + sc.d + 3};
     playerSeek(sc.t); playerPlay();
     $("mv").scrollIntoView({behavior: "smooth"});
     toast("場面のプレビュー中(" + fmt(sc.t) + "〜" + fmt(sc.t + sc.d + 3) + ")");
@@ -1679,7 +1998,9 @@ const A = {
   pvAll: () => {
     if (!mk.scenes.length) return toast("場面を追加してください");
     if (!playerReady()) return toast(spMode ? "Spotifyプレイヤーの準備ができていません" : "動画の準備ができていません");
-    const sorted = mk.scenes.map(x => ({...x})).sort((a, b) => a.t - b.t), first = sorted[0], lastS = sorted[sorted.length - 1];
+    const sorted = mkPlaybackScenes(mk.scenes).map(x => ({...x})).sort((a, b) => a.t - b.t);
+    if (!sorted.length) return toast("配置済みの場面がありません");
+    const first = sorted[0], lastS = sorted[sorted.length - 1];
     mkPv = {scenes: sorted, until: lastS.t + lastS.d + 3};
     playerSeek(first.t); playerPlay();
     $("mv").scrollIntoView({behavior: "smooth"});
@@ -1689,10 +2010,11 @@ const A = {
   /* build 62: 選択中カードの位置 ±0.1秒(refmakeと同じ。つまみのドラッグと同じ更新処理: 位置を変えて並べ替え、一覧・つまみ・帯を同期) */
   mkFine: dt => {
     const sc = mk.scenes[mkSel]; if (!sc) return toast("先にカードを選んでください");
+    if (!mkIsPlaced(sc)) return toast("未配置のカードは位置を直せません");
     const D = Math.max(dur() || 0, 1);
     let t = Math.round((sc.t + parseFloat(dt)) * 10) / 10;
     t = Math.max(0, Math.min(Math.max(0, D - sc.d), t));
-    if (t !== sc.t) { sc.t = t; mk.scenes.sort((a, b) => a.t - b.t); mkSel = mk.scenes.indexOf(sc); renderMk(); }
+    if (t !== sc.t) { sc.t = t; mkSortScenes(); mkSel = mk.scenes.indexOf(sc); renderMk(); }
     guideEvent("fine");
   },
   /* build 62: プレビュー(トグル式)。作りかけのカード群を再生画面と同じ見え方で通し再生し、止めても編集状態は保持される */
@@ -1709,35 +2031,39 @@ const A = {
   guideOff: () => endGuide(),
   guideNext: () => { if (guide && guide.step === "s9") { mkSel = -1; mkLenPhase = null; $("mkText").value = ""; renderMk(); setGuideStep("s9b"); } },
   guideToSave: () => { if (guide && guide.step === "s9") setGuideStep("s10"); },
-  save: async pub => {
+  save: async (pub, finishMeta = null) => {
     /* build 62: ゲスト(非ログイン)でも保存できる。ゲストは保存時の名前入力が作者名になり、ownerUid は null で紐づける */
+    /* プロトタイプ2 移植4: 終了フローから呼ばれた時は finishMeta(名前/タイトル/バージョン名/備考)を使い、保存結果を返す */
     if (!mk.scenes.length) return toast("場面を追加してください");
-    const ver = $("mkVer").value.trim();
+    if (!me && !+pub) return toast("ゲストは下書き保存できません");   // プロトタイプ2: ゲスト下書きは廃止(祐治の決定 2026-11-16)。ゲストの保存は公開のみ
+    const ver = finishMeta ? String(finishMeta.versionName || "").trim() : $("mkVer").value.trim();
     if (me && prof && calls.some(c => c.ownerUid === me.uid) && !ver) return toast("2つ目以降はバージョン名を入れてください");
     if (+pub && mk.from && JSON.stringify(mk.scenes) === mk.base) return toast("参考にした推しコールと全く同じなので公開できません。少し変えてください");
-    let nid = null;
+    let nid = null, savedRecord = null;
     try {
       const editId = mk.editId || null;
       let owner;
       if (me && prof) {
-        owner = {ownerUid: me.uid, ownerName: prof.nick, oshi: prof.oshi, ownerIcon: prof.icon || 0};
+        owner = {ownerUid: me.uid, ownerName: (finishMeta && String(finishMeta.name || "").trim()) || prof.nick, oshi: prof.oshi, ownerIcon: prof.icon || 0};
       } else {
-        const gn = $("mkGuestName").value.trim();
+        const gn = (finishMeta && String(finishMeta.name || "").trim()) || $("mkGuestName").value.trim();
         if (!gn) return toast("名前を入れてください(作者として表示されます)");
         owner = {ownerUid: null, ownerName: gn.slice(0, 20), oshi: 5, ownerIcon: 0};
       }
-      const added = await addDoc(collection(db, "calls"), {...owner, videoId: VID, versionName: ver, note: $("mkNote").value.trim(), allowRef: $("mkRef").checked, allowComments: $("mkCmt").checked, scenes: mk.scenes, public: !!+pub, hearts: 0, used: 0, createdAt: serverTimestamp()});
+      const record = {...owner, videoId: VID, ...(finishMeta ? {title: String(finishMeta.title || "").trim()} : {}), versionName: ver, note: finishMeta ? String(finishMeta.note || "").trim() : $("mkNote").value.trim(), allowRef: $("mkRef").checked, allowComments: $("mkCmt").checked, scenes: mk.scenes, public: !!+pub, hearts: 0, used: 0, createdAt: serverTimestamp()};
+      const added = await addDoc(collection(db, "calls"), record);
       nid = added.id;
+      savedRecord = {id: nid, ...record};
       if (editId) {
         try { const cs = await getDocs(query(collection(db, "calls", editId, "comments"), where("ownerUid", "==", me.uid))); await Promise.all(cs.docs.map(d => deleteDoc(d.ref))); } catch (e) {}
         try { await deleteDoc(doc(db, "calls", editId)); } catch (e) {}
       }
     } catch (e) { return toast("保存できませんでした"); }
     if (nid) { mySession.add(nid); sessSet("momo_my_calls", [...mySession]); }   // この訪問中に作ったコールとして覚える(自押し制限用)
-    toast(+pub ? "公開しました" : "下書きを保存しました");
+    if (!finishMeta) toast(+pub ? "公開しました" : "下書きを保存しました");
     mk = {scenes: [], type: "call", from: null, base: ""}; mkSel = -1; mkLenPhase = null; mkSelOrigT = null; $("mkVer").value = $("mkNote").value = ""; $("mkText").value = ""; $("mkGuestName").value = ""; renderMk(); loadCalls();
     guideEvent("saved");
-    return true;
+    return finishMeta ? {id: nid, record: savedRecord} : true;
   },
   ref: id => {
     const c = calls.find(x => x.id === id); if (!c) return;
@@ -1760,43 +2086,37 @@ const A = {
    シェアポイント作成は 再生→始点→終点→リンク作成→完了 の全5手順(build 62のまま)。 */
 let guide = null;   // {mode: "mk"|"sp", step: "m0"/"n2"〜"n8"/"nd"/"o2"〜"o6"/"od" / "sp1"〜"sp5"}
 const GMSG = {
-  m0: "作り方を選びます。「♪ ノリノリながらモード」は、曲を聞きながら長押しでカードを打つ作り方。「お気に置きにいっちゃうモード」は、文言を先に用意してから置きに行く作り方です。作りたい方のボタンを押してください（あとから切り替えることもできます）",
+  m0: "作り方を選びます。下の「作成モード」のバーを開いて、どちらか1つを押してください。「♪ ノリノリながらモード」は曲を聞きながら長押しでカードを打つ作り方、「お気に置きにいっちゃうモード」は文言を先に作ってから置きに行く作り方です（あとから切り替えることもできます）",
   n2: "再生ボタンを押して、曲を再生します。まずはよく聞いて、コールの入るところを耳でつかみましょう",
-  n3: "コールのところが来たら、口で言っている間だけ大きな『カード作成』ボタンを長押しします。離すと、その長さでカードが1つできます（短いタップだと5秒の仮カード）。そのまま聞き続けて、次のコールのところでも長押し→離してカード完成。これを繰り返して、ながらでカードを作っていきます。カード作成を止めたいところで、「一時停止」ボタンを押してください。押すと、次は作ったカードの再編集の案内に進みます",
-  n4: "ここからは再編集です。まず、直したいカードを下の一覧でタップして選択します。選ぶとカードがふわっと浮かび上がって、そのカードの位置から再生が始まるので、どの部分のカードか音で確かめられます",
-  n5: "選択中のカードの位置を直します。シークバーのつまみや「押さえて左右に動かす」で位置を動かせて、−1秒／−0.1秒／＋0.1秒／＋1秒のボタンで細かく直せます。曲を再生して「ここだ」というところで止めて、「今の再生位置へ持っていく」を押すと、その位置へ一気に移動もできます。間違えたら「戻す」で、選んだときの位置に戻せます",
-  n6: "長さも変えられます。カードを選んだ状態で、大きな『カード作成』ボタンをもう一度長押ししてください。押した瞬間に、そのカードの位置から再生が始まり、押している間カードが伸びます。ちょうどいいところで離すと、その長さに決め直せます（新しいカードは増えません）",
-  n7: "種類と文言も変えられます。カードを選んでいる間は、種類ボタン・文言の入力・プリセットが、選んだカードにそのまま適用されます。種類はボタン（コール／シンガロン／ココ好き!）で切り替え、文言は入力欄に書き直してください。プリセットは、画面いちばん下のバーの引き出しや、プリセットのチップのタップでも適用できます",
-  n8: "他のカードも直したくなったら、一覧で選び直して、同じように再編集できます。終わりにするなら「保存して戻る」を押してください（公開か下書きかは、その上のボタンで切り替えられます）。ゲストの方は、名前も入れてください。保存しないなら「保存せずに戻る」を選んでください",
-  nd: "できあがり！おつかれさまでした。ガイドモードは上のボタンでいつでもやめられます",
-  o2: "先に文言を用意します。プリセットのチップをタップするか、入力欄に文言を書いてください。種類（コール／シンガロン／ココ好き!）もここで選べます",
-  o3: "用意した文言を掴んで、左右に動かします。再生ボタンを押していなくても、掴んで動かし始めると、その位置の音が自動で流れます。指を動かして、止めてください。指を止めると、その位置からの音が流れます。その音を聞いて置く場所を確かめて、置きたい場所で指を離すと、そこにカードが置かれます。プリセットのチップか、入力欄の横の「つかむ」を押さえてください",
-  o4: "置いたカードを後から直すときは、下の一覧でタップして選びます。選ぶとカードがふわっと浮かび上がって、そのカードの位置から音が再生されるので、どの部分のカードか音で確かめられます",
-  o5: "選択中のカードは、シークバーのつまみや「押さえて左右に動かす」で位置を動かせて、−／＋ボタンで細かく直せます。曲を再生して「ここだ」というところで止めて、「今の再生位置へ持っていく」を押すと、その位置へ一気に移動もできます。間違えたら「戻す」で、選んだときの位置に戻せます。長さは、カードを選んだ状態で大きなボタンを長押しすると決め直せます",
-  o6: "次の文言も、同じように掴んで置けます。終わりにするなら「保存して戻る」を押してください（公開か下書きかは、その上のボタンで切り替えられます）。ゲストの方は、名前も入れてください。保存しないなら「保存せずに戻る」を選んでください",
-  od: "できあがり！おつかれさまでした。ガイドモードは上のボタンでいつでもやめられます",
+  n3: "コールのところが来たら、口で言っている間だけ大きな「カード作成」ボタンを長押しします。押している間はタイムラインが2つ出て（全体と拡大）、カードが伸びていきます。離すと、その長さでカードが1つできます（短いタップだと5秒の仮カード）。そのまま聞き続けて、次のコールのところでも長押し→離す、を繰り返してください。カード作成を止めたいところで「一時停止」ボタンを押すと、次に進みます",
+  n4: "作ったカードを直してみましょう。下の一覧で、直したいカードをタップして選択してください。選ぶと、そのカードの位置から再生が始まるので、どの部分のカードか音で確かめられます",
+  n5: "選択中のカードを、もう一度タップしてください。内容のパネルが開くので、文言を書き換えたり種類を選び直したりして「決定」を押すと、その場で直ります",
+  n6: "仕上げです。右上の「制作を終了」を押して、「登録する」（ログイン中は「下書きする」も選べます）を選んでください。名前・タイトルなどを入れて、最後の「決定」を押すと保存されて再生画面に戻ります。保存しない場合は「どちらもせずに終了」でも大丈夫です",
+  nd: "できあがり！おつかれさまでした。ガイドモードは、再生画面の「ガイドモードで作成」ボタンでいつでも始められます",
+  o2: "まずカードの中身を作ります。大きな「カード作成」ボタンを押してください。パネルが開くので、叫ぶコールを書いて「決定」、種類を選んでもう一度「決定」を押すと、未配置のカードができます",
+  o3: "作ったカードを、下の一覧でタップして選択してください。選ぶと、真ん中のボタンが黄色く光る「置きに行く」に変わります",
+  o4: "「置きに行く」ボタンを押さえたまま、左右に動かしてください。押している間はタイムラインが2つ出ます（元の位置に全体、画面中央に15秒の拡大）。音を聞きながら位置を探って、置きたい場所で指を離すと、そこにカードが置かれます",
+  o5: "仕上げです。右上の「制作を終了」を押して、「登録する」（ログイン中は「下書きする」も選べます）を選んでください。名前・タイトルなどを入れて、最後の「決定」を押すと保存されて再生画面に戻ります。保存しない場合は「どちらもせずに終了」でも大丈夫です",
+  od: "できあがり！おつかれさまでした。ガイドモードは、再生画面の「ガイドモードで作成」ボタンでいつでも始められます",
   sp1: "まず「再生」を押してください",
   sp2: "始点にしたい場所で『ここを始点にする』を押してください",
   sp3: "終点にしたい場所で『ここを終点にする』を押してください",
   sp4: "『シェアポイントを作成』を押すと、リンクが作られます",
   sp5: "できあがり！おつかれさまでした。ガイドモードは上のボタンでいつでもやめられます"
 };
-const GNUM = {m0: 1, n2: 2, n3: 3, n4: 4, n5: 5, n6: 6, n7: 7, n8: 8, nd: 8, o2: 2, o3: 3, o4: 4, o5: 5, o6: 6, od: 6, sp1: 1, sp2: 2, sp3: 3, sp4: 4, sp5: 5};
+const GNUM = {m0: 1, n2: 2, n3: 3, n4: 4, n5: 5, n6: 6, nd: 6, o2: 2, o3: 3, o4: 4, o5: 5, od: 5, sp1: 1, sp2: 2, sp3: 3, sp4: 4, sp5: 5};
 const GTARGETS = {
-  m0: ["#mkModeTabs .mktab"],
-  n2: ["#mkPlayBtn", "#play"],
-  n3: ["#mkCreate", "#mkPlayBtn", "#play"],
+  m0: ["#mkDrawerBar", "#mkModeTabs .mktab"],
+  n2: ["#play"],
+  n3: ["#mkCreate", "#play"],
   n4: ["#mkList .mkpick"],
-  n5: ["#mkKnob", "#mkTlKnob", "#mkPosScrub", ".posStepB", "#mkPosHere", "#mkPosRestore", "#mkFineM", "#mkFineP"],
-  n6: ["#mkCreate", "#mkList .mkpick"],
-  n7: ["#mkTypes button", "#mkText", "#mkDrawerBar", ".drwBtn", ".psChip", "#mkChips .pchip"],
-  n8: ["#mkSaveBtn", "#mkPubBtn", "#mkGuestName", ".mkyameru", "#mkList .mkpick"],
+  n5: ["#mkList .mkpick", "#mkContentPanel input", "#mkContentPanel button"],
+  n6: ["#mkFinishBtn", "#mkFinishOverlay button", "#mkFinishOverlay input"],
   nd: [],
-  o2: ["#mkText", "#mkTypes button", "#mkChips .pchip", "#mkDrawerBar", ".drwBtn", ".psChip"],
-  o3: ["#mkChips .pchip", "#mkGrip"],
-  o4: ["#mkList .mkpick"],
-  o5: ["#mkKnob", "#mkTlKnob", "#mkPosScrub", ".posStepB", "#mkPosHere", "#mkPosRestore", "#mkFineM", "#mkFineP"],
-  o6: ["#mkSaveBtn", "#mkPubBtn", "#mkGuestName", ".mkyameru", "#mkChips .pchip", "#mkGrip"],
+  o2: ["#mkCreate", "#mkContentPanel input", "#mkContentPanel button"],
+  o3: ["#mkList .mkpick"],
+  o4: ["#play"],
+  o5: ["#mkFinishBtn", "#mkFinishOverlay button", "#mkFinishOverlay input"],
   od: [],
   sp1: ["#spPlayBtn", "#play"],
   sp2: ["#spStep"],
@@ -1804,8 +2124,8 @@ const GTARGETS = {
   sp4: ["#spStep"],
   sp5: []
 };
-const GSCROLL = {m0: "#mkModeTabs", n2: "#mkPlayBtn", n3: "#mkCreate", n4: "#mkList", n5: "#mkPosEdit", n6: "#mkCreate", n7: "#mkTypes", n8: "#mkSaveBtn", o2: "#mkText", o3: "#mkPresets", o4: "#mkList", o5: "#mkPosEdit", o6: "#mkSaveBtn", sp1: "#spPlayBtn", sp2: "#spStep", sp3: "#spStep", sp4: "#spStep"};
-const GLOCK_SEL = "#songsel,#bar,.skb,#play,#mkPlayBtn,#spPlayBtn,.ratebtn,#mkCreate,#mkTypes button,#mkText,#mkFineM,#mkFineP,#mkDelBtn,#mkList .mkpick,#mkList .mkdel,#mkKnob,#mkVer,#mkNote,#mkRef,#mkCmt,#mkGuestName,#mkPubBtn,#mkSaveBtn,#mkPvBtn,.mkyameru,#mkDrawerBar,.drwBtn,.psChip,#spStep,.switchbtn,#mkModeTabs .mktab,#mkGrip,#mkChips .pchip,#mkPosScrub,.posStepB,#mkPosHere,#mkPosRestore,#mkSelClear,#mkTuneBtn,#tuneGain,#tuneDead,#tuneReset,#mkTlKnob";
+const GSCROLL = {m0: "#mkDrawerBar", n2: "#play", n3: "#mkCreate", n4: "#mkList", n5: "#mkList", n6: "#mkFinishBtn", o2: "#mkCreate", o3: "#mkList", o4: "#play", o5: "#mkFinishBtn", sp1: "#spPlayBtn", sp2: "#spStep", sp3: "#spStep", sp4: "#spStep"};
+const GLOCK_SEL = "#mkFinishBtn,#mkFinishOverlay button,#mkFinishOverlay input,#mkContentPanel input,#mkContentPanel button,#mkAddUnplaced,#songsel,#bar,.skb,#play,#spPlayBtn,.ratebtn,#mkRateSelect,#mkCreate,#mkTypes button,#mkText,#mkFineM,#mkFineP,#mkDelBtn,#mkList .mkpick,#mkList .mkdel,#mkKnob,#mkVer,#mkNote,#mkRef,#mkCmt,#mkGuestName,#mkPubBtn,#mkSaveBtn,#mkPvBtn,.mkyameru,#mkDrawerBar,.drwBtn,.psChip,#spStep,.switchbtn,#mkModeTabs .mktab,#mkGrip,#mkChips .pchip,#mkPosScrub,.posStepB,#mkPosHere,#mkPosRestore,#mkSelClear,#mkTuneBtn,#tuneGain,#tuneDead,#tuneReset,#mkTlKnob";
 function applyGuide() {
   const all = document.querySelectorAll(GLOCK_SEL);
   if (!guide) { all.forEach(el => el.classList.remove("glocked", "gtarget")); return; }
@@ -1814,10 +2134,11 @@ function applyGuide() {
 }
 function paintGuide() {
   const bar = $("guideBar"); if (!bar) return;
+  const gb = $("mkGuideBtn"); if (gb) gb.textContent = guide ? "ガイドモードをやめる" : "ガイドモードで作る";
   if (!guide) { bar.style.display = "none"; applyGuide(); return; }
   bar.style.display = "block";
   const done = guide.step === "nd" || guide.step === "od" || guide.step === "sp5";
-  const tot = guide.mode === "sp" ? 5 : ((guide.step.charAt(0) === "o" || (guide.step === "m0" && mkMode === "oki")) ? 6 : 8);   // build 64: ながら版8手順 / お気に版6手順
+  const tot = guide.mode === "sp" ? 5 : ((guide.step.charAt(0) === "o" || (guide.step === "m0" && mkMode === "oki")) ? 5 : 6);   // プロトタイプ2: ながら版6手順 / お気に版5手順
   $("guideProg").textContent = done ? "完了しました" : "手順 " + (GNUM[guide.step] || "") + " / " + tot;
   $("guideMsg").textContent = GMSG[guide.step] || "";
   $("guideBtns").style.display = "none";   // build 64: 旧ガイドの「次のカード/保存へ」ボタンは使わない(残りの手順は操作そのもので進む)
@@ -1830,8 +2151,16 @@ function setGuideStep(s) {
   const sc = GSCROLL[s] ? document.querySelector(GSCROLL[s]) : null;
   if (sc) setTimeout(() => { try { sc.scrollIntoView({behavior: "smooth", block: "center"}); } catch (e) {} }, 90);
 }
-function startGuide(mode) { guide = {mode: mode, step: mode === "sp" ? "sp1" : "m0"}; paintGuide(); }
-function endGuide() { guide = null; paintGuide(); }
+function startGuide(mode) {
+  guide = {mode: mode, step: mode === "sp" ? "sp1" : "m0"};
+  if (mode === "mk") {
+    clearMkOnboard();
+    const drw = $("mkDrawer"); if (drw) drw.classList.add("open");
+    const bar = $("mkDrawerBar"); if (bar) bar.setAttribute("aria-expanded", "true");
+  }
+  paintGuide();
+}
+function endGuide() { guide = null; paintGuide(); const drw = $("mkDrawer"); if (drw) drw.classList.remove("open"); const drwBar = $("mkDrawerBar"); if (drwBar) drwBar.setAttribute("aria-expanded", "false"); }
 function guideEvent(name) {
   if (!guide) return;
   const st = guide.step;
@@ -1844,20 +2173,17 @@ function guideEvent(name) {
     return;
   }
   /* build 64: 2モード制ガイドの遷移。ながら版の作成ループ(n3)は長押し・カード作成では進まず、「一時停止」を押したときだけ次へ進む */
-  if (name === "cancel") { endGuide(); if (st === "n8" || st === "o6") toast("保存せずに終わりました"); return; }
+  if (name === "cancel") { endGuide(); if (st === "n6" || st === "o5") toast("保存せずに終わりました"); return; }
   if (st === "m0" && name === "mode") setGuideStep(mkMode === "oki" ? "o2" : "n2");
   else if (st === "n2" && name === "play") setGuideStep("n3");
   else if (st === "n3" && name === "pause") setGuideStep("n4");
   else if (st === "n4" && name === "picked") setGuideStep("n5");
-  else if (st === "n5" && (name === "knob" || name === "fine" || name === "tweak")) setGuideStep("n6");
-  else if (st === "n6" && name === "lenDone") setGuideStep("n7");
-  else if (st === "n7" && (name === "type" || (name === "text" && $("mkText").value.trim()))) setGuideStep("n8");
-  else if (st === "n8" && name === "saved") setGuideStep("nd");
-  else if (st === "o2" && (name === "type" || (name === "text" && $("mkText").value.trim()))) setGuideStep("o3");
-  else if (st === "o3" && name === "drop") setGuideStep("o4");
-  else if (st === "o4" && name === "picked") setGuideStep("o5");
-  else if (st === "o5" && (name === "knob" || name === "fine" || name === "tweak" || name === "lenDone")) setGuideStep("o6");
-  else if (st === "o6" && name === "saved") setGuideStep("od");
+  else if (st === "n5" && name === "contentEdit") setGuideStep("n6");
+  else if (st === "n6" && name === "saved") setGuideStep("nd");
+  else if (st === "o2" && name === "contentDone") setGuideStep("o3");
+  else if (st === "o3" && name === "picked") setGuideStep("o4");
+  else if (st === "o4" && name === "drop") setGuideStep("o5");
+  else if (st === "o5" && name === "saved") setGuideStep("od");
 }
 
 document.addEventListener("click", e => {
@@ -1895,7 +2221,7 @@ document.addEventListener("input", e => {
     t = Math.max(0, Math.min(Math.max(0, D - sc.d), t));
     if (t === sc.t) return;
     sc.t = t;
-    mk.scenes.sort((a, b) => a.t - b.t);
+    mkSortScenes();
     mkSel = mk.scenes.indexOf(sc);
     renderMk();
   };
@@ -1921,12 +2247,20 @@ document.addEventListener("input", e => {
     el.style.width = Math.max(1.2, h.d / d * 100) + "%";
     el.style.top = (li * 23 + 2) + "px";
     el.textContent = h.d.toFixed(1) + "秒";
+    const zinner = $("mkTlZoomInner");
+    if (zinner) {
+      let zel = $("mkTlZoomPrev");
+      if (!zel) { zel = document.createElement("div"); zel.id = "mkTlZoomPrev"; zinner.appendChild(zel); }
+      zel.style.left = el.style.left; zel.style.width = el.style.width; zel.style.top = el.style.top;
+      zel.textContent = el.textContent;
+    }
   };
   const upd = () => {
     const h = mkHoldSt; if (!h) return;
     const el = (performance.now() - h.at) / 1000;
     h.d = Math.min(20, Math.max(0.5, Math.round(el * 10) / 10));   // 実際に押していた時間(壁時計)で測るので、再生のもたつきに左右されない
     drawPrev();
+    mkTlCenter = h.t0 + h.d / 2; mkTlApplyView();
     if (h.rel) { const pt = $("mkPosTime"); if (pt) pt.textContent = fmt(h.rel.t) + "〜" + fmt(h.rel.t + h.d); }
   };
   const end = commit => {
@@ -1935,6 +2269,7 @@ document.addEventListener("input", e => {
     clearInterval(h.timer);
     const el = (performance.now() - h.at) / 1000;
     const pv = $("mkTlPrev"); if (pv) pv.remove();
+    const zpv = $("mkTlZoomPrev"); if (zpv) zpv.remove();
     mkSetZoom(false);
     // 短いタップ: 従来の働き(カード作成/長さ指定の開始)をここで直接実行する(ブラウザによって pointerdown の preventDefault で click が来ない場合があるため)。実行後に印を付け、続きで来るネイティブクリックは握りつぶす
     if (el < 0.25) { if (commit) A.mkMain(); mkHoldClickAt = Date.now(); return; }
@@ -1946,8 +2281,8 @@ document.addEventListener("input", e => {
     }
     if (!commit) return;
     // 新規カード: 押した位置から、押していた長さで作る。種類・文言は「次に作るカード」の設定を使う
-    const sc = {t: h.t0, d: h.d, k: mk.type, x: $("mkText").value.trim()};
-    mk.scenes.push(sc); mk.scenes.sort((a, b) => a.t - b.t);
+    const sc = {t: h.t0, d: h.d, placed: true, k: mk.type, x: $("mkText").value.trim()};
+    mk.scenes.push(sc); mkSortScenes();
     if (sc.x) $("mkText").value = "";
     renderMk();
     const L = $("mkList"); if (L) L.scrollTop = L.scrollHeight;
@@ -1958,10 +2293,9 @@ document.addEventListener("input", e => {
     if (screen !== "mk" || mkLenPhase === "run") return;
     e.preventDefault();
     try { btn.setPointerCapture(e.pointerId); } catch (err) {}
-    const sel = (mkSel >= 0 && mk.scenes[mkSel]) ? mk.scenes[mkSel] : null;
+    if (mkMode === "oki") { mkHoldClickAt = Date.now(); openMkContentPanel(null); return; }
     let t0 = Math.round(clampT(now()) * 10) / 10;
-    if (sel) { t0 = sel.t; if (playerReady()) { playerSeek(sel.t); playerPlay(); } }   // 選択中: そのカードの位置から再生して長さを決め直す
-    mkHoldSt = {t0: t0, at: performance.now(), d: 0.5, rel: sel, timer: null};
+    mkHoldSt = {t0: t0, at: performance.now(), d: 0.5, rel: null, timer: null};
     mkSetZoom(true, t0);
     mkHoldSt.timer = setInterval(upd, 50);
     upd();
@@ -2007,7 +2341,7 @@ $("mkTlInner").addEventListener("click", e => {
     if (!kd) return;
     const sc = kd.sc; kd = null;
     mkSetZoom(false);
-    if (mk.scenes.indexOf(sc) >= 0) { mk.scenes.sort((a, b) => a.t - b.t); mkSel = mk.scenes.indexOf(sc); }
+    if (mk.scenes.indexOf(sc) >= 0) { mkSortScenes(); mkSel = mk.scenes.indexOf(sc); }
     renderMk();
     guideEvent("knob");
   };
@@ -2026,7 +2360,7 @@ $("mkTlInner").addEventListener("click", e => {
     if (!was) return;
     if (e && e.clientX != null && mk.scenes.indexOf(sc) >= 0) sc.t = Math.max(0, Math.min(Math.max(0, mkTlD() - sc.d), Math.round(mkBandAbs(e.clientX) * 10) / 10));
     mkSetZoom(false);
-    mk.scenes.sort((a, b) => a.t - b.t); mkSel = mk.scenes.indexOf(sc);
+    mkSortScenes(); mkSel = mk.scenes.indexOf(sc);
     renderMk();
     guideEvent("tweak");
   };
@@ -2070,6 +2404,45 @@ $("mkTlInner").addEventListener("click", e => {
 /* build 64: 手打ちテキストの「つかむ」にもスクラブを付ける(種類は現在の種類ボタン、文言は入力欄の内容) */
 const mkGripEl = $("mkGrip");
 if (mkGripEl) mkBindScr(mkGripEl, () => ({k: mk.type, x: $("mkText").value.trim() || LAB[mk.type], grip: true}), false);
+/* プロトタイプ2 移植3: 置きに行くボタン。本番のスクラブ仕組み(mkScrStart/Move/End)をそのまま使い、押した瞬間からゴーストと拡大タイムラインを出す */
+function bindMkPlaceButton() {
+  const b = $("play"); if (!b || b.dataset.mkPlaceBound) return;
+  b.dataset.mkPlaceBound = "1";
+  b.addEventListener("pointerdown", e => {
+    if (screen !== "mk" || mkMode !== "oki") return;
+    const sc = mkSel >= 0 ? mk.scenes[mkSel] : null;
+    if (!sc || mkIsPlaced(sc)) { e.preventDefault(); return; }
+    mkScrStart(e, {k: sc.k, x: sc.x, scene: sc, fromPlaceButton: true}, b);
+    mkScrSt.active = true;
+    mkScrSt.moved = false;
+    mkShowGhost(e, mkScrSt.src, mkScrSt.seek0);
+    if (mkGhost) mkGhost.classList.add("round");
+    mkSetZoom(true, mkScrSt.seek0);
+    if (playerReady()) playerPlay();
+  });
+  b.addEventListener("pointermove", e => { if (mkScrSt && mkScrSt.src.fromPlaceButton) mkScrMove(e); });
+  b.addEventListener("pointerup", e => { if (mkScrSt && mkScrSt.src.fromPlaceButton) mkScrEnd(true, e.clientX); });
+  b.addEventListener("pointercancel", () => { if (mkScrSt && mkScrSt.src.fromPlaceButton) mkScrEnd(false); });
+  b.addEventListener("contextmenu", e => { if (screen === "mk" && mkMode === "oki") e.preventDefault(); });
+}
+bindMkPlaceButton();
+/* プロトタイプ2 移植4: 制作を終了フローのボタンは data-a 委譲から分離して直接結び付ける */
+const finishStartBtn = $("mkFinishBtn");
+const finishNextBtn = $("mkFinishNext");
+const finishCancelBtn = $("mkFinishCancel");
+const finishDraftBtn = $("mkFinishDraftSave");
+const finishRegisterBtn = $("mkFinishRegister");
+const finishNoSaveBtn = $("mkFinishNoSave");
+const finishChoiceCancelBtn = $("mkFinishChoiceCancel");
+if (finishStartBtn) finishStartBtn.addEventListener("click", openMkFinish);
+if (finishNextBtn) finishNextBtn.addEventListener("click", e => { e.preventDefault(); advanceMkFinish(); });
+if (finishCancelBtn) finishCancelBtn.addEventListener("click", e => { e.preventDefault(); cancelMkFinish(); });
+if (finishDraftBtn) finishDraftBtn.addEventListener("click", e => { e.preventDefault(); chooseMkFinish(false); });
+if (finishRegisterBtn) finishRegisterBtn.addEventListener("click", e => { e.preventDefault(); chooseMkFinish(true); });
+if (finishNoSaveBtn) finishNoSaveBtn.addEventListener("click", e => { e.preventDefault(); finishMkWithoutSave(); });
+if (finishChoiceCancelBtn) finishChoiceCancelBtn.addEventListener("click", e => { e.preventDefault(); cancelMkFinish(); });
+const finishInput = $("mkFinishInput");
+if (finishInput) finishInput.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); advanceMkFinish(); } });
 /* build 64: 操作感の調整(即時反映・localStorage保存) */
 const tuneGainEl = $("tuneGain"); if (tuneGainEl) tuneGainEl.addEventListener("input", e => { mkTune.gain = parseFloat(e.target.value) || 0.5; try { localStorage.setItem("momo_drag_gain", String(mkTune.gain)); } catch (err) {} paintTune(); });
 const tuneDeadEl = $("tuneDead"); if (tuneDeadEl) tuneDeadEl.addEventListener("input", e => { mkTune.dead = Math.round(parseFloat(e.target.value) || 0); try { localStorage.setItem("momo_drag_dead", String(mkTune.dead)); } catch (err) {} paintTune(); });
