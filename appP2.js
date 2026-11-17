@@ -1550,8 +1550,8 @@ const A = {
     mk = {scenes: [], type: "call", from: null, base: ""}; mkSel = -1; mkLenPhase = null; renderMk(); UI.songSel(si); sess = null; paintApply(); applyAct(); loadCalls();
   },
   menu: () => { const m = $("menu"); m.style.display = m.style.display === "block" ? "none" : "block"; document.body.classList.toggle("menu-open", m.style.display === "block"); },
-  openOv: () => { $("menu").style.display = "none"; document.body.classList.remove("menu-open"); $("ov").style.display = "block"; render(); },
-  closeOv: () => { $("ov").style.display = "none"; },
+  openOv: () => { $("menu").style.display = "none"; document.body.classList.remove("menu-open"); document.body.classList.add("ov-open"); $("ov").style.display = "block"; render(); },
+  closeOv: () => { $("ov").style.display = "none"; document.body.classList.remove("ov-open"); },
   play: () => {
     if (spMode && !spHasTrack()) return toast("この曲はSpotifyでは再生できません");
     if (!playerReady()) return toast(spMode ? "Spotifyプレイヤーの準備中です" : "動画の準備中です");
