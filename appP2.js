@@ -579,7 +579,7 @@ function cancelMkFinish() {
   if (overlay) overlay.style.display = "none";
   mkFinishDraft = null;
 }
-function finishMkWithoutSave() {
+function finishMkWithoutSave() { guideEvent("cancel");
   if (!mkFinishDraft || mkFinishSaving) return;
   const overlay = $("mkFinishOverlay");
   if (overlay) overlay.style.display = "none";
@@ -718,6 +718,7 @@ function clearMkOnboard() {
   const hint = $("mkOnboardHint"); if (hint) { hint.textContent = ""; hint.style.display = "none"; }
 }
 function showMkOnboard(message, targetId) {
+  if (guide) return;
   clearMkOnboard();
   const hint = $("mkOnboardHint"), target = $(targetId);
   if (!hint || !target) return;
@@ -726,12 +727,39 @@ function showMkOnboard(message, targetId) {
   target.classList.add("mk-onboard-blink");
   mkOnboardTimer = setTimeout(clearMkOnboard, 7000);
 }
+/* プロトタイプ2: 初めて作成画面を開いた人だけに、作り方の流れを数枚のカードで見せる(両モード分)。閉じたら印を付けて次回からは出さない */
+let mkFlowPage = 0;
+const MK_FLOW_KEY = "momo_p2_flow_seen";
+function paintMkFlow() {
+  const pages = document.querySelectorAll(".mkflow-page");
+  pages.forEach((el, i) => { el.style.display = i === mkFlowPage ? "block" : "none"; });
+  const dots = $("mkFlowDots");
+  if (dots) dots.textContent = Array.from(pages).map((_, i) => i === mkFlowPage ? "●" : "○").join(" ");
+  const prev = $("mkFlowPrev"); if (prev) prev.disabled = mkFlowPage === 0;
+  const next = $("mkFlowNext"); if (next) next.textContent = mkFlowPage === pages.length - 1 ? "はじめる" : "次へ";
+}
+function openMkFlow() {
+  const ov = $("mkFlowOverlay"); if (!ov) return;
+  mkFlowPage = 0;
+  clearMkOnboard();
+  paintMkFlow();
+  ov.classList.add("on");
+}
+function closeMkFlow() {
+  const ov = $("mkFlowOverlay"); if (ov) ov.classList.remove("on");
+  try { localStorage.setItem(MK_FLOW_KEY, "1"); } catch (e) {}
+}
+function maybeShowMkFlow() {
+  try { if (localStorage.getItem(MK_FLOW_KEY)) return; } catch (e) {}
+  openMkFlow();
+}
 function enterMk() {
   mkReturnScrollY = window.scrollY || document.documentElement.scrollTop || 0;
   const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "none";
   spStep = 0; paintSpStep();
   setScreen("mk");
   showMkOnboard("作成モードを選択", "mkDrawerBar");
+  maybeShowMkFlow();
   applyRate();
   paintMkMode();
   renderMk();
@@ -1957,6 +1985,7 @@ const A = {
       document.querySelectorAll("#mkTypes button").forEach(b => b.classList.toggle("sel", b.dataset.i === k));
       renderMk();
       toast("カードの内容を変更しました");
+      guideEvent("contentEdit");
     } else {
       const sc = {t: null, d: 5, placed: false, k: k, x: x};
       mk.scenes.push(sc); mkSortScenes();
@@ -1965,9 +1994,14 @@ const A = {
       renderMk();
       const L = $("mkList"); if (L) L.scrollTop = L.scrollHeight;
       toast("未配置カードを作成しました");
+      guideEvent("contentDone");
     }
   },
   mkAddUnplaced: () => { openMkContentPanel(null); },   // プロトタイプ2 移植2: 未配置カードの新規作成は共通パネルから
+  flowNext: () => { const pages = document.querySelectorAll(".mkflow-page"); if (mkFlowPage >= pages.length - 1) { closeMkFlow(); return; } mkFlowPage++; paintMkFlow(); },
+  flowPrev: () => { if (mkFlowPage > 0) { mkFlowPage--; paintMkFlow(); } },
+  flowClose: () => closeMkFlow(),
+  flowShow: () => openMkFlow(),
   addScene: () => {   // 旧UIの「この位置に追加」用(build 58で要素は廃止。新方式は mkMain。互換のため残す)
     const durEl = $("mkDur");
     mk.scenes.push({t: Math.round(clampT(now())), d: (durEl ? parseFloat(durEl.value) : NaN) || 6, placed: true, k: mk.type, x: $("mkText").value.trim() || LAB[mk.type]});
@@ -2073,43 +2107,39 @@ const A = {
    シェアポイント作成は 再生→始点→終点→リンク作成→完了 の全5手順(build 62のまま)。 */
 let guide = null;   // {mode: "mk"|"sp", step: "m0"/"n2"〜"n8"/"nd"/"o2"〜"o6"/"od" / "sp1"〜"sp5"}
 const GMSG = {
-  m0: "作り方を選びます。「♪ ノリノリながらモード」は、曲を聞きながら長押しでカードを打つ作り方。「お気に置きにいっちゃうモード」は、文言を先に用意してから置きに行く作り方です。作りたい方のボタンを押してください（あとから切り替えることもできます）",
+  m0: "作り方を選びます。下の「作成モード」のバーを開いて、どちらか1つを押してください。「♪ ノリノリながらモード」は曲を聞きながら長押しでカードを打つ作り方、「お気に置きにいっちゃうモード」は文言を先に作ってから置きに行く作り方です（あとから切り替えることもできます）",
   n2: "再生ボタンを押して、曲を再生します。まずはよく聞いて、コールの入るところを耳でつかみましょう",
-  n3: "コールのところが来たら、口で言っている間だけ大きな『カード作成』ボタンを長押しします。離すと、その長さでカードが1つできます（短いタップだと5秒の仮カード）。そのまま聞き続けて、次のコールのところでも長押し→離してカード完成。これを繰り返して、ながらでカードを作っていきます。カード作成を止めたいところで、「一時停止」ボタンを押してください。押すと、次は作ったカードの再編集の案内に進みます",
-  n4: "ここからは再編集です。まず、直したいカードを下の一覧でタップして選択します。選ぶとカードがふわっと浮かび上がって、そのカードの位置から再生が始まるので、どの部分のカードか音で確かめられます",
-  n5: "選択中のカードの位置を直します。シークバーのつまみや「押さえて左右に動かす」で位置を動かせて、−1秒／−0.1秒／＋0.1秒／＋1秒のボタンで細かく直せます。曲を再生して「ここだ」というところで止めて、「今の再生位置へ持っていく」を押すと、その位置へ一気に移動もできます。間違えたら「戻す」で、選んだときの位置に戻せます",
-  n6: "長さも変えられます。カードを選んだ状態で、大きな『カード作成』ボタンをもう一度長押ししてください。押した瞬間に、そのカードの位置から再生が始まり、押している間カードが伸びます。ちょうどいいところで離すと、その長さに決め直せます（新しいカードは増えません）",
-  n7: "種類と文言も変えられます。カードを選んでいる間は、種類ボタン・文言の入力・プリセットが、選んだカードにそのまま適用されます。種類はボタン（コール／シンガロン／ココ好き!）で切り替え、文言は入力欄に書き直してください。プリセットは、画面いちばん下のバーの引き出しや、プリセットのチップのタップでも適用できます",
-  n8: "他のカードも直したくなったら、一覧で選び直して、同じように再編集できます。終わりにするなら「保存して戻る」を押してください（公開か下書きかは、その上のボタンで切り替えられます）。ゲストの方は、名前も入れてください。保存しないなら「保存せずに戻る」を選んでください",
-  nd: "できあがり！おつかれさまでした。ガイドモードは上のボタンでいつでもやめられます",
-  o2: "先に文言を用意します。プリセットのチップをタップするか、入力欄に文言を書いてください。種類（コール／シンガロン／ココ好き!）もここで選べます",
-  o3: "用意した文言を掴んで、左右に動かします。再生ボタンを押していなくても、掴んで動かし始めると、その位置の音が自動で流れます。指を動かして、止めてください。指を止めると、その位置からの音が流れます。その音を聞いて置く場所を確かめて、置きたい場所で指を離すと、そこにカードが置かれます。プリセットのチップか、入力欄の横の「つかむ」を押さえてください",
-  o4: "置いたカードを後から直すときは、下の一覧でタップして選びます。選ぶとカードがふわっと浮かび上がって、そのカードの位置から音が再生されるので、どの部分のカードか音で確かめられます",
-  o5: "選択中のカードは、シークバーのつまみや「押さえて左右に動かす」で位置を動かせて、−／＋ボタンで細かく直せます。曲を再生して「ここだ」というところで止めて、「今の再生位置へ持っていく」を押すと、その位置へ一気に移動もできます。間違えたら「戻す」で、選んだときの位置に戻せます。長さは、カードを選んだ状態で大きなボタンを長押しすると決め直せます",
-  o6: "次の文言も、同じように掴んで置けます。終わりにするなら「保存して戻る」を押してください（公開か下書きかは、その上のボタンで切り替えられます）。ゲストの方は、名前も入れてください。保存しないなら「保存せずに戻る」を選んでください",
-  od: "できあがり！おつかれさまでした。ガイドモードは上のボタンでいつでもやめられます",
+  n3: "コールのところが来たら、口で言っている間だけ大きな「カード作成」ボタンを長押しします。押している間はタイムラインが2つ出て（全体と拡大）、カードが伸びていきます。離すと、その長さでカードが1つできます（短いタップだと5秒の仮カード）。そのまま聞き続けて、次のコールのところでも長押し→離す、を繰り返してください。カード作成を止めたいところで「一時停止」ボタンを押すと、次に進みます",
+  n4: "作ったカードを直してみましょう。下の一覧で、直したいカードをタップして選択してください。選ぶと、そのカードの位置から再生が始まるので、どの部分のカードか音で確かめられます",
+  n5: "選択中のカードを、もう一度タップしてください。内容のパネルが開くので、文言を書き換えたり種類を選び直したりして「決定」を押すと、その場で直ります",
+  n6: "長さも決め直せます。カードを選んだまま、大きな「カード作成」ボタンを長押ししてください。そのカードの位置から再生が始まり、押している間カードが伸びます。ちょうどいいところで離すと、その長さに決まります（新しいカードは増えません）",
+  n7: "仕上げです。右上の「制作を終了」を押して、「登録する」（ログイン中は「下書きする」も選べます）を選んでください。名前・タイトルなどを入れて、最後の「決定」を押すと保存されて再生画面に戻ります。保存しない場合は「どちらもせずに終了」でも大丈夫です",
+  nd: "できあがり！おつかれさまでした。ガイドモードは、再生画面の「ガイドモードで作成」ボタンでいつでも始められます",
+  o2: "まずカードの中身を作ります。大きな「カード作成」ボタンを押してください。パネルが開くので、叫ぶコールを書いて「決定」、種類を選んでもう一度「決定」を押すと、未配置のカードができます",
+  o3: "作ったカードを、下の一覧でタップして選択してください。選ぶと、真ん中のボタンが黄色く光る「置きに行く」に変わります",
+  o4: "「置きに行く」ボタンを押さえたまま、左右に動かしてください。押している間はタイムラインが2つ出ます（元の位置に全体、画面中央に15秒の拡大）。音を聞きながら位置を探って、置きたい場所で指を離すと、そこにカードが置かれます",
+  o5: "仕上げです。右上の「制作を終了」を押して、「登録する」（ログイン中は「下書きする」も選べます）を選んでください。名前・タイトルなどを入れて、最後の「決定」を押すと保存されて再生画面に戻ります。保存しない場合は「どちらもせずに終了」でも大丈夫です",
+  od: "できあがり！おつかれさまでした。ガイドモードは、再生画面の「ガイドモードで作成」ボタンでいつでも始められます",
   sp1: "まず「再生」を押してください",
   sp2: "始点にしたい場所で『ここを始点にする』を押してください",
   sp3: "終点にしたい場所で『ここを終点にする』を押してください",
   sp4: "『シェアポイントを作成』を押すと、リンクが作られます",
   sp5: "できあがり！おつかれさまでした。ガイドモードは上のボタンでいつでもやめられます"
 };
-const GNUM = {m0: 1, n2: 2, n3: 3, n4: 4, n5: 5, n6: 6, n7: 7, n8: 8, nd: 8, o2: 2, o3: 3, o4: 4, o5: 5, o6: 6, od: 6, sp1: 1, sp2: 2, sp3: 3, sp4: 4, sp5: 5};
+const GNUM = {m0: 1, n2: 2, n3: 3, n4: 4, n5: 5, n6: 6, n7: 7, nd: 7, o2: 2, o3: 3, o4: 4, o5: 5, od: 5, sp1: 1, sp2: 2, sp3: 3, sp4: 4, sp5: 5};
 const GTARGETS = {
-  m0: ["#mkModeTabs .mktab"],
-  n2: ["#mkPlayBtn", "#play"],
-  n3: ["#mkCreate", "#mkPlayBtn", "#play"],
+  m0: ["#mkDrawerBar", "#mkModeTabs .mktab"],
+  n2: ["#play"],
+  n3: ["#mkCreate", "#play"],
   n4: ["#mkList .mkpick"],
-  n5: ["#mkKnob", "#mkTlKnob", "#mkPosScrub", ".posStepB", "#mkPosHere", "#mkPosRestore", "#mkFineM", "#mkFineP"],
-  n6: ["#mkCreate", "#mkList .mkpick"],
-  n7: ["#mkTypes button", "#mkText", "#mkDrawerBar", ".drwBtn", ".psChip", "#mkChips .pchip"],
-  n8: ["#mkSaveBtn", "#mkPubBtn", "#mkGuestName", ".mkyameru", "#mkList .mkpick"],
+  n5: ["#mkList .mkpick", "#mkContentPanel input", "#mkContentPanel button"],
+  n6: ["#mkCreate"],
+  n7: ["#mkFinishBtn", "#mkFinishOverlay button", "#mkFinishOverlay input"],
   nd: [],
-  o2: ["#mkText", "#mkTypes button", "#mkChips .pchip", "#mkDrawerBar", ".drwBtn", ".psChip"],
-  o3: ["#mkChips .pchip", "#mkGrip"],
-  o4: ["#mkList .mkpick"],
-  o5: ["#mkKnob", "#mkTlKnob", "#mkPosScrub", ".posStepB", "#mkPosHere", "#mkPosRestore", "#mkFineM", "#mkFineP"],
-  o6: ["#mkSaveBtn", "#mkPubBtn", "#mkGuestName", ".mkyameru", "#mkChips .pchip", "#mkGrip"],
+  o2: ["#mkCreate", "#mkContentPanel input", "#mkContentPanel button"],
+  o3: ["#mkList .mkpick"],
+  o4: ["#play"],
+  o5: ["#mkFinishBtn", "#mkFinishOverlay button", "#mkFinishOverlay input"],
   od: [],
   sp1: ["#spPlayBtn", "#play"],
   sp2: ["#spStep"],
@@ -2117,8 +2147,8 @@ const GTARGETS = {
   sp4: ["#spStep"],
   sp5: []
 };
-const GSCROLL = {m0: "#mkModeTabs", n2: "#play", n3: "#mkCreate", n4: "#mkList", n5: "#mkPosEdit", n6: "#mkCreate", n7: "#mkTypes", n8: "#mkSaveBtn", o2: "#mkText", o3: "#mkPresets", o4: "#mkList", o5: "#mkPosEdit", o6: "#mkSaveBtn", sp1: "#spPlayBtn", sp2: "#spStep", sp3: "#spStep", sp4: "#spStep"};
-const GLOCK_SEL = "#songsel,#bar,.skb,#play,#spPlayBtn,.ratebtn,#mkRateSelect,#mkCreate,#mkTypes button,#mkText,#mkFineM,#mkFineP,#mkDelBtn,#mkList .mkpick,#mkList .mkdel,#mkKnob,#mkVer,#mkNote,#mkRef,#mkCmt,#mkGuestName,#mkPubBtn,#mkSaveBtn,#mkPvBtn,.mkyameru,#mkDrawerBar,.drwBtn,.psChip,#spStep,.switchbtn,#mkModeTabs .mktab,#mkGrip,#mkChips .pchip,#mkPosScrub,.posStepB,#mkPosHere,#mkPosRestore,#mkSelClear,#mkTuneBtn,#tuneGain,#tuneDead,#tuneReset,#mkTlKnob";
+const GSCROLL = {m0: "#mkDrawerBar", n2: "#play", n3: "#mkCreate", n4: "#mkList", n5: "#mkList", n6: "#mkCreate", n7: "#mkFinishBtn", o2: "#mkCreate", o3: "#mkList", o4: "#play", o5: "#mkFinishBtn", sp1: "#spPlayBtn", sp2: "#spStep", sp3: "#spStep", sp4: "#spStep"};
+const GLOCK_SEL = "#mkFinishBtn,#mkFinishOverlay button,#mkFinishOverlay input,#mkContentPanel input,#mkContentPanel button,#mkAddUnplaced,#songsel,#bar,.skb,#play,#spPlayBtn,.ratebtn,#mkRateSelect,#mkCreate,#mkTypes button,#mkText,#mkFineM,#mkFineP,#mkDelBtn,#mkList .mkpick,#mkList .mkdel,#mkKnob,#mkVer,#mkNote,#mkRef,#mkCmt,#mkGuestName,#mkPubBtn,#mkSaveBtn,#mkPvBtn,.mkyameru,#mkDrawerBar,.drwBtn,.psChip,#spStep,.switchbtn,#mkModeTabs .mktab,#mkGrip,#mkChips .pchip,#mkPosScrub,.posStepB,#mkPosHere,#mkPosRestore,#mkSelClear,#mkTuneBtn,#tuneGain,#tuneDead,#tuneReset,#mkTlKnob";
 function applyGuide() {
   const all = document.querySelectorAll(GLOCK_SEL);
   if (!guide) { all.forEach(el => el.classList.remove("glocked", "gtarget")); return; }
@@ -2130,7 +2160,7 @@ function paintGuide() {
   if (!guide) { bar.style.display = "none"; applyGuide(); return; }
   bar.style.display = "block";
   const done = guide.step === "nd" || guide.step === "od" || guide.step === "sp5";
-  const tot = guide.mode === "sp" ? 5 : ((guide.step.charAt(0) === "o" || (guide.step === "m0" && mkMode === "oki")) ? 6 : 8);   // build 64: ながら版8手順 / お気に版6手順
+  const tot = guide.mode === "sp" ? 5 : ((guide.step.charAt(0) === "o" || (guide.step === "m0" && mkMode === "oki")) ? 5 : 7);   // プロトタイプ2: ながら版7手順 / お気に版5手順
   $("guideProg").textContent = done ? "完了しました" : "手順 " + (GNUM[guide.step] || "") + " / " + tot;
   $("guideMsg").textContent = GMSG[guide.step] || "";
   $("guideBtns").style.display = "none";   // build 64: 旧ガイドの「次のカード/保存へ」ボタンは使わない(残りの手順は操作そのもので進む)
@@ -2143,7 +2173,15 @@ function setGuideStep(s) {
   const sc = GSCROLL[s] ? document.querySelector(GSCROLL[s]) : null;
   if (sc) setTimeout(() => { try { sc.scrollIntoView({behavior: "smooth", block: "center"}); } catch (e) {} }, 90);
 }
-function startGuide(mode) { guide = {mode: mode, step: mode === "sp" ? "sp1" : "m0"}; paintGuide(); }
+function startGuide(mode) {
+  guide = {mode: mode, step: mode === "sp" ? "sp1" : "m0"};
+  if (mode === "mk") {
+    clearMkOnboard();
+    const drw = $("mkDrawer"); if (drw) drw.classList.add("open");
+    const bar = $("mkDrawerBar"); if (bar) bar.setAttribute("aria-expanded", "true");
+  }
+  paintGuide();
+}
 function endGuide() { guide = null; paintGuide(); }
 function guideEvent(name) {
   if (!guide) return;
@@ -2157,20 +2195,18 @@ function guideEvent(name) {
     return;
   }
   /* build 64: 2モード制ガイドの遷移。ながら版の作成ループ(n3)は長押し・カード作成では進まず、「一時停止」を押したときだけ次へ進む */
-  if (name === "cancel") { endGuide(); if (st === "n8" || st === "o6") toast("保存せずに終わりました"); return; }
+  if (name === "cancel") { endGuide(); if (st === "n7" || st === "o5") toast("保存せずに終わりました"); return; }
   if (st === "m0" && name === "mode") setGuideStep(mkMode === "oki" ? "o2" : "n2");
   else if (st === "n2" && name === "play") setGuideStep("n3");
   else if (st === "n3" && name === "pause") setGuideStep("n4");
   else if (st === "n4" && name === "picked") setGuideStep("n5");
-  else if (st === "n5" && (name === "knob" || name === "fine" || name === "tweak")) setGuideStep("n6");
+  else if (st === "n5" && name === "contentEdit") setGuideStep("n6");
   else if (st === "n6" && name === "lenDone") setGuideStep("n7");
-  else if (st === "n7" && (name === "type" || (name === "text" && $("mkText").value.trim()))) setGuideStep("n8");
-  else if (st === "n8" && name === "saved") setGuideStep("nd");
-  else if (st === "o2" && (name === "type" || (name === "text" && $("mkText").value.trim()))) setGuideStep("o3");
-  else if (st === "o3" && name === "drop") setGuideStep("o4");
-  else if (st === "o4" && name === "picked") setGuideStep("o5");
-  else if (st === "o5" && (name === "knob" || name === "fine" || name === "tweak" || name === "lenDone")) setGuideStep("o6");
-  else if (st === "o6" && name === "saved") setGuideStep("od");
+  else if (st === "n7" && name === "saved") setGuideStep("nd");
+  else if (st === "o2" && name === "contentDone") setGuideStep("o3");
+  else if (st === "o3" && name === "picked") setGuideStep("o4");
+  else if (st === "o4" && name === "drop") setGuideStep("o5");
+  else if (st === "o5" && name === "saved") setGuideStep("od");
 }
 
 document.addEventListener("click", e => {

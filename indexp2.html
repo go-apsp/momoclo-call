@@ -84,6 +84,22 @@ body.scr-mk.mk-tl-on #mkTlZoomBox{display:flex}
 #mkTlZoomBox .mktl-bar span{display:inline}
 #mkTlZoomBox .mktl-tlab{color:#f4f4fb;font-size:10px;font-weight:900}
 #mkTlZoomPrev{position:absolute;height:16px;border-radius:5px;border:2px dashed #ffd23f;background:rgba(255,210,63,.35);color:#ffd23f;font-size:9px;font-weight:900;line-height:16px;padding:0 4px;white-space:nowrap;overflow:visible;z-index:2}
+/* プロトタイプ2: 初回だけ出る「作り方の流れ」カード(優しい黄色のレイヤー) */
+#mkFlowOverlay{display:none;position:fixed;inset:0;z-index:100060;background:rgba(24,20,4,.5);align-items:center;justify-content:center;padding:18px}
+#mkFlowOverlay.on{display:flex}
+.mkflow-card{position:relative;width:100%;max-width:440px;max-height:86vh;overflow-y:auto;border-radius:18px;padding:22px 20px 16px;background:linear-gradient(180deg,#fff8d2,#ffedb3);color:#4a3b08;box-shadow:0 18px 44px rgba(0,0,0,.5)}
+.mkflow-card h3{margin:0 0 10px;font-size:18px}
+.mkflow-card p,.mkflow-card li{font-size:14px;line-height:1.75}
+.mkflow-card ol{margin:0;padding-left:20px}
+.mkflow-x{position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(74,59,8,.12);color:#4a3b08;font-size:18px;font-weight:900;cursor:pointer}
+.mkflow-dots{text-align:center;color:#b89b3e;font-size:13px;letter-spacing:2px;margin:12px 0 8px}
+.mkflow-nav{display:flex;gap:10px}
+.mkflow-nav button{flex:1;padding:12px;border-radius:12px;border:2px solid #d9b93f;background:#fffdf4;color:#4a3b08;font-weight:900;font-size:15px;cursor:pointer}
+.mkflow-nav button:disabled{opacity:.35}
+#mkFlowNext{background:#ffd23f;border-color:#ffd23f}
+#mkFlowShowBtn{display:block;margin:10px auto 2px;background:none;border:0;color:#cfd2f2;font-size:12px;text-decoration:underline;cursor:pointer}
+/* ガイドの帯は、内容パネルや終了フローの上でも見えるようにする */
+#guideBar{z-index:100100}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Mochiy+Pop+One&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-00QSZME258"></script>
@@ -574,6 +590,45 @@ gtag('config', 'G-00QSZME258');
   </div>
 </div>
 
+<div id="mkFlowOverlay" role="dialog" aria-modal="true" aria-label="作り方の流れ">
+  <div class="mkflow-card">
+    <button class="mkflow-x" data-a="flowClose" aria-label="閉じる">×</button>
+    <section class="mkflow-page">
+      <h3>推しコールの作り方</h3>
+      <p>作り方は2つあります。曲を聞きながら打つ「♪ ノリノリながらモード」と、文言を先に作ってから置きに行く「お気に置きにいっちゃうモード」です。下の「作成モード」のバーから、いつでも切り替えられます。</p>
+    </section>
+    <section class="mkflow-page">
+      <h3>♪ ノリノリながらモード</h3>
+      <ol>
+        <li>曲を再生して、よく聞きます</li>
+        <li>コールのところで、大きな「カード作成」ボタンを長押しします（押している間、カードが伸びていきます）</li>
+        <li>離すと、その長さでカードができます</li>
+        <li>聞き続けながら、次のコールでも繰り返します</li>
+        <li>できたら、右上の「制作を終了」から保存します</li>
+      </ol>
+    </section>
+    <section class="mkflow-page">
+      <h3>お気に置きにいっちゃうモード</h3>
+      <ol>
+        <li>大きな「カード作成」ボタンを押して、パネルで文言と種類を決めます（未配置のカードができます）</li>
+        <li>下の一覧で、そのカードをタップして選びます</li>
+        <li>黄色く光る「置きに行く」を押さえたまま左右に動かし、置きたい場所で離します</li>
+        <li>できたら、右上の「制作を終了」から保存します</li>
+      </ol>
+    </section>
+    <section class="mkflow-page">
+      <h3>あとから直せます</h3>
+      <p>作ったカードは、下の一覧でタップして選ぶと、もう一度タップで内容の書き換え、大きなボタンの長押しで長さの決め直しができます。</p>
+      <p>くわしい案内がほしいときは、再生画面の「ガイドモードで作成」から、ガイド付きで作ることもできます。</p>
+    </section>
+    <div class="mkflow-dots" id="mkFlowDots"></div>
+    <div class="mkflow-nav">
+      <button data-a="flowPrev" id="mkFlowPrev">戻る</button>
+      <button data-a="flowNext" id="mkFlowNext">次へ</button>
+    </div>
+  </div>
+</div>
+
 <div id="mkTlZoomBox" aria-hidden="true">
   <div class="mktl-head"><span>拡大タイムライン（15秒）</span><span id="mkTlZoomPos"></span></div>
   <div id="mkTlZoomView">
@@ -584,6 +639,7 @@ gtag('config', 'G-00QSZME258');
 
 <div id="mkDrawer">
   <div id="mkDrawerBody">
+      <button id="mkFlowShowBtn" data-a="flowShow">作り方の流れを見る</button>
     <div id="mkModeTabs" role="group" aria-label="作り方のモードを選ぶ">
       <button type="button" class="mktab sel" data-a="mkMode" data-i="nori" data-mkmode="nori">♪ ノリノリながらモード</button>
       <button type="button" class="mktab" data-a="mkMode" data-i="oki" data-mkmode="oki">お気に置きにいっちゃうモード</button>
@@ -674,7 +730,7 @@ gtag('config', 'G-00QSZME258');
 <div id="toast"></div>
 
 <script src="ui.js?v=64" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="appP2.js?v=18" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
+<script src="appP2.js?v=19" onerror="window.__show('appP2.js を読み込めません。appP2.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
 </body>
