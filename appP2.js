@@ -251,7 +251,7 @@ function loop(ts) {
   if (st === 0 && sess) { sess = null; paintApply(); }   // 曲が終わったら、次回の再生でリセット
   if (mkPv && t >= mkPv.until) { mkPv = null; playerPause(); paintPvBtn(); toast("プレビューが終わりました"); }   // プレビューは表示終了+3秒で止める
   if (pl !== loop.prevPl) { loop.prevPl = pl; guideEvent(pl ? "play" : "pause"); }   // build 62: ガイドモードの再生/停止の検知
-  const R = curRange(); if (R && pl && !mkPv && t >= R.e) playerPause();   // 再生範囲の終わりで止める
+  const R = curRange(); if (R && pl && !mkPv && !(mkScrSt && mkScrSt.active) && t >= R.e) playerPause();   // 再生範囲の終わりで止める(配置ドラッグ中は止めない: プロトタイプ2)
   if (spRange && pl && !mkPv && t >= spRange.b) { spRange = null; playerPause(); toast("シェアポイントの範囲が終わりました"); }   // シェアポイントの終点で止める
   const kr = mkPv ? null : kanranRange();   // build 63: 観覧モードの有効範囲(作成中プレビューでは効かせない)
   if (kr && pl) {   // 観覧モード: 指定範囲の外には出ない(手前なら始点へ寄せ、終点で止めて始点へ戻す)
@@ -979,7 +979,7 @@ function mkScrMove(e) {
   target = Math.max(0, Math.min(mkTlD(), target));
   scr.target = target; mkTlCenter = target; mkTlApplyView();
   mkMoveGhost(e, target);
-  if (scr.lastSeek === null || Math.abs(target - scr.lastSeek) >= 0.15) { scr.lastSeek = target; playerSeek(Math.round(target * 10) / 10); }
+  if (scr.lastSeek === null || Math.abs(target - scr.lastSeek) >= 0.15) { scr.lastSeek = target; playerSeek(Math.round(target * 10) / 10); if (playerReady() && playerState() !== 1) playerPlay(); }   // プロトタイプ2: ドラッグ中に何かの理由で止まっても、指の動きで再開する
   scr.lastX = e.clientX; scr.lastY = e.clientY;
   if (scr.settle) clearTimeout(scr.settle);
   scr.settle = setTimeout(() => {   // 指を止めたら(約320ms)、指の絶対位置から再生して聞き直せる
