@@ -426,6 +426,55 @@ requestAnimationFrame(loop);
 })();
 /* P2CS-END */
 
+/* ---------- プロトタイプ2: 再生画面の操作レイアウト(3段+ペン長押し色バー+モード引き出し) ---------- */
+(function () {
+  var stEl = document.createElement("style");
+  stEl.textContent = ".p2row1{display:flex;justify-content:center;align-items:center;gap:14px;margin-top:10px}"
+    + "#p2fsBtn{width:84px;height:84px;border-radius:20px;font-weight:900;font-size:15px;line-height:1.2}"
+    + "body.scr-mk .p2row1 #penbtn,body.scr-sp .p2row1 #penbtn,body.scr-mk #p2fsBtn,body.scr-sp #p2fsBtn{display:none}"
+    + "#plMode{margin-top:10px}"
+    + "#plModeBar{width:100%;height:42px;background:rgba(38,42,74,.78);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:0;border-top:2px solid #3a3f6b;color:var(--ink);font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font:inherit}"
+    + "#plModeBar .drwHint{font-size:11px;color:var(--mut);font-weight:700}"
+    + "#plModeBody{max-height:0;overflow:hidden;transition:max-height .3s ease;background:rgba(28,30,56,.78);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}"
+    + "#plMode.open #plModeBody{max-height:25vh;overflow-y:auto;padding:10px}"
+    + "#plModeBody .drwBtns{display:flex;gap:14px;justify-content:center}"
+    + "body.scr-mk #plMode,body.scr-sp #plMode{display:none}"
+    + "#dots{position:fixed;left:50%;transform:translateX(-50%);bottom:118px;z-index:65;background:rgba(28,30,56,.92);border:1px solid #3a3f6b;border-radius:999px;padding:8px 12px;box-shadow:0 10px 30px rgba(0,0,0,.5);display:none}"
+    + "#dots.open{display:flex}"
+    + "[data-a=\"pen\"]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}";
+  document.head.appendChild(stEl);
+  /* モード引き出し(作成画面の作成モードバーと同じ仕様) */
+  $("plModeBar").addEventListener("click", function () {
+    var d = $("plMode"); if (!d) return;
+    d.classList.toggle("open");
+    this.setAttribute("aria-expanded", d.classList.contains("open") ? "true" : "false");
+  });
+  /* ペンライト: タップ=点灯/消灯(従来通り)、長押し=色バーを重ねて出す */
+  var dotsEl = $("dots"), lpTimer = null, lpSuppress = false;
+  function closeDots() { if (dotsEl) dotsEl.classList.remove("open"); }
+  document.querySelectorAll('[data-a="pen"]').forEach(function (b) {
+    b.addEventListener("pointerdown", function () {
+      lpSuppress = false;
+      if (lpTimer) clearTimeout(lpTimer);
+      lpTimer = setTimeout(function () { lpSuppress = true; if (dotsEl) dotsEl.classList.add("open"); }, 480);
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(function (ev) {
+      b.addEventListener(ev, function () { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } });
+    });
+    b.addEventListener("click", function (e) { if (lpSuppress) { lpSuppress = false; e.stopPropagation(); } });
+    b.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  });
+  document.addEventListener("pointerdown", function (e) {
+    if (!dotsEl || !dotsEl.classList.contains("open")) return;
+    if (dotsEl.contains(e.target)) return;
+    if (e.target.closest && e.target.closest('[data-a="pen"]')) return;
+    closeDots();
+  });
+  document.addEventListener("click", function (e) {
+    if (e.target.closest && e.target.closest("#dots button")) closeDots();
+  });
+})();
+
 UI.songSel(si);
 loadSongs();
 checkSpHash();
