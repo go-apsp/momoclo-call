@@ -139,17 +139,15 @@ gtag('config', 'G-00QSZME258');
     <button id="tryMakeOshiBand" type="button" data-a="startMk" style="position:fixed;top:0;left:0;right:0;z-index:60;width:100%;box-sizing:border-box;margin:0;padding:12px 14px;border:0;border-radius:0;background:rgba(255,121,184,.42);color:#fff;text-align:center;font-family:inherit;font-weight:900;font-size:16px;line-height:1.4;letter-spacing:.03em;box-shadow:0 3px 12px rgba(0,0,0,.20);cursor:pointer">推しコールを作ってみる</button>
 
     <div id="share">
-    <a class="shBtn shX" href="https://twitter.com/intent/tweet?text=%E6%9C%AA%E5%AE%8C%E6%88%90%E3%81%AA%E3%82%B3%E3%83%BC%E3%83%AB%E3%82%A6%E3%82%A7%E3%83%96%E3%82%A2%E3%83%97%E3%83%AA%20%E8%A6%8B%E3%82%8B%E2%80%A6%EF%BC%9F&url=https%3A//go-apsp.github.io/momoclo-call/" target="_blank" rel="noopener">Xでシェア</a>
-    <a class="shBtn shTh" href="https://www.threads.net/intent/post?text=%E6%9C%AA%E5%AE%8C%E6%88%90%E3%81%AA%E3%82%B3%E3%83%BC%E3%83%AB%E3%82%A6%E3%82%A7%E3%83%96%E3%82%A2%E3%83%97%E3%83%AA%20%E8%A6%8B%E3%82%8B%E2%80%A6%EF%BC%9F%0Ahttps%3A//go-apsp.github.io/momoclo-call/" target="_blank" rel="noopener">Threadsでシェア</a>
-    <a class="shBtn shLn" href="https://social-plugins.line.me/lineit/share?url=https%3A//go-apsp.github.io/momoclo-call/&text=%E6%9C%AA%E5%AE%8C%E6%88%90%E3%81%AA%E3%82%B3%E3%83%BC%E3%83%AB%E3%82%A6%E3%82%A7%E3%83%96%E3%82%A2%E3%83%97%E3%83%AA%20%E8%A6%8B%E3%82%8B%E2%80%A6%EF%BC%9F" target="_blank" rel="noopener">LINEでシェア</a>
+    <a class="shBtn shX" href="https://twitter.com/intent/tweet?text=%E6%9C%AA%E5%AE%8C%E6%88%90%E3%81%AA%E3%82%B3%E3%83%BC%E3%83%AB%E3%82%A6%E3%82%A7%E3%83%96%E3%82%A2%E3%83%97%E3%83%AA%20%E8%A6%8B%E3%82%8B%E2%80%A6%EF%BC%9F&url=https%3A//go-apsp.github.io/momoclo-call/" target="_blank" rel="noopener">X</a>
+    <a class="shBtn shTh" href="https://www.threads.net/intent/post?text=%E6%9C%AA%E5%AE%8C%E6%88%90%E3%81%AA%E3%82%B3%E3%83%BC%E3%83%AB%E3%82%A6%E3%82%A7%E3%83%96%E3%82%A2%E3%83%97%E3%83%AA%20%E8%A6%8B%E3%82%8B%E2%80%A6%EF%BC%9F%0Ahttps%3A//go-apsp.github.io/momoclo-call/" target="_blank" rel="noopener">Threads</a>
+    <a class="shBtn shLn" href="https://social-plugins.line.me/lineit/share?url=https%3A//go-apsp.github.io/momoclo-call/&text=%E6%9C%AA%E5%AE%8C%E6%88%90%E3%81%AA%E3%82%B3%E3%83%BC%E3%83%AB%E3%82%A6%E3%82%A7%E3%83%96%E3%82%A2%E3%83%97%E3%83%AA%20%E8%A6%8B%E3%82%8B%E2%80%A6%EF%BC%9F" target="_blank" rel="noopener">LINE</a>
     <button class="shBtn shCp" data-a="copyLink" type="button">リンクをコピー</button>
+    <button class="pill" id="login" data-a="login">ログイン</button>
+    <button class="ico" aria-label="メニュー" data-a="menu"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M4 7h18M4 13h18M4 19h18" fill="none" stroke="#f4f4fb" stroke-width="2.4" stroke-linecap="round"/></svg></button>
   </div>
 <header>
     <h1>ももクロ<b>コール</b>共有<small>(テスト中)</small></h1>
-    <div class="row">
-      <button class="pill" id="login" data-a="login">ログイン</button>
-      <button class="ico" aria-label="メニュー" data-a="menu"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M4 7h18M4 13h18M4 19h18" fill="none" stroke="#f4f4fb" stroke-width="2.4" stroke-linecap="round"/></svg></button>
-    </div>
     <div id="menu">
       <button data-a="openOv">みんなの<span style="color:var(--pink)">推し</span>コール</button>
       <button id="mkbtn" data-a="startMk" style="display:none">推しコールを作る</button>
@@ -188,29 +186,33 @@ gtag('config', 'G-00QSZME258');
   <div id="wfx"></div>
   <div id="geki" style="display:none"></div>
 
-  <div class="pads">
-    <button class="sq penb" id="penbtn" data-a="pen">ペンライト</button>
-    <button class="sq wk" id="wakubtn" data-a="waku">湧く!</button>
-    <button class="sq" id="gekibtn" data-a="geki" aria-pressed="false">激湧き<br>モード<br><span class="gkstate">OFF</span></button>
-    <button class="sq" id="kanranbtn" data-a="kanran">観覧<br>モード</button>
-    <button id="q" aria-label="説明" data-a="help">?</button>
-  </div>
   <button id="applybtn" data-a="apply" style="display:none"></button>
+  <div class="p2row1">
+    <button class="sq penb" id="penbtn" data-a="pen">ペンライト</button>
+    <button id="play" data-a="play">再生</button>
+    <button class="sq wk" id="wakubtn" data-a="waku">湧く!</button>
+  </div>
   <div class="dots" id="dots"></div>
     <div class="mknori" id="mkBigWrap">
       <button id="mkCreate" data-a="mkMain">カード作成</button>
       <div id="mkHint">再生しながら押すと、その位置にカードができます(長さは仮の5秒)。できたカードをタップすると中身や長さを直せます。</div>
     </div>
+  <div class="playrow">
+    <button class="skb" data-a="pseek" data-i="-30">-30秒</button>
+    <button class="skb" data-a="pseek" data-i="-10">-10秒</button>
+    <button class="skb" data-a="pseek" data-i="10">+10秒</button>
+    <button class="skb" data-a="pseek" data-i="30">+30秒</button>
+  </div>
   <div id="barwrap">
     <div id="barin"><input type="range" id="bar" min="0" max="240" step="0.1" value="0" aria-label="シークバー"><div id="mkBand" style="display:none"></div><div id="mkKnob" style="display:none" role="slider" aria-label="選択中カードの位置"><div id="mkBub"></div></div></div>
     <div class="times"><span id="tm">0:00</span><span id="dur">0:00</span></div>
   </div>
-  <div class="playrow">
-    <button class="skb" data-a="pseek" data-i="-30">-30秒</button>
-    <button class="skb" data-a="pseek" data-i="-10">-10秒</button>
-    <button id="play" data-a="play">再生</button>
-    <button class="skb" data-a="pseek" data-i="10">+10秒</button>
-    <button class="skb" data-a="pseek" data-i="30">+30秒</button>
+  <div id="plMode">
+    <div id="plModeBody"><div class="drwBtns">
+      <button class="sq" id="gekibtn" data-a="geki" aria-pressed="false">激湧き<br>モード<br><span class="gkstate">OFF</span></button>
+      <button class="sq" id="kanranbtn" data-a="kanran">観覧<br>モード</button>
+    </div></div>
+    <button id="plModeBar" aria-expanded="false">モード<span class="drwHint">タップで開く</span></button>
   </div>
   <select id="mkRateSelect" data-c="rateSelect" aria-label="再生速度">
     <option value="0.25">速度 0.25倍速</option>
@@ -334,7 +336,7 @@ gtag('config', 'G-00QSZME258');
   <div id="info"></div>
   <button id="mkvBtn" data-a="mkv">ももクリDelivery特集<span class="newStamp">NEW</span></button>
   <div id="freearea"></div>
-  <div style="text-align:center;font-size:10px;color:#8e91b8">build 65</div>
+  <div style="text-align:center;font-size:10px;color:#8e91b8">build 66</div>
   <div style="text-align:center"><button data-a="wcShow" style="font-size:10px;color:#8e91b8;text-decoration:underline;background:none;border:0;cursor:pointer">ようこそカードを再表示</button></div>
 
 </div>
@@ -731,7 +733,7 @@ gtag('config', 'G-00QSZME258');
 <div id="toast"></div>
 
 <script src="ui.js?v=64" onerror="window.__show('ui.js を読み込めません。ui.js もアップロードしてください')"></script>
-<script src="app.js?v=66" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
+<script src="app.js?v=67" onerror="window.__show('app.js を読み込めません。app.js もアップロードしてください')"></script>
 <script src="pe-config.js"></script>
 <script src="edit.js?v=57"></script>
 </body>
