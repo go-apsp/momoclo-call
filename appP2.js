@@ -441,7 +441,12 @@ requestAnimationFrame(loop);
     + "body.scr-mk #plMode,body.scr-sp #plMode{display:none}"
     + "#dots{position:fixed;left:50%;transform:translateX(-50%);bottom:118px;z-index:65;background:rgba(28,30,56,.92);border:1px solid #3a3f6b;border-radius:999px;padding:8px 12px;box-shadow:0 10px 30px rgba(0,0,0,.5);display:none}"
     + "#dots.open{display:flex}"
-    + "[data-a=\"pen\"]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}";
+    + "[data-a=\"pen\"]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}"
+    + "#share{flex-wrap:nowrap;gap:6px;align-items:center}"
+    + "#share .shBtn{min-width:0;flex:1 1 auto;padding:7px 2px;font-size:11px;white-space:nowrap}"
+    + "#share #login{min-width:0;height:32px;padding:0 8px;font-size:11px;flex:none}"
+    + "#share .ico{width:36px;height:36px;flex:none}"
+    + "#share .ico svg{width:22px;height:22px}";
   document.head.appendChild(stEl);
   /* モード引き出し(作成画面の作成モードバーと同じ仕様) */
   $("plModeBar").addEventListener("click", function () {
