@@ -430,12 +430,7 @@ requestAnimationFrame(loop);
 (function () {
   var stEl = document.createElement("style");
   stEl.textContent = ".p2row1{display:flex;justify-content:center;align-items:center;gap:14px;margin-top:10px}"
-    + ".p2row1 #fsbtn{position:static;width:84px;height:84px;border-radius:20px;background:#262a4a;flex:none}"
-    + ".p2row1 #fsbtn svg{width:30px;height:30px}"
-    + ".p2row1 #fsbtn .sh{display:none}"
-    + ".p2row1 #fsbtn.isfs .sh{display:block}"
-    + ".p2row1 #fsbtn.isfs .ex{display:none}"
-    + "body.scr-mk .p2row1 #penbtn,body.scr-sp .p2row1 #penbtn{display:none}"
+    + "body.scr-mk .p2row1 #penbtn,body.scr-sp .p2row1 #penbtn,body.scr-mk .p2row1 #wakubtn,body.scr-sp .p2row1 #wakubtn{display:none}"
     + "#plMode{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:26}"
     + "body:not(.scr-mk):not(.scr-sp) #app{padding-bottom:54px}"
     + "#plModeBar{width:100%;height:42px;background:rgba(38,42,74,.78);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:0;border-top:2px solid #3a3f6b;color:var(--ink);font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font:inherit}"
@@ -448,10 +443,6 @@ requestAnimationFrame(loop);
     + "#dots.open{display:flex}"
     + "[data-a=\"pen\"]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}";
   document.head.appendChild(stEl);
-  /* 枠ボタン(全画面アイコン): 映像の隅から1段目へ移したので、アイコンの切替は #mv の .fs を見て自分で合わせる */
-  var mvEl = $("mv"), fsBtn = $("fsbtn");
-  function paintFsIcon() { if (fsBtn && mvEl) fsBtn.classList.toggle("isfs", mvEl.classList.contains("fs")); }
-  if (mvEl && fsBtn) { new MutationObserver(paintFsIcon).observe(mvEl, { attributes: true, attributeFilter: ["class"] }); paintFsIcon(); }
   /* モード引き出し(作成画面の作成モードバーと同じ仕様) */
   $("plModeBar").addEventListener("click", function () {
     var d = $("plMode"); if (!d) return;
