@@ -858,7 +858,6 @@ function paintPvBtn() { const b = $("mkPvBtn"); if (b) b.textContent = mkPv ? "�
 function setScreen(name) {
   screen = name;
   document.body.classList.toggle("scr-mk", name === "mk");
-  const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = name === "mk" ? "none" : "";
   document.body.classList.toggle("scr-sp", name === "sp");
   $("mk").style.display = name === "mk" ? "flex" : "none";
   $("spPanel").style.display = name === "sp" ? "flex" : "none";
@@ -943,7 +942,6 @@ function maybeShowMkFlow() { if (!mkFlowSeen("intro")) openMkFlow("intro", true)
 function maybeShowModeFlow(m) { if (guide) return; if (!mkFlowSeen(m)) openMkFlow(m, true); }
 function enterMk() {
   mkReturnScrollY = window.scrollY || document.documentElement.scrollTop || 0;
-  const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "none";
   spStep = 0; paintSpStep();
   setScreen("mk");
   const mnIn = $("menu"); if (mnIn) { mnIn.style.display = "none"; document.body.classList.remove("menu-open"); }   // プロトタイプ2: 右上のサブメニューを閉じてから入る
@@ -960,7 +958,6 @@ function enterMk() {
 }
 function exitMk() {
   clearMkOnboard();
-  const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "";
   setScreen("play");
   const drw = $("mkDrawer"); if (drw) drw.classList.remove("open");
   mkSel = -1; mkLenPhase = null; mkSelOrigT = null; mkSetZoom(false);
