@@ -508,6 +508,106 @@ requestAnimationFrame(loop);
   });
 })();
 
+/* ---------- プロトタイプ2 v40: 再生画面の二層レイヤー+付箋タブ ----------
+   再生コントロール一式(.p2row1+.playrow+#barwrap)とコールカード一覧(#playSceneList)を
+   「片方が消える入れ替え」ではなく二階建てのシートにする。両方とも重なって存在し続け、
+   下のシートは少しずれて端がはみ出し、端では上のシートが透過グラデーションで透けるので
+   「下にもう1枚ある」と分かる。下のシートの付箋(右側にはみ出す縦書きタブ)をタップすると
+   そのシートが短いアニメーションで上(手前)に来る。
+   作成画面(scr-mk)/シェア画面(scr-sp)ではステージをほどいて元のDOM配置に完全に戻すので影響しない。
+   #plMode / #mkRateSelect / #spPanel / #pEv には触らない。 */
+(function () {
+  var row1 = document.querySelector(".p2row1");
+  var playrow = document.querySelector(".playrow");
+  var barwrap = document.getElementById("barwrap");
+  var list = document.getElementById("playSceneList");
+  if (!row1 || !playrow || !barwrap || !list || !row1.parentNode) return;
+  var app = row1.parentNode;
+  function mkMarker(el) { var m = document.createElement("span"); m.style.display = "none"; m.setAttribute("data-p2lt", "marker"); el.parentNode.insertBefore(m, el); return m; }
+  var mRow1 = mkMarker(row1), mPlay = mkMarker(playrow), mBar = mkMarker(barwrap), mList = mkMarker(list);
+  var stage = document.createElement("div"); stage.id = "p2LayerStage"; stage.setAttribute("data-top", "ctrl");
+  var ctrl = document.createElement("div"); ctrl.id = "p2LayerCtrl";
+  var tabCtrl = document.createElement("button"); tabCtrl.type = "button"; tabCtrl.className = "p2lt-tab p2lt-tab-ctrl"; tabCtrl.textContent = "操作"; tabCtrl.setAttribute("aria-label", "再生コントロールを上に表示する");
+  var tabList = document.createElement("button"); tabList.type = "button"; tabList.className = "p2lt-tab p2lt-tab-list"; tabList.textContent = "一覧"; tabList.setAttribute("aria-label", "コールカード一覧を上に表示する");
+  var st = document.createElement("style"); st.id = "p2LayerStyles";
+  st.textContent = "#p2LayerStage{position:relative}"
+    + "#p2LayerCtrl{display:flex;flex-direction:column;gap:14px}"
+    + ".p2lt-tab{display:none}"
+    /* ステージ有効時: 2枚のシートを重ねる */
+    + "#p2LayerStage.p2lt-active{margin-right:2px}"
+    + "#p2LayerStage.p2lt-active #p2LayerCtrl,#p2LayerStage.p2lt-active #playSceneList{position:absolute;border:1px solid rgba(255,255,255,.20);border-radius:14px;box-shadow:0 10px 26px rgba(0,0,0,.42);transition:transform .22s ease,opacity .22s ease;overflow:hidden}"
+    + "#p2LayerStage.p2lt-active #p2LayerCtrl{padding:10px;background:linear-gradient(180deg,rgba(38,42,74,.99),rgba(22,23,45,.99));gap:10px}"
+    + "#p2LayerStage.p2lt-active #playSceneList{margin:0;padding:10px;display:none;background:linear-gradient(180deg,rgba(24,26,48,.99),rgba(15,17,31,.99))}"
+    + "#p2LayerStage.p2lt-active #playSceneList.on{display:flex;flex-direction:column}"
+    + "#p2LayerStage.p2lt-active #playSceneList .psl-items{max-height:none;flex:1;min-height:0}"
+    /* 上(手前): 左上に寄せ、右と下に下のシートのはみ出し分を空ける。中心は不透明、端ほど透過して下が透ける */
+    + "#p2LayerStage.p2lt-active [data-p2lt-front]{left:0;top:0;right:14px;bottom:14px;z-index:3;transform:translate(0,0) scale(1);-webkit-mask-image:radial-gradient(125% 125% at 50% 50%,#000 60%,rgba(0,0,0,.62) 88%,rgba(0,0,0,.30) 100%);mask-image:radial-gradient(125% 125% at 50% 50%,#000 60%,rgba(0,0,0,.62) 88%,rgba(0,0,0,.30) 100%)}"
+    /* 下(奥): 右下へずらし、タップは付箋だけ(シート本体は上の層の下なので操作不可が正) */
+    + "#p2LayerStage.p2lt-active [data-p2lt-back]{left:12px;top:12px;right:2px;bottom:2px;z-index:1;transform:translate(3px,3px) scale(.985);pointer-events:none}"
+    /* 付箋タブ: 下のシートのものだけ右側にはみ出してタップ可能。上のシートのものは控えめな目印 */
+    + "#p2LayerStage.p2lt-active .p2lt-tab{display:block;position:absolute;right:0;z-index:6;width:27px;padding:11px 0;border-radius:0 9px 9px 0;writing-mode:vertical-rl;font-size:12px;font-weight:900;letter-spacing:.14em;box-shadow:2px 3px 8px rgba(0,0,0,.45);cursor:pointer;font-family:inherit;transition:right .22s ease,opacity .22s ease,transform .22s ease}"
+    + ".p2lt-tab-ctrl{top:20px;background:#ff7ab8;color:#2a0c1c}"
+    + ".p2lt-tab-list{top:96px;background:#ffd23f;color:#2a2410}"
+    + "#p2LayerStage[data-top='ctrl'] .p2lt-tab-ctrl{right:14px;opacity:.55;pointer-events:none;box-shadow:none}"
+    + "#p2LayerStage[data-top='ctrl'] .p2lt-tab-list{right:0;opacity:1;pointer-events:auto;transform:rotate(3deg)}"
+    + "#p2LayerStage[data-top='list'] .p2lt-tab-list{right:14px;opacity:.55;pointer-events:none;box-shadow:none}"
+    + "#p2LayerStage[data-top='list'] .p2lt-tab-ctrl{right:0;opacity:1;pointer-events:auto;transform:rotate(3deg)}"
+    + "@media (prefers-reduced-motion:reduce){#p2LayerStage.p2lt-active #p2LayerCtrl,#p2LayerStage.p2lt-active #playSceneList,.p2lt-tab{transition:none}}";
+  document.head.appendChild(st);
+  var built = false, ctrlH = 0;
+  function isPlayScreen() { return !document.body.classList.contains("scr-mk") && !document.body.classList.contains("scr-sp"); }
+  function paintTabs() {
+    var top = stage.getAttribute("data-top");
+    tabCtrl.setAttribute("aria-pressed", top === "ctrl" ? "true" : "false");
+    tabList.setAttribute("aria-pressed", top === "list" ? "true" : "false");
+  }
+  function setTop(which) { stage.setAttribute("data-top", which); applyFrontBack(); paintTabs(); }
+  function applyFrontBack() {
+    var top = stage.getAttribute("data-top");
+    var front = top === "list" ? list : ctrl, back = top === "list" ? ctrl : list;
+    front.setAttribute("data-p2lt-front", ""); front.removeAttribute("data-p2lt-back");
+    back.setAttribute("data-p2lt-back", ""); back.removeAttribute("data-p2lt-front");
+  }
+  function sync() {
+    if (!built) return;
+    var active = isPlayScreen() && list.classList.contains("on");
+    if (active && !stage.classList.contains("p2lt-active")) {
+      var h = ctrl.offsetHeight || ctrl.scrollHeight || 0;
+      if (h > 40) ctrlH = h;
+      stage.classList.add("p2lt-active");
+      applyFrontBack();
+    } else if (!active) {
+      stage.classList.remove("p2lt-active");
+      ctrl.removeAttribute("data-p2lt-front"); ctrl.removeAttribute("data-p2lt-back");
+      list.removeAttribute("data-p2lt-front"); list.removeAttribute("data-p2lt-back");
+      stage.style.height = "";
+      return;
+    }
+    if (ctrlH > 40) stage.style.height = (ctrlH + 30) + "px";
+  }
+  function build() {
+    if (built) return;
+    app.insertBefore(stage, mRow1);
+    ctrl.appendChild(row1); ctrl.appendChild(playrow); ctrl.appendChild(barwrap);
+    stage.appendChild(ctrl); stage.appendChild(list); stage.appendChild(tabCtrl); stage.appendChild(tabList);
+    built = true; paintTabs(); sync();
+  }
+  function unbuild() {
+    if (!built) return;
+    stage.classList.remove("p2lt-active"); stage.style.height = "";
+    app.insertBefore(row1, mRow1); app.insertBefore(playrow, mPlay); app.insertBefore(barwrap, mBar); app.insertBefore(list, mList);
+    if (stage.parentNode) stage.parentNode.removeChild(stage);
+    built = false;
+  }
+  tabCtrl.addEventListener("click", function () { setTop("ctrl"); });
+  tabList.addEventListener("click", function () { setTop("list"); });
+  var mo = new MutationObserver(function () { if (!isPlayScreen()) unbuild(); else { build(); sync(); } });
+  mo.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  mo.observe(list, { attributes: true, attributeFilter: ["class"] });
+  window.addEventListener("resize", sync);
+  build();
+})();
+
 UI.songSel(si);
 loadSongs();
 checkSpHash();
