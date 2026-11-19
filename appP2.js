@@ -508,12 +508,15 @@ requestAnimationFrame(loop);
   });
 })();
 
-/* ---------- プロトタイプ2 v40: 再生画面の二層レイヤー+付箋タブ ----------
+/* ---------- プロトタイプ2 v41: 再生画面の二層レイヤー+付箋タブ ----------
    再生コントロール一式(.p2row1+.playrow+#barwrap)とコールカード一覧(#playSceneList)を
    「片方が消える入れ替え」ではなく二階建てのシートにする。両方とも重なって存在し続け、
    下のシートは少しずれて端がはみ出し、端では上のシートが透過グラデーションで透けるので
-   「下にもう1枚ある」と分かる。下のシートの付箋(右側にはみ出す縦書きタブ)をタップすると
+   「下にもう1枚ある」と分かる。下のシートの付箋(右端のタブ専用帯にまっすぐ立つ縦書きタブ)をタップすると
    そのシートが短いアニメーションで上(手前)に来る。
+   v41: 実機フィードバックで、付箋が操作ボタンに重なる点と、付箋が斜めに傾いている点を修正。
+   ステージ右端に幅32pxのタブ専用帯を予約し、シート本体(ボタン類を含む領域)はその帯を避けた幅にした。
+   付箋は帯の中に収まり回転なし(0度)でまっすぐ立つ。シートのずらしも回転・縮小なしの縦方向のみにした。
    作成画面(scr-mk)/シェア画面(scr-sp)ではステージをほどいて元のDOM配置に完全に戻すので影響しない。
    #plMode / #mkRateSelect / #spPanel / #pEv には触らない。 */
 (function () {
@@ -534,24 +537,24 @@ requestAnimationFrame(loop);
     + "#p2LayerCtrl{display:flex;flex-direction:column;gap:14px}"
     + ".p2lt-tab{display:none}"
     /* ステージ有効時: 2枚のシートを重ねる */
-    + "#p2LayerStage.p2lt-active{margin-right:2px}"
+    + "#p2LayerStage.p2lt-active{margin-right:0}"
     + "#p2LayerStage.p2lt-active #p2LayerCtrl,#p2LayerStage.p2lt-active #playSceneList{position:absolute;border:1px solid rgba(255,255,255,.20);border-radius:14px;box-shadow:0 10px 26px rgba(0,0,0,.42);transition:transform .22s ease,opacity .22s ease;overflow:hidden}"
     + "#p2LayerStage.p2lt-active #p2LayerCtrl{padding:10px;background:linear-gradient(180deg,rgba(38,42,74,.99),rgba(22,23,45,.99));gap:10px}"
     + "#p2LayerStage.p2lt-active #playSceneList{margin:0;padding:10px;display:none;background:linear-gradient(180deg,rgba(24,26,48,.99),rgba(15,17,31,.99))}"
     + "#p2LayerStage.p2lt-active #playSceneList.on{display:flex;flex-direction:column}"
     + "#p2LayerStage.p2lt-active #playSceneList .psl-items{max-height:none;flex:1;min-height:0}"
-    /* 上(手前): 左上に寄せ、右と下に下のシートのはみ出し分を空ける。中心は不透明、端ほど透過して下が透ける */
-    + "#p2LayerStage.p2lt-active [data-p2lt-front]{left:0;top:0;right:14px;bottom:14px;z-index:3;transform:translate(0,0) scale(1);-webkit-mask-image:radial-gradient(125% 125% at 50% 50%,#000 60%,rgba(0,0,0,.62) 88%,rgba(0,0,0,.30) 100%);mask-image:radial-gradient(125% 125% at 50% 50%,#000 60%,rgba(0,0,0,.62) 88%,rgba(0,0,0,.30) 100%)}"
-    /* 下(奥): 右下へずらし、タップは付箋だけ(シート本体は上の層の下なので操作不可が正) */
-    + "#p2LayerStage.p2lt-active [data-p2lt-back]{left:12px;top:12px;right:2px;bottom:2px;z-index:1;transform:translate(3px,3px) scale(.985);pointer-events:none}"
-    /* 付箋タブ: 下のシートのものだけ右側にはみ出してタップ可能。上のシートのものは控えめな目印 */
-    + "#p2LayerStage.p2lt-active .p2lt-tab{display:block;position:absolute;right:0;z-index:6;width:27px;padding:11px 0;border-radius:0 9px 9px 0;writing-mode:vertical-rl;font-size:12px;font-weight:900;letter-spacing:.14em;box-shadow:2px 3px 8px rgba(0,0,0,.45);cursor:pointer;font-family:inherit;transition:right .22s ease,opacity .22s ease,transform .22s ease}"
+    /* 上(手前): 右端32pxはタブ専用帯として避け、下にだけ下のシートのはみ出し分を空ける。中心は不透明、端ほど透過して下が透ける。傾きなし */
+    + "#p2LayerStage.p2lt-active [data-p2lt-front]{left:0;top:0;right:32px;bottom:14px;z-index:3;transform:none;-webkit-mask-image:radial-gradient(125% 125% at 50% 50%,#000 60%,rgba(0,0,0,.62) 88%,rgba(0,0,0,.30) 100%);mask-image:radial-gradient(125% 125% at 50% 50%,#000 60%,rgba(0,0,0,.62) 88%,rgba(0,0,0,.30) 100%)}"
+    /* 下(奥): タブ帯を避けた幅のまま下へ12pxだけずらし、下端がはみ出す。回転・縮小なし。タップは付箋だけ(シート本体は操作不可が正) */
+    + "#p2LayerStage.p2lt-active [data-p2lt-back]{left:0;top:12px;right:32px;bottom:2px;z-index:1;transform:none;pointer-events:none}"
+    /* 付箋タブ: どちらも右端のタブ専用帯(幅32px)の中にまっすぐ(回転なし)立つ。下のシートのものだけタップ可能で、上のシートのものは帯の中の控えめな目印。シート本体には一切重ならない */
+    + "#p2LayerStage.p2lt-active .p2lt-tab{display:block;position:absolute;right:2px;z-index:6;width:28px;transform:none;padding:11px 0;border-radius:0 9px 9px 0;writing-mode:vertical-rl;font-size:12px;font-weight:900;letter-spacing:.14em;box-shadow:2px 3px 8px rgba(0,0,0,.45);cursor:pointer;font-family:inherit;transition:right .22s ease,opacity .22s ease,transform .22s ease}"
     + ".p2lt-tab-ctrl{top:20px;background:#ff7ab8;color:#2a0c1c}"
     + ".p2lt-tab-list{top:96px;background:#ffd23f;color:#2a2410}"
-    + "#p2LayerStage[data-top='ctrl'] .p2lt-tab-ctrl{right:14px;opacity:.55;pointer-events:none;box-shadow:none}"
-    + "#p2LayerStage[data-top='ctrl'] .p2lt-tab-list{right:0;opacity:1;pointer-events:auto;transform:rotate(3deg)}"
-    + "#p2LayerStage[data-top='list'] .p2lt-tab-list{right:14px;opacity:.55;pointer-events:none;box-shadow:none}"
-    + "#p2LayerStage[data-top='list'] .p2lt-tab-ctrl{right:0;opacity:1;pointer-events:auto;transform:rotate(3deg)}"
+    + "#p2LayerStage[data-top='ctrl'] .p2lt-tab-ctrl{right:2px;opacity:.55;pointer-events:none;box-shadow:none;transform:none}"
+    + "#p2LayerStage[data-top='ctrl'] .p2lt-tab-list{right:2px;opacity:1;pointer-events:auto;transform:none}"
+    + "#p2LayerStage[data-top='list'] .p2lt-tab-list{right:2px;opacity:.55;pointer-events:none;box-shadow:none;transform:none}"
+    + "#p2LayerStage[data-top='list'] .p2lt-tab-ctrl{right:2px;opacity:1;pointer-events:auto;transform:none}"
     + "@media (prefers-reduced-motion:reduce){#p2LayerStage.p2lt-active #p2LayerCtrl,#p2LayerStage.p2lt-active #playSceneList,.p2lt-tab{transition:none}}";
   document.head.appendChild(st);
   var built = false, ctrlH = 0;
