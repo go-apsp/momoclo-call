@@ -283,10 +283,10 @@ requestAnimationFrame(loop);
 /* P2CS-BEGIN */
 (function () {
   var origCards = UI.cards.bind(UI);
-  var STYLES = ["stack", "bubble", "slide", "carousel", "pulse"];
-  var style = "stack";
-  try { style = localStorage.getItem("momo_cardstyle") || "stack"; } catch (e) {}
-  if (STYLES.indexOf(style) < 0) style = "stack";
+  var STYLES = ["stack", "bubble", "stream", "slide", "carousel", "pulse"];
+  var style = "bubble";
+  try { style = localStorage.getItem("momo_cardstyle_v3") || "bubble"; } catch (e) {}
+  if (STYLES.indexOf(style) < 0) style = "bubble";
   var stEl = document.createElement("style");
   stEl.textContent = "#bubbles{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:7}"
     + ".p2bub{position:absolute;transform:translateX(-50%);padding:9px 18px;border-radius:999px;color:#fff;text-align:center;max-width:86%;background:rgba(255,255,255,.16);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.35);box-shadow:0 4px 18px rgba(0,0,0,.25),inset 0 2px 6px rgba(255,255,255,.35),inset 0 -6px 12px rgba(255,255,255,.08);opacity:0;animation-name:p2floatUp;animation-timing-function:ease-out;animation-fill-mode:forwards}"
@@ -307,30 +307,46 @@ requestAnimationFrame(loop);
     + ".p2c.k-call{background:rgba(255,45,110,.55)}"
     + ".p2c.k-sing{background:rgba(30,136,229,.55)}"
     + ".p2c.k-koko{background:rgba(255,190,0,.68);color:#2b1a00}"
-    + ".p2c.s-slide{bottom:8px;transform:translateX(-50%) translateY(120%);opacity:0;transition:transform .45s cubic-bezier(.22,.9,.35,1),opacity .45s ease}"
+    + ".p2c.s-slide{bottom:8px;transform:translateX(-50%) translateY(130%);opacity:0;transition:transform .55s cubic-bezier(.22,.9,.35,1),opacity .55s ease}"
     + ".p2c.s-slide.pp0{transform:translateX(-50%) translateY(0) scale(1);opacity:1;z-index:5}"
-    + ".p2c.s-slide.pp1{transform:translateX(-50%) translateY(-56px) scale(.92);opacity:.88;z-index:4}"
-    + ".p2c.s-slide.pp2{transform:translateX(-50%) translateY(-104px) scale(.84);opacity:.72;z-index:3}"
-    + ".p2c.s-slide.pp3{transform:translateX(-50%) translateY(-144px) scale(.78);opacity:.58;z-index:2}"
-    + ".p2c.s-slide.pp4{transform:translateX(-50%) translateY(-178px) scale(.74);opacity:.45;z-index:1}"
-    + ".p2c.s-slide.leaving{transform:translateX(-50%) translateY(-32px) scale(.9);opacity:0}"
-    + ".p2c.s-carousel{bottom:8px;transform:translateX(-50%) translateY(24px) scale(.92);opacity:0;transition:transform .45s cubic-bezier(.22,.9,.35,1),opacity .45s ease}"
-    + ".p2c.s-carousel.pp0{transform:translateX(-50%) translateY(0) scale(1);opacity:1;z-index:5}"
-    + ".p2c.s-carousel.pp1{transform:translateX(-50%) translateY(-7px) scale(.94);opacity:.88;z-index:4}"
-    + ".p2c.s-carousel.pp2{transform:translateX(-50%) translateY(-14px) scale(.88);opacity:.72;z-index:3}"
-    + ".p2c.s-carousel.pp3{transform:translateX(-50%) translateY(-20px) scale(.83);opacity:.55;z-index:2}"
-    + ".p2c.s-carousel.pp4{transform:translateX(-50%) translateY(-25px) scale(.79);opacity:.4;z-index:1}"
-    + ".p2c.s-carousel.leaving{transform:translateX(-50%) translateY(-18px) scale(.8);opacity:0}"
-    + ".p2c.s-pulse{bottom:10px;transform:translateX(-50%) scale(1.1);opacity:0;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s ease}"
-    + ".p2c.s-pulse.pp0{transform:translateX(-50%) translateY(0) scale(1);opacity:1;z-index:5}"
-    + ".p2c.s-pulse.pp1{transform:translateX(-50%) translateY(-9px) scale(.95);opacity:.8;z-index:4}"
-    + ".p2c.s-pulse.pp2{transform:translateX(-50%) translateY(-16px) scale(.9);opacity:.45;z-index:3}"
-    + ".p2c.s-pulse.pp3{transform:translateX(-50%) translateY(-21px) scale(.86);opacity:.3;z-index:2}"
-    + ".p2c.s-pulse.pp4{transform:translateX(-50%) translateY(-25px) scale(.83);opacity:.22;z-index:1}"
-    + ".p2c.s-pulse.leaving{transform:translateX(-50%) scale(.85);opacity:0}"
+    + ".p2c.s-slide.pp1{transform:translateX(-50%) translateY(-62px) scale(.9);opacity:.85;z-index:4}"
+    + ".p2c.s-slide.pp2{transform:translateX(-50%) translateY(-116px) scale(.82);opacity:.68;z-index:3}"
+    + ".p2c.s-slide.pp3{transform:translateX(-50%) translateY(-162px) scale(.75);opacity:.52;z-index:2}"
+    + ".p2c.s-slide.pp4{transform:translateX(-50%) translateY(-200px) scale(.7);opacity:.38;z-index:1}"
+    + ".p2c.s-slide.leaving{transform:translateX(-50%) translateY(-215px) scale(.68);opacity:0}"
+    + ".p2c.s-carousel{bottom:8px;transform:translateX(-50%) translateY(34px) scale(.84) rotate(-5deg);opacity:0;transition:transform .5s cubic-bezier(.22,.9,.35,1),opacity .5s ease}"
+    + ".p2c.s-carousel.pp0{transform:translateX(-50%) translateY(0) scale(1) rotate(0deg);opacity:1;z-index:5}"
+    + ".p2c.s-carousel.pp1{transform:translateX(-50%) translateY(-14px) scale(.9) rotate(-2.5deg);opacity:.9;z-index:4}"
+    + ".p2c.s-carousel.pp2{transform:translateX(-50%) translateY(-26px) scale(.81) rotate(2deg);opacity:.75;z-index:3}"
+    + ".p2c.s-carousel.pp3{transform:translateX(-50%) translateY(-36px) scale(.74) rotate(-3.5deg);opacity:.58;z-index:2}"
+    + ".p2c.s-carousel.pp4{transform:translateX(-50%) translateY(-44px) scale(.68) rotate(3deg);opacity:.42;z-index:1}"
+    + ".p2c.s-carousel.leaving{transform:translateX(-50%) translateY(-30px) scale(.7) rotate(6deg);opacity:0}"
+    + ".p2c.s-pulse{bottom:10px;transform:translateX(-50%) scale(1.45);opacity:0;transition:transform .45s cubic-bezier(.34,1.8,.64,1),opacity .35s ease}"
+    + ".p2c.s-pulse.pp0{transform:translateX(-50%) translateY(0) scale(1);opacity:1;z-index:5;animation:p2heartbeat .9s ease-in-out infinite}"
+    + "@keyframes p2heartbeat{0%,100%{scale:1}35%{scale:1.08}}"
+    + ".p2c.s-pulse.pp1{transform:translateX(-50%) translateY(-12px) scale(.92);opacity:.75;z-index:4}"
+    + ".p2c.s-pulse.pp2{transform:translateX(-50%) translateY(-22px) scale(.85);opacity:.5;z-index:3}"
+    + ".p2c.s-pulse.pp3{transform:translateX(-50%) translateY(-30px) scale(.8);opacity:.32;z-index:2}"
+    + ".p2c.s-pulse.pp4{transform:translateX(-50%) translateY(-36px) scale(.76);opacity:.18;z-index:1}"
+    + ".p2c.s-pulse.leaving{transform:translateX(-50%) scale(.65);opacity:0}"
     + ".p2csbtns{display:inline-flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}"
     + ".p2csbtns button{padding:5px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.08);color:#f4f4fb;font-size:12px}"
-    + ".p2csbtns button.sel{background:var(--pink,#ff5d8f);border-color:transparent;font-weight:700}";
+    + ".p2csbtns button.sel{background:var(--pink,#ff5d8f);border-color:transparent;font-weight:700}"
+    /* ストリーム(Gemini案1: 下からスライドインし、等間隔で上へ流れ、薄くなって消える。ココ好き!は上部。色は他の見せ方と同じ種類色の半透明) */
+    + ".p2c.s-stream{bottom:10px;border-radius:999px;padding:10px 18px;transform:translateX(-50%) translateY(64px);opacity:0;transition:transform .7s cubic-bezier(.22,.9,.35,1),opacity .7s ease}"
+    + ".p2c.s-stream.pp0{transform:translateX(-50%) translateY(0);opacity:1;z-index:5}"
+    + ".p2c.s-stream.pp1{transform:translateX(-50%) translateY(-66px);opacity:.8;z-index:4}"
+    + ".p2c.s-stream.pp2{transform:translateX(-50%) translateY(-132px);opacity:.55;z-index:3}"
+    + ".p2c.s-stream.pp3{transform:translateX(-50%) translateY(-198px);opacity:.32;z-index:2}"
+    + ".p2c.s-stream.pp4{transform:translateX(-50%) translateY(-264px);opacity:.14;z-index:1}"
+    + ".p2c.s-stream.leaving{opacity:0}"
+    + ".p2c.s-stream.k-koko{bottom:auto;top:12%}"
+    + ".p2c.s-stream.k-koko.kt0{transform:translateX(-50%) translateY(0);opacity:1;z-index:5}"
+    + ".p2c.s-stream.k-koko.kt1{transform:translateX(-50%) translateY(52px);opacity:.75;z-index:4}"
+    /* 見せ方切替は下の「モード」引き出し内に格納 */
+    + ".p2csRow{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.14);text-align:center}"
+    + ".p2csRow .p2csLbl{display:block;font-size:11px;color:var(--mut);font-weight:700;margin-bottom:6px}"
+    + ".p2csRow .p2csbtns{justify-content:center}";
   document.head.appendChild(stEl);
   var bub = document.createElement("div");
   bub.id = "bubbles";
@@ -358,16 +374,28 @@ requestAnimationFrame(loop);
     });
     Object.keys(alive).forEach(function (k) { if (!seen[k]) { alive[k].remove(); delete alive[k]; } });
   }
-  /* スライド/カルーセル/パルス: 段クラス(pp0=最新)を付け替えて滑らかに動かす */
-  function applyPos(rec) { rec.el.className = "p2c s-" + style + " k-" + rec.kind + " pp" + Math.min(rec.pos, 4); }
-  function leaveEl(el) { el.classList.add("leaving"); setTimeout(function () { el.remove(); }, 650); }
+  /* スライド/カルーセル/パルス/ストリーム: 段クラス(pp0=最新)を付け替えて滑らかに動かす。ストリームはココ好き!を上部(kt)に分ける */
+  function applyPos(rec) {
+    if (style === "stream" && rec.kind === "koko") { rec.el.className = "p2c s-stream k-koko kt" + Math.min(rec.pos, 1); return; }
+    rec.el.className = "p2c s-" + style + " k-" + rec.kind + " pp" + Math.min(rec.pos, 4);
+  }
+  function leaveEl(el) { el.classList.add("leaving"); setTimeout(function () { el.remove(); }, 900); }
   function renderPos(on) {
     var seen = {};
-    var main = on.filter(function (e) { return e.k !== "koko"; }).slice(-3);
+    var main = on.filter(function (e) { return e.k !== "koko"; }).slice(style === "stream" ? -5 : -3);
     var koko = on.filter(function (e) { return e.k === "koko"; }).slice(-2);
-    var all = main.concat(koko).sort(function (a, b) { return a.t - b.t; });
-    var n = all.length;
-    all.forEach(function (e, idx) {
+    var items = [];
+    if (style === "stream") {
+      var ms = main.slice().sort(function (a, b) { return a.t - b.t; });
+      ms.forEach(function (e, i) { items.push({ e: e, pos: ms.length - 1 - i }); });
+      var ks = koko.slice().sort(function (a, b) { return a.t - b.t; });
+      ks.forEach(function (e, i) { items.push({ e: e, pos: ks.length - 1 - i }); });
+    } else {
+      var all = main.concat(koko).sort(function (a, b) { return a.t - b.t; });
+      all.forEach(function (e, i) { items.push({ e: e, pos: all.length - 1 - i }); });
+    }
+    items.forEach(function (it) {
+      var e = it.e;
       var k = keyOf(e); seen[k] = 1;
       var rec = aliveP[k];
       if (!rec) {
@@ -375,12 +403,12 @@ requestAnimationFrame(loop);
         el.className = "p2c s-" + style + " k-" + e.k;
         el.innerHTML = cardHTML(e);
         bub.appendChild(el);
-        rec = aliveP[k] = { el: el, kind: e.k, pos: n - 1 - idx, entered: false };
+        rec = aliveP[k] = { el: el, kind: e.k, pos: it.pos, entered: false };
         requestAnimationFrame(function () {
           requestAnimationFrame(function () { if (aliveP[k] !== rec) return; rec.entered = true; applyPos(rec); });
         });
       } else {
-        rec.pos = n - 1 - idx;
+        rec.pos = it.pos;
         if (rec.entered) applyPos(rec);
       }
     });
@@ -398,24 +426,24 @@ requestAnimationFrame(loop);
       renderCustom(on);
     }
   };
-  /* 切り替えUI: メニューの「カードの位置」行の下に差し込む */
+  /* 切り替えUI: 下の「モード」引き出し(激湧き/観覧と同じバー)の中に格納 */
   var row = document.createElement("div");
-  row.className = "mrow";
-  row.innerHTML = "<span>カードの見せ方</span><span class=\"p2csbtns\">"
+  row.className = "p2csRow";
+  row.innerHTML = "<span class=\"p2csLbl\">カードの見せ方</span><span class=\"p2csbtns\">"
     + "<button type=\"button\" data-cs=\"stack\">縦積み</button>"
     + "<button type=\"button\" data-cs=\"bubble\">バブル</button>"
+    + "<button type=\"button\" data-cs=\"stream\">ストリーム</button>"
     + "<button type=\"button\" data-cs=\"slide\">スライド</button>"
     + "<button type=\"button\" data-cs=\"carousel\">カルーセル</button>"
     + "<button type=\"button\" data-cs=\"pulse\">パルス</button></span>";
-  var cposLabel = $("cpos") ? $("cpos").closest("label") : null;
-  if (cposLabel && cposLabel.parentNode) cposLabel.parentNode.insertBefore(row, cposLabel.nextSibling);
-  else $("menu").appendChild(row);
+  var plBody = $("plModeBody");
+  if (plBody) plBody.appendChild(row);
   function paintBtns() { row.querySelectorAll("button[data-cs]").forEach(function (b) { b.classList.toggle("sel", b.dataset.cs === style); }); }
   row.querySelectorAll("button[data-cs]").forEach(function (b) {
     b.addEventListener("click", function () {
       var v = b.dataset.cs; if (v === style) return;
       style = v;
-      try { localStorage.setItem("momo_cardstyle", style); } catch (e) {}
+      try { localStorage.setItem("momo_cardstyle_v3", style); } catch (e) {}
       paintBtns();
       clearCustom();
       if (style === "stack") { origCards([]); origCards(lastOn); }
@@ -436,7 +464,7 @@ requestAnimationFrame(loop);
     + "#plModeBar{width:100%;height:42px;background:rgba(38,42,74,.78);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:0;border-top:2px solid #3a3f6b;color:var(--ink);font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font:inherit}"
     + "#plModeBar .drwHint{font-size:11px;color:var(--mut);font-weight:700}"
     + "#plModeBody{max-height:0;overflow:hidden;transition:max-height .3s ease;background:rgba(28,30,56,.78);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}"
-    + "#plMode.open #plModeBody{max-height:25vh;overflow-y:auto;padding:10px}"
+    + "#plMode.open #plModeBody{max-height:42vh;overflow-y:auto;padding:10px}"
     + "#plModeBody .drwBtns{display:flex;gap:14px;justify-content:center}"
     + "body.scr-mk #plMode,body.scr-sp #plMode{display:none}"
     + "#dots{position:fixed;left:50%;transform:translateX(-50%);bottom:118px;z-index:65;background:rgba(28,30,56,.92);border:1px solid #3a3f6b;border-radius:999px;padding:8px 12px;box-shadow:0 10px 30px rgba(0,0,0,.5);display:none}"
@@ -858,7 +886,6 @@ function paintPvBtn() { const b = $("mkPvBtn"); if (b) b.textContent = mkPv ? "�
 function setScreen(name) {
   screen = name;
   document.body.classList.toggle("scr-mk", name === "mk");
-  const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = name === "mk" ? "none" : "";
   document.body.classList.toggle("scr-sp", name === "sp");
   $("mk").style.display = name === "mk" ? "flex" : "none";
   $("spPanel").style.display = name === "sp" ? "flex" : "none";
@@ -943,7 +970,6 @@ function maybeShowMkFlow() { if (!mkFlowSeen("intro")) openMkFlow("intro", true)
 function maybeShowModeFlow(m) { if (guide) return; if (!mkFlowSeen(m)) openMkFlow(m, true); }
 function enterMk() {
   mkReturnScrollY = window.scrollY || document.documentElement.scrollTop || 0;
-  const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "none";
   spStep = 0; paintSpStep();
   setScreen("mk");
   const mnIn = $("menu"); if (mnIn) { mnIn.style.display = "none"; document.body.classList.remove("menu-open"); }   // プロトタイプ2: 右上のサブメニューを閉じてから入る
@@ -960,7 +986,6 @@ function enterMk() {
 }
 function exitMk() {
   clearMkOnboard();
-  const topBand = $("tryMakeOshiBand"); if (topBand) topBand.style.display = "";
   setScreen("play");
   const drw = $("mkDrawer"); if (drw) drw.classList.remove("open");
   mkSel = -1; mkLenPhase = null; mkSelOrigT = null; mkSetZoom(false);
