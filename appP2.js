@@ -508,16 +508,22 @@ requestAnimationFrame(loop);
   });
 })();
 
-/* ---------- プロトタイプ2 v41: 再生画面の二層レイヤー+付箋タブ ----------
-   再生コントロール一式(.p2row1+.playrow+#barwrap)とコールカード一覧(#playSceneList)を
-   「片方が消える入れ替え」ではなく二階建てのシートにする。両方とも重なって存在し続け、
-   下のシートは少しずれて端がはみ出し、端では上のシートが透過グラデーションで透けるので
-   「下にもう1枚ある」と分かる。下のシートの付箋(右端のタブ専用帯にまっすぐ立つ縦書きタブ)をタップすると
-   そのシートが短いアニメーションで上(手前)に来る。
-   v41: 実機フィードバックで、付箋が操作ボタンに重なる点と、付箋が斜めに傾いている点を修正。
-   ステージ右端に幅32pxのタブ専用帯を予約し、シート本体(ボタン類を含む領域)はその帯を避けた幅にした。
-   付箋は帯の中に収まり回転なし(0度)でまっすぐ立つ。シートのずらしも回転・縮小なしの縦方向のみにした。
-   作成画面(scr-mk)/シェア画面(scr-sp)ではステージをほどいて元のDOM配置に完全に戻すので影響しない。
+/* ---------- プロトタイプ2 v42: 再生画面の三層レイヤー+付箋タブ(タイムライン追加) ----------
+   再生コントロール一式(.p2row1+.playrow+#barwrap)とコールカード一覧(#playSceneList)に加え、
+   タイムラインも同じステージの3枚目のシートとして重ねる「三階建て」レイヤー。
+   どのシートも消えずに重なって存在し続け、下のシートは下へ少しずれて端がはみ出し、
+   端では上のシートが透過グラデーションで透けるので「下にもう1枚ある」と分かる。
+   下のシートの付箋(右端のタブ専用帯にまっすぐ立つ縦書きタブ)をタップすると、そのシートが
+   短いアニメーションで上(手前)に来る。付箋帯の中ではスライド切替もできる: 指を置いたまま
+   上下に滑らせ、指が別の付箋の上に来た瞬間にそのシートが上に来る(離すのを待たない)。付箋はタブ専用帯(幅32px)の中に収まり、回転なし(0度)で
+   まっすぐ立ち、シート本体(ボタン類)には一切重ならない(v41の実機フィードバック対応を維持)。
+   タイムラインシートの中身は、曲全体を小さく押し込んだ図解ではなく「拡大して流れる」表示:
+   時間軸を PXPS(px/秒) に拡大し、カードは大きく文言入り(入りきらない文言は省略)で描き、
+   再生位置に追従して自動スクロールする。シート内をタップ(スクロールではなく、ほぼ動かさず
+   離したとき)すると既存の全画面タイムライン(#tlFsBtn のクリック相当)を開く。
+   v42では再生画面の NEXT カード(#nexts)も一旦非表示にする(再生画面の範囲のみ・CSSだけの
+   変更で UI.nexts の仕組み自体は残すので、CSSを外せばすぐ戻せる)。
+   作成画面(scr-mk)/シェア画面(scr-sp)ではステージをほどいて元のDOM配置に完全に戻す。
    #plMode / #mkRateSelect / #spPanel / #pEv には触らない。 */
 (function () {
   var row1 = document.querySelector(".p2row1");
@@ -530,47 +536,173 @@ requestAnimationFrame(loop);
   var mRow1 = mkMarker(row1), mPlay = mkMarker(playrow), mBar = mkMarker(barwrap), mList = mkMarker(list);
   var stage = document.createElement("div"); stage.id = "p2LayerStage"; stage.setAttribute("data-top", "ctrl");
   var ctrl = document.createElement("div"); ctrl.id = "p2LayerCtrl";
+  /* タイムラインシート(3枚目)。中身は renderTl() が拡大タイムラインを描く */
+  var tlSheet = document.createElement("div"); tlSheet.id = "p2LayerTl";
+  tlSheet.innerHTML = '<div class="p2tl-head"><span class="p2tl-title">タイムライン</span><span class="p2tl-now"></span><button type="button" class="p2tl-fs">全画面で見る</button></div>'
+    + '<div class="p2tl-scroll"><div class="p2tl-inner"></div></div>'
+    + '<div class="p2tl-hint">タップすると全画面で表示します</div>';
+  var tlScroll = tlSheet.querySelector(".p2tl-scroll");
+  var tlInner = tlSheet.querySelector(".p2tl-inner");
+  var tlNowEl = tlSheet.querySelector(".p2tl-now");
   var tabCtrl = document.createElement("button"); tabCtrl.type = "button"; tabCtrl.className = "p2lt-tab p2lt-tab-ctrl"; tabCtrl.textContent = "操作"; tabCtrl.setAttribute("aria-label", "再生コントロールを上に表示する");
   var tabList = document.createElement("button"); tabList.type = "button"; tabList.className = "p2lt-tab p2lt-tab-list"; tabList.textContent = "一覧"; tabList.setAttribute("aria-label", "コールカード一覧を上に表示する");
+  var tabTl = document.createElement("button"); tabTl.type = "button"; tabTl.className = "p2lt-tab p2lt-tab-tl"; tabTl.textContent = "タイムライン"; tabTl.setAttribute("aria-label", "タイムラインを上に表示する");
   var st = document.createElement("style"); st.id = "p2LayerStyles";
   st.textContent = "#p2LayerStage{position:relative}"
     + "#p2LayerCtrl{display:flex;flex-direction:column;gap:14px}"
     + ".p2lt-tab{display:none}"
-    /* ステージ有効時: 2枚のシートを重ねる */
+    /* v42: NEXTカードは再生画面でのみ一旦非表示(仕組みは残すので戻せる) */
+    + "body:not(.scr-mk):not(.scr-sp) #nexts{display:none!important}"
+    + "#p2LayerTl{display:none}"
+    /* ステージ有効時: 3枚のシートを重ねる */
     + "#p2LayerStage.p2lt-active{margin-right:0}"
-    + "#p2LayerStage.p2lt-active #p2LayerCtrl,#p2LayerStage.p2lt-active #playSceneList{position:absolute;border:1px solid rgba(255,255,255,.20);border-radius:14px;box-shadow:0 10px 26px rgba(0,0,0,.42);transition:transform .22s ease,opacity .22s ease;overflow:hidden}"
+    + "#p2LayerStage.p2lt-active #p2LayerCtrl,#p2LayerStage.p2lt-active #playSceneList,#p2LayerStage.p2lt-active #p2LayerTl{position:absolute;border:1px solid rgba(255,255,255,.20);border-radius:14px;box-shadow:0 10px 26px rgba(0,0,0,.42);transition:transform .22s ease,opacity .22s ease;overflow:hidden}"
     + "#p2LayerStage.p2lt-active #p2LayerCtrl{padding:10px;background:linear-gradient(180deg,rgba(38,42,74,.99),rgba(22,23,45,.99));gap:10px}"
     + "#p2LayerStage.p2lt-active #playSceneList{margin:0;padding:10px;display:none;background:linear-gradient(180deg,rgba(24,26,48,.99),rgba(15,17,31,.99))}"
     + "#p2LayerStage.p2lt-active #playSceneList.on{display:flex;flex-direction:column}"
     + "#p2LayerStage.p2lt-active #playSceneList .psl-items{max-height:none;flex:1;min-height:0}"
+    + "#p2LayerStage.p2lt-active #p2LayerTl{margin:0;padding:10px;background:linear-gradient(180deg,rgba(24,26,48,.99),rgba(15,17,31,.99));display:flex;flex-direction:column}"
     /* 上(手前): 右端32pxはタブ専用帯として避け、下にだけ下のシートのはみ出し分を空ける。中心は不透明、端ほど透過して下が透ける。傾きなし */
     + "#p2LayerStage.p2lt-active [data-p2lt-front]{left:0;top:0;right:32px;bottom:14px;z-index:3;transform:none;-webkit-mask-image:radial-gradient(125% 125% at 50% 50%,#000 60%,rgba(0,0,0,.62) 88%,rgba(0,0,0,.30) 100%);mask-image:radial-gradient(125% 125% at 50% 50%,#000 60%,rgba(0,0,0,.62) 88%,rgba(0,0,0,.30) 100%)}"
-    /* 下(奥): タブ帯を避けた幅のまま下へ12pxだけずらし、下端がはみ出す。回転・縮小なし。タップは付箋だけ(シート本体は操作不可が正) */
-    + "#p2LayerStage.p2lt-active [data-p2lt-back]{left:0;top:12px;right:32px;bottom:2px;z-index:1;transform:none;pointer-events:none}"
-    /* 付箋タブ: どちらも右端のタブ専用帯(幅32px)の中にまっすぐ(回転なし)立つ。下のシートのものだけタップ可能で、上のシートのものは帯の中の控えめな目印。シート本体には一切重ならない */
+    /* 下(奥): タブ帯を避けた幅のまま下へ少しずらし、下端が階段状にはみ出す。回転・縮小なし。タップは付箋だけ(シート本体は操作不可が正) */
+    + "#p2LayerStage.p2lt-active [data-p2lt-back='0']{left:0;top:8px;right:32px;bottom:7px;z-index:2;transform:none;pointer-events:none}"
+    + "#p2LayerStage.p2lt-active [data-p2lt-back='1']{left:0;top:16px;right:32px;bottom:0;z-index:1;transform:none;pointer-events:none}"
+    /* 付箋タブ: 3枚とも右端のタブ専用帯(幅32px)の中にまっすぐ(回転なし)立つ。上のシートのものだけ控えめな目印になり、他の2枚はタップ可能。シート本体には一切重ならない */
     + "#p2LayerStage.p2lt-active .p2lt-tab{display:block;position:absolute;right:2px;z-index:6;width:28px;transform:none;padding:11px 0;border-radius:0 9px 9px 0;writing-mode:vertical-rl;font-size:12px;font-weight:900;letter-spacing:.14em;box-shadow:2px 3px 8px rgba(0,0,0,.45);cursor:pointer;font-family:inherit;transition:right .22s ease,opacity .22s ease,transform .22s ease}"
-    + ".p2lt-tab-ctrl{top:20px;background:#ff7ab8;color:#2a0c1c}"
-    + ".p2lt-tab-list{top:96px;background:#ffd23f;color:#2a2410}"
-    + "#p2LayerStage[data-top='ctrl'] .p2lt-tab-ctrl{right:2px;opacity:.55;pointer-events:none;box-shadow:none;transform:none}"
-    + "#p2LayerStage[data-top='ctrl'] .p2lt-tab-list{right:2px;opacity:1;pointer-events:auto;transform:none}"
-    + "#p2LayerStage[data-top='list'] .p2lt-tab-list{right:2px;opacity:.55;pointer-events:none;box-shadow:none;transform:none}"
-    + "#p2LayerStage[data-top='list'] .p2lt-tab-ctrl{right:2px;opacity:1;pointer-events:auto;transform:none}"
-    + "@media (prefers-reduced-motion:reduce){#p2LayerStage.p2lt-active #p2LayerCtrl,#p2LayerStage.p2lt-active #playSceneList,.p2lt-tab{transition:none}}";
+    + ".p2lt-tab-ctrl{top:6px;background:#ff7ab8;color:#2a0c1c}"
+    + ".p2lt-tab-list{top:62px;background:#ffd23f;color:#2a2410}"
+    + ".p2lt-tab-tl{top:118px;background:#4dc9ff;color:#0b2233;font-size:11px;letter-spacing:.1em;padding:8px 0}"
+    + "#p2LayerStage.p2lt-active .p2lt-tab{touch-action:none}"
+    + ".p2lt-tab-hot{filter:brightness(1.22);box-shadow:0 0 0 2px #fff,2px 3px 10px rgba(0,0,0,.55)!important}"
+    + "#p2LayerStage[data-top='ctrl'] .p2lt-tab-ctrl,#p2LayerStage[data-top='list'] .p2lt-tab-list,#p2LayerStage[data-top='tl'] .p2lt-tab-tl{opacity:.55;pointer-events:none;box-shadow:none}"
+    + "#p2LayerStage[data-top='ctrl'] .p2lt-tab-list,#p2LayerStage[data-top='ctrl'] .p2lt-tab-tl,#p2LayerStage[data-top='list'] .p2lt-tab-ctrl,#p2LayerStage[data-top='list'] .p2lt-tab-tl,#p2LayerStage[data-top='tl'] .p2lt-tab-ctrl,#p2LayerStage[data-top='tl'] .p2lt-tab-list{opacity:1;pointer-events:auto}"
+    /* タイムラインシートの中身: 拡大して流れるタイムライン */
+    + ".p2tl-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}"
+    + ".p2tl-title{font-size:14px;font-weight:900;color:#fff}"
+    + ".p2tl-now{font-size:12px;font-weight:900;color:#aee9e2;font-variant-numeric:tabular-nums}"
+    + ".p2tl-fs{margin-left:auto;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:999px;padding:5px 10px;font-size:11px;font-weight:900;font-family:inherit;cursor:pointer}"
+    + ".p2tl-scroll{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;position:relative;border-radius:8px;background:rgba(10,11,24,.55)}"
+    + ".p2tl-inner{position:relative;padding:2px 0 6px;min-height:100%;box-sizing:border-box}"
+    + ".p2tl-ruler{position:relative;height:16px}"
+    + ".p2tl-tick{position:absolute;top:0;font-size:9px;font-weight:700;color:#8e91b8;white-space:nowrap;padding-left:2px}"
+    + ".p2tl-lane{position:relative;height:46px;margin-top:4px;border-top:1px solid rgba(255,255,255,.07)}"
+    + ".p2tl-lab{position:sticky;left:0;z-index:4;display:inline-block;background:rgba(10,11,24,.88);padding:2px 6px;font-size:10px;font-weight:900;color:#cfd2f2;border-radius:0 0 6px 0}"
+    + ".p2tl-card{position:absolute;top:9px;height:34px;border-radius:8px;border:1.5px solid;box-sizing:border-box;padding:2px 7px;overflow:hidden;font-size:13px;font-weight:800;color:#fff;line-height:1.3;white-space:nowrap}"
+    + ".p2tl-card small{display:block;font-size:9px;font-weight:900;opacity:.9;line-height:1.15}"
+    + ".p2tl-card .p2tl-x{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}"
+    + ".p2tl-pos{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 6px rgba(255,255,255,.85);z-index:5;pointer-events:none}"
+    + ".p2tl-empty{padding:18px 8px;font-size:13px;font-weight:700;color:#9aa3c7}"
+    + ".p2tl-hint{margin-top:6px;font-size:10px;font-weight:700;color:#9aa3c7;text-align:right}"
+    + "@media (prefers-reduced-motion:reduce){#p2LayerStage.p2lt-active #p2LayerCtrl,#p2LayerStage.p2lt-active #playSceneList,#p2LayerStage.p2lt-active #p2LayerTl,.p2lt-tab{transition:none}}";
   document.head.appendChild(st);
   var built = false, ctrlH = 0;
+  var sheets = { ctrl: ctrl, list: list, tl: tlSheet };
   function isPlayScreen() { return !document.body.classList.contains("scr-mk") && !document.body.classList.contains("scr-sp"); }
   function paintTabs() {
     var top = stage.getAttribute("data-top");
     tabCtrl.setAttribute("aria-pressed", top === "ctrl" ? "true" : "false");
     tabList.setAttribute("aria-pressed", top === "list" ? "true" : "false");
+    tabTl.setAttribute("aria-pressed", top === "tl" ? "true" : "false");
   }
-  function setTop(which) { stage.setAttribute("data-top", which); applyFrontBack(); paintTabs(); }
+  function setTop(which) { stage.setAttribute("data-top", which); applyFrontBack(); paintTabs(); if (which === "tl") { renderTl(true); followTl(); } }
   function applyFrontBack() {
     var top = stage.getAttribute("data-top");
-    var front = top === "list" ? list : ctrl, back = top === "list" ? ctrl : list;
-    front.setAttribute("data-p2lt-front", ""); front.removeAttribute("data-p2lt-back");
-    back.setAttribute("data-p2lt-back", ""); back.removeAttribute("data-p2lt-front");
+    var backRank = 0;
+    ["ctrl", "list", "tl"].forEach(function (k) {
+      var el = sheets[k];
+      if (k === top) { el.setAttribute("data-p2lt-front", ""); el.removeAttribute("data-p2lt-back"); }
+      else { el.setAttribute("data-p2lt-back", String(backRank)); backRank++; el.removeAttribute("data-p2lt-front"); }
+    });
   }
+  function clearFrontBack() {
+    ["ctrl", "list", "tl"].forEach(function (k) { sheets[k].removeAttribute("data-p2lt-front"); sheets[k].removeAttribute("data-p2lt-back"); });
+  }
+  /* ---------- タイムラインシート: 拡大して流れる表示 ---------- */
+  var PXPS = 16;   /* 1秒=16px に拡大。シート幅で見えるのは曲の一部だけ、それでよい */
+  var TCOL = { call: "#ff6b9d", sing: "#4dc9ff", koko: "#ffd23f" };   /* 既存図解と同じ種類色 */
+  var tlKey = null, tlManualUntil = 0, tlLastAuto = -1;
+  function tlTarget() {
+    /* 対象コールと長さDの決め方は既存の tlNow と同じ優先順位: act → EV系の pseudo → calls[0] */
+    try {
+      if (act && calls.some(function (x) { return x.id === act; })) {
+        var raw = calls.find(function (x) { return x.id === act; });
+        var c = Object.assign({}, raw, { scenes: mkPlaybackScenes(raw.scenes) });
+        return { c: c, D: Math.max(dur() || 0, c.scenes.reduce(function (m, s) { return Math.max(m, (+s.t || 0) + (+s.d || 0)); }, 0), 1) };
+      }
+      var sc = mkPv ? mkPv.scenes : EV;
+      if (sc && sc.length) {
+        var pseudo = { id: "__cur__", ownerName: refPlay ? "参考コール" : randPlay ? "ランダム再生" : "プレビュー", versionName: (curRef && curRef.versionName) || "", scenes: sc };
+        return { c: pseudo, D: Math.max(dur() || 0, sc.reduce(function (m, s) { return Math.max(m, (+s.t || 0) + (+s.d || 0)); }, 0), 1) };
+      }
+      if (calls[0]) {
+        var raw0 = calls[0];
+        var c0 = Object.assign({}, raw0, { scenes: mkPlaybackScenes(raw0.scenes) });
+        return { c: c0, D: Math.max(dur() || 0, c0.scenes.reduce(function (m, s) { return Math.max(m, (+s.t || 0) + (+s.d || 0)); }, 0), 1) };
+      }
+    } catch (e) {}
+    return null;
+  }
+  function renderTl(force) {
+    var tg = tlTarget();
+    if (!tg || !tg.c.scenes || !tg.c.scenes.length) {
+      if (tlKey !== "empty") { tlKey = "empty"; tlInner.innerHTML = '<div class="p2tl-empty">表示できるコールがまだありません</div>'; tlNowEl.textContent = ""; }
+      return;
+    }
+    var c = tg.c, D = tg.D;
+    var key = (c.id || "") + "|" + c.scenes.length + "|" + Math.round(D * 10) + "|" + (c.scenes[0] ? c.scenes[0].t : 0) + "|" + (c.scenes[c.scenes.length - 1] ? c.scenes[c.scenes.length - 1].t : 0) + "|" + (c.versionName || "");
+    if (!force && key === tlKey) return;
+    tlKey = key;
+    var W = Math.max(Math.ceil(D * PXPS), 320);
+    var html = '<div class="p2tl-ruler" style="width:' + W + 'px">';
+    for (var sec = 0; sec <= D; sec += 10) html += '<span class="p2tl-tick" style="left:' + Math.round(sec * PXPS) + 'px">' + fmt(sec) + '</span>';
+    html += '</div>';
+    ["call", "sing", "koko"].forEach(function (k) {
+      html += '<div class="p2tl-lane" style="width:' + W + 'px"><span class="p2tl-lab">' + LAB[k] + '</span>';
+      c.scenes.forEach(function (s) {
+        if (s.k !== k) return;
+        var l = Math.max(0, Math.round((+s.t || 0) * PXPS));
+        var w = Math.max(76, Math.round(((+s.d || 0) || 3) * PXPS));
+        var col = TCOL[k] || "#ffffff";
+        html += '<div class="p2tl-card" title="' + esc(String(s.x || LAB[k])) + '" style="left:' + l + 'px;width:' + w + 'px;border-color:' + col + ';background:' + col + '30"><small>' + fmt(Math.max(0, +s.t || 0)) + " " + LAB[k] + '</small><span class="p2tl-x">' + esc(String(s.x || LAB[k])) + '</span></div>';
+      });
+      html += '</div>';
+    });
+    html += '<div class="p2tl-pos" style="left:0"></div>';
+    tlInner.innerHTML = html;
+    tlInner.style.width = W + "px";
+    followTl();
+  }
+  function followTl() {
+    if (stage.getAttribute("data-top") !== "tl") return;
+    var t = 0;
+    try { t = now() || 0; } catch (e) {}
+    var pe = tlInner.querySelector(".p2tl-pos");
+    if (pe) pe.style.left = Math.round(t * PXPS) + "px";
+    tlNowEl.textContent = fmt(t);
+    if (Date.now() < tlManualUntil) return;   /* ユーザーが自分でスクロールした直後は追従で奪わない */
+    var desired = Math.round(t * PXPS - tlScroll.clientWidth * 0.35);
+    if (desired < 0) desired = 0;
+    if (Math.abs(tlScroll.scrollLeft - desired) > 4) { tlLastAuto = desired; tlScroll.scrollLeft = desired; }
+  }
+  function openTlFull() { var b = document.getElementById("tlFsBtn"); if (b) b.click(); }
+  tlSheet.querySelector(".p2tl-fs").addEventListener("click", function (e) { e.stopPropagation(); openTlFull(); });
+  /* タップ(ほぼ動かさず離した)と横スクロールの区別: スクロールしただけでは全画面に飛ばない */
+  var tapInfo = null;
+  tlScroll.addEventListener("pointerdown", function (e) { tapInfo = { x: e.clientX, y: e.clientY, sl: tlScroll.scrollLeft, st: tlScroll.scrollTop, t: Date.now() }; tlManualUntil = Date.now() + 3500; });
+  tlScroll.addEventListener("pointerup", function (e) {
+    if (!tapInfo) return;
+    var moved = Math.abs(e.clientX - tapInfo.x) + Math.abs(e.clientY - tapInfo.y);
+    var scrolled = Math.abs(tlScroll.scrollLeft - tapInfo.sl) + Math.abs(tlScroll.scrollTop - tapInfo.st);
+    var dt = Date.now() - tapInfo.t;
+    tapInfo = null;
+    if (moved < 10 && scrolled < 4 && dt < 500) openTlFull();
+  });
+  tlScroll.addEventListener("pointercancel", function () { tapInfo = null; });
+  tlScroll.addEventListener("scroll", function () { if (Math.abs(tlScroll.scrollLeft - tlLastAuto) > 6) tlManualUntil = Date.now() + 3500; });
+  setInterval(function () {
+    if (built && stage.classList.contains("p2lt-active") && stage.getAttribute("data-top") === "tl") { renderTl(false); followTl(); }
+  }, 250);
+  /* ---------- ステージの構築・解除・同期(v41の仕組みを3枚に拡張) ---------- */
   function sync() {
     if (!built) return;
     var active = isPlayScreen() && list.classList.contains("on");
@@ -579,10 +711,10 @@ requestAnimationFrame(loop);
       if (h > 40) ctrlH = h;
       stage.classList.add("p2lt-active");
       applyFrontBack();
+      if (stage.getAttribute("data-top") === "tl") renderTl(true);
     } else if (!active) {
       stage.classList.remove("p2lt-active");
-      ctrl.removeAttribute("data-p2lt-front"); ctrl.removeAttribute("data-p2lt-back");
-      list.removeAttribute("data-p2lt-front"); list.removeAttribute("data-p2lt-back");
+      clearFrontBack();
       stage.style.height = "";
       return;
     }
@@ -592,7 +724,7 @@ requestAnimationFrame(loop);
     if (built) return;
     app.insertBefore(stage, mRow1);
     ctrl.appendChild(row1); ctrl.appendChild(playrow); ctrl.appendChild(barwrap);
-    stage.appendChild(ctrl); stage.appendChild(list); stage.appendChild(tabCtrl); stage.appendChild(tabList);
+    stage.appendChild(ctrl); stage.appendChild(list); stage.appendChild(tlSheet); stage.appendChild(tabCtrl); stage.appendChild(tabList); stage.appendChild(tabTl);
     built = true; paintTabs(); sync();
   }
   function unbuild() {
@@ -600,13 +732,59 @@ requestAnimationFrame(loop);
     stage.classList.remove("p2lt-active"); stage.style.height = "";
     app.insertBefore(row1, mRow1); app.insertBefore(playrow, mPlay); app.insertBefore(barwrap, mBar); app.insertBefore(list, mList);
     if (stage.parentNode) stage.parentNode.removeChild(stage);
-    built = false;
+    built = false; tlKey = null;
   }
-  tabCtrl.addEventListener("click", function () { setTop("ctrl"); });
-  tabList.addEventListener("click", function () { setTop("list"); });
+  /* 付箋のタップ切替。スライド切替が起きた直後の click は飲み込む(離した瞬間に別のシートへ飛ぶ誤作動防止) */
+  var suppressTapUntil = 0;
+  function tabClicked(which) { if (Date.now() < suppressTapUntil) return; setTop(which); }
+  tabCtrl.addEventListener("click", function () { tabClicked("ctrl"); });
+  tabList.addEventListener("click", function () { tabClicked("list"); });
+  tabTl.addEventListener("click", function () { tabClicked("tl"); });
+  /* 付箋帯のスライド切替: 指を置いたまま帯の中を上下に滑らせ、指が別の付箋の上に来た瞬間に
+     そのシートが上に来る(離すのを待たない)。1回のジェスチャーで3枚を一気にめくれる。
+     対象はタブ専用帯の中で始めたジェスチャーだけ。シート本体のスクロールには干渉しない。 */
+  var tabByKey = { ctrl: tabCtrl, list: tabList, tl: tabTl };
+  var slide = null;
+  function tabAtPoint(x, y) {
+    var found = null;
+    ["ctrl", "list", "tl"].forEach(function (k) {
+      var r = tabByKey[k].getBoundingClientRect();
+      if (x >= r.left - 2 && x <= r.right + 2 && y >= r.top - 4 && y <= r.bottom + 4) found = k;
+    });
+    return found;
+  }
+  function paintHot(which) {
+    ["ctrl", "list", "tl"].forEach(function (k) { tabByKey[k].classList.toggle("p2lt-tab-hot", k === which); });
+  }
+  stage.addEventListener("pointerdown", function (e) {
+    if (!stage.classList.contains("p2lt-active")) return;
+    var sr = stage.getBoundingClientRect();
+    if (e.clientX < sr.right - 34) return;   /* タブ専用帯(右端32px+余白)の外で始めたジェスチャーは対象外 */
+    slide = { id: e.pointerId, switched: false };
+    paintHot(tabAtPoint(e.clientX, e.clientY));
+  });
+  window.addEventListener("pointermove", function (e) {
+    if (!slide || e.pointerId !== slide.id) return;
+    var which = tabAtPoint(e.clientX, e.clientY);
+    paintHot(which);
+    if (which && which !== stage.getAttribute("data-top")) { setTop(which); slide.switched = true; }
+  });
+  function endSlide(e) {
+    if (!slide || (e && e.pointerId !== slide.id)) return;
+    if (slide.switched) suppressTapUntil = Date.now() + 600;
+    slide = null;
+    paintHot(null);
+  }
+  window.addEventListener("pointerup", endSlide);
+  window.addEventListener("pointercancel", endSlide);
   var mo = new MutationObserver(function () { if (!isPlayScreen()) unbuild(); else { build(); sync(); } });
   mo.observe(document.body, { attributes: true, attributeFilter: ["class"] });
   mo.observe(list, { attributes: true, attributeFilter: ["class"] });
+  var itemsEl = document.getElementById("playSceneItems");
+  if (itemsEl) {
+    var mo2 = new MutationObserver(function () { if (built && stage.getAttribute("data-top") === "tl") renderTl(false); });
+    mo2.observe(itemsEl, { childList: true });
+  }
   window.addEventListener("resize", sync);
   build();
 })();
