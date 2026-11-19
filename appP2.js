@@ -837,7 +837,13 @@ requestAnimationFrame(loop);
    連動するノリノリながらモードのカード作成も範囲内に閉じる。プレビュー(mkPv)再生中と
    スクラブドラッグ(mkScrSt/mkPosScrSt)中は監視を止める(既存仕組みを壊さない)。
    作成画面を出たら全体に戻し、作成画面に入るたび・曲が変わるたび全体から始める。
-   対象は作成画面(body.scr-mk)のみ。再生画面の三層ステージ(v43)には触らない。 */
+   対象は作成画面(body.scr-mk)のみ。再生画面の三層ステージ(v43)には触らない。
+   v46では曲全体タイムラインを同じブロック内に追加: 動画エリア(#mv)の下の方に、黒基調の
+   トラック1本をうっすらレイヤーで浮かべる(absolute配置で画面を押し下げない、縦幅は細く、
+   pointer-events:none で操作を妨げない、右下の全画面ボタン #fsbtn を避けて右に余白)。
+   種類別の色分け・レーン分けはしない。現在の範囲の真ん中に白い線を引き、範囲を選ぶたびに
+   全体の中で現在の範囲にあたる部分が赤く(#f44336系)なる。全体が対象のときは赤くしない。
+   範囲の状態は v44 の cur をそのまま使い、paint() から連動して即更新する(二重管理しない)。 */
 (function () {
   var mv = document.getElementById("mvwrap");
   if (!mv || !mv.parentNode) return;
@@ -852,6 +858,12 @@ requestAnimationFrame(loop);
     + '</div>'
     + '<div class="p2r-sub"><button type="button" class="p2r-btn p2r-back1">← 1つ戻る</button><button type="button" class="p2r-btn p2r-all">全体に戻す</button><span class="p2r-stage"></span></div>';
   mv.parentNode.insertBefore(bar, mv.nextSibling);
+  /* v46: 曲全体タイムライン(動画エリアの下の方に浮かべるオーバーレイ) */
+  var mvBox = document.getElementById("mv");
+  var songTl = document.createElement("div"); songTl.id = "p2SongTl"; songTl.setAttribute("aria-hidden", "true");
+  songTl.innerHTML = '<div class="p2stl-track"><div class="p2stl-hl"></div><div class="p2stl-mid"></div></div>';
+  if (mvBox) mvBox.appendChild(songTl);
+  var hlEl = songTl.querySelector(".p2stl-hl"), midEl = songTl.querySelector(".p2stl-mid");
   var capEl = bar.querySelector(".p2r-cap"), timeEl = bar.querySelector(".p2r-time"), stageEl = bar.querySelector(".p2r-stage");
   var frontBtn = bar.querySelector(".p2r-front"), backBtn = bar.querySelector(".p2r-back");
   var back1Btn = bar.querySelector(".p2r-back1"), allBtn = bar.querySelector(".p2r-all");
@@ -873,7 +885,13 @@ requestAnimationFrame(loop);
     + ".p2r-sub{display:flex;align-items:center;gap:6px;margin-top:5px}"
     + ".p2r-btn{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.07);color:#cfd2f2;border-radius:999px;padding:3px 9px;font-size:10px;font-weight:800;font-family:inherit;cursor:pointer}"
     + ".p2r-btn:disabled{opacity:.35;cursor:default}"
-    + ".p2r-stage{margin-left:auto;font-size:10px;font-weight:800;color:#8e91b8}";
+    + ".p2r-stage{margin-left:auto;font-size:10px;font-weight:800;color:#8e91b8}"
+    /* v46: 曲全体タイムライン。作成画面でのみ、動画エリアの下の方にうっすら浮かべる */
+    + "#p2SongTl{display:none}"
+    + "body.scr-mk #p2SongTl{display:block;position:absolute;left:8px;right:60px;bottom:10px;height:12px;z-index:2;pointer-events:none;opacity:.92}"
+    + ".p2stl-track{position:relative;width:100%;height:100%;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.30);border-radius:999px;box-sizing:border-box}"
+    + ".p2stl-hl{position:absolute;top:0;bottom:0;background:rgba(244,67,54,.82);border-radius:999px;display:none}"
+    + ".p2stl-mid{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:#fff;border-radius:1px;box-shadow:0 0 4px rgba(0,0,0,.65)}";
   document.head.appendChild(st);
   function baseRange() {
     var R = null;
@@ -895,6 +913,20 @@ requestAnimationFrame(loop);
     bar.classList.toggle("maxed", maxed);
     back1Btn.disabled = cur.hist.length === 0;
     allBtn.disabled = cur.depth === 0;
+    paintTl();
+  }
+  /* v46: 全体タイムラインのハイライト(現在の範囲)と半分の線を、v44の範囲に連動させる */
+  function paintTl() {
+    if (!cur) return;
+    var base = baseRange();
+    var len = base.b - base.a;
+    if (!(len > 0)) return;
+    var mid = (cur.a + cur.b) / 2;
+    midEl.style.left = (((mid - base.a) / len) * 100) + "%";
+    if (cur.depth === 0) { hlEl.style.display = "none"; return; }
+    hlEl.style.display = "block";
+    hlEl.style.left = (((cur.a - base.a) / len) * 100) + "%";
+    hlEl.style.width = (((cur.b - cur.a) / len) * 100) + "%";
   }
   function reset() {
     var base = baseRange();
@@ -950,7 +982,7 @@ requestAnimationFrame(loop);
     if (mk !== wasMk) { reset(); wasMk = mk; }
   });
   mo.observe(document.body, { attributes: true, attributeFilter: ["class"] });
-  try { window.__p2Range = { get: function () { return cur ? { a: cur.a, b: cur.b, depth: cur.depth, hist: cur.hist.length } : null; }, narrow: narrow, reset: reset, el: bar, MAXD: MAXD }; } catch (e) {}
+  try { window.__p2Range = { get: function () { return cur ? { a: cur.a, b: cur.b, depth: cur.depth, hist: cur.hist.length } : null; }, narrow: narrow, reset: reset, el: bar, tl: songTl, MAXD: MAXD }; } catch (e) {}
   reset();
 })();
 
