@@ -525,7 +525,7 @@ requestAnimationFrame(loop);
    変更で UI.nexts の仕組み自体は残すので、CSSを外せばすぐ戻せる)。
    v43ではスライド操作のガイドを追加: ステージが有効化されるたび(再生画面を開くたび)に、
    付箋帯のそばで指先マークがタブを撫でるように上下する見本の動きと、縦文字「スライド」を
-   2秒だけさりげなく表示する。実際にシートは切り替えず、ガイドは pointer-events:none で
+   5秒だけさりげなく表示する(v43当初は2秒、v45で祐治の指示により5秒に延長。指の動きは5秒で2往復)。実際にシートは切り替えず、ガイドは pointer-events:none で
    操作を妨げない。既読フラグでは抑制せず、同じ画面に留まる間の再描画では繰り返さない。
    作成画面(scr-mk)/シェア画面(scr-sp)ではステージをほどいて元のDOM配置に完全に戻す。
    #plMode / #mkRateSelect / #spPanel / #pEv には触らない。 */
@@ -552,7 +552,7 @@ requestAnimationFrame(loop);
   var tabList = document.createElement("button"); tabList.type = "button"; tabList.className = "p2lt-tab p2lt-tab-list"; tabList.textContent = "一覧"; tabList.setAttribute("aria-label", "コールカード一覧を上に表示する");
   var tabTl = document.createElement("button"); tabTl.type = "button"; tabTl.className = "p2lt-tab p2lt-tab-tl"; tabTl.textContent = "タイムライン"; tabTl.setAttribute("aria-label", "タイムラインを上に表示する");
   /* v43: スライド操作ガイド。指先マーク+縦文字「スライド」だけのシンプルな見本表示 */
-  var GUIDE_MS = 2000;
+  var GUIDE_MS = 5000;
   var guide = document.createElement("div"); guide.id = "p2SlideGuide"; guide.setAttribute("aria-hidden", "true"); guide.setAttribute("data-guide-ms", String(GUIDE_MS));
   guide.innerHTML = '<div class="p2g-move"><span class="p2g-text">スライド</span><span class="p2g-finger"><svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="10.5" fill="rgba(255,255,255,.26)"/><circle cx="13" cy="13" r="6.6" fill="rgba(255,255,255,.96)" stroke="rgba(20,20,40,.55)" stroke-width="1.4"/><circle cx="13" cy="13" r="2.4" fill="#ff7ab8"/></svg></span></div>';
   var st = document.createElement("style"); st.id = "p2LayerStyles";
@@ -605,10 +605,10 @@ requestAnimationFrame(loop);
     + "#p2LayerStage.p2lt-active #p2SlideGuide{display:block;position:absolute;right:0;top:0;bottom:14px;width:52px;z-index:8;pointer-events:none;opacity:0;transition:opacity .28s ease}"
     + "#p2LayerStage.p2lt-active #p2SlideGuide.on{opacity:.92}"
     + ".p2g-move{position:absolute;right:1px;top:8px;display:flex;align-items:flex-start;gap:1px}"
-    + "#p2SlideGuide.on .p2g-move{animation:p2gSlide 2s ease-in-out 1}"
+    + "#p2SlideGuide.on .p2g-move{animation:p2gSlide 5s ease-in-out 1}"
     + ".p2g-text{writing-mode:vertical-rl;font-size:11px;font-weight:900;letter-spacing:.18em;color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.85);margin-top:2px}"
     + ".p2g-finger{display:block;filter:drop-shadow(0 2px 5px rgba(0,0,0,.5))}"
-    + "@keyframes p2gSlide{0%{transform:translateY(0)}12%{transform:translateY(6px)}48%{transform:translateY(104px)}62%{transform:translateY(104px)}96%,100%{transform:translateY(0)}}"
+    + "@keyframes p2gSlide{0%{transform:translateY(0)}6%{transform:translateY(6px)}24%{transform:translateY(104px)}31%{transform:translateY(104px)}48%{transform:translateY(0)}56%{transform:translateY(6px)}74%{transform:translateY(104px)}81%{transform:translateY(104px)}98%,100%{transform:translateY(0)}}"
     + "@media (prefers-reduced-motion:reduce){#p2LayerStage.p2lt-active #p2LayerCtrl,#p2LayerStage.p2lt-active #playSceneList,#p2LayerStage.p2lt-active #p2LayerTl,.p2lt-tab{transition:none}#p2SlideGuide.on .p2g-move{animation:none}}";
   document.head.appendChild(st);
   var built = false, ctrlH = 0;
