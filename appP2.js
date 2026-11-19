@@ -508,7 +508,7 @@ requestAnimationFrame(loop);
   });
 })();
 
-/* ---------- プロトタイプ2 v42: 再生画面の三層レイヤー+付箋タブ(タイムライン追加) ----------
+/* ---------- プロトタイプ2 v43: 再生画面の三層レイヤー+付箋タブ(タイムライン追加+スライドガイド) ----------
    再生コントロール一式(.p2row1+.playrow+#barwrap)とコールカード一覧(#playSceneList)に加え、
    タイムラインも同じステージの3枚目のシートとして重ねる「三階建て」レイヤー。
    どのシートも消えずに重なって存在し続け、下のシートは下へ少しずれて端がはみ出し、
@@ -523,6 +523,10 @@ requestAnimationFrame(loop);
    離したとき)すると既存の全画面タイムライン(#tlFsBtn のクリック相当)を開く。
    v42では再生画面の NEXT カード(#nexts)も一旦非表示にする(再生画面の範囲のみ・CSSだけの
    変更で UI.nexts の仕組み自体は残すので、CSSを外せばすぐ戻せる)。
+   v43ではスライド操作のガイドを追加: ステージが有効化されるたび(再生画面を開くたび)に、
+   付箋帯のそばで指先マークがタブを撫でるように上下する見本の動きと、縦文字「スライド」を
+   2秒だけさりげなく表示する。実際にシートは切り替えず、ガイドは pointer-events:none で
+   操作を妨げない。既読フラグでは抑制せず、同じ画面に留まる間の再描画では繰り返さない。
    作成画面(scr-mk)/シェア画面(scr-sp)ではステージをほどいて元のDOM配置に完全に戻す。
    #plMode / #mkRateSelect / #spPanel / #pEv には触らない。 */
 (function () {
@@ -547,6 +551,10 @@ requestAnimationFrame(loop);
   var tabCtrl = document.createElement("button"); tabCtrl.type = "button"; tabCtrl.className = "p2lt-tab p2lt-tab-ctrl"; tabCtrl.textContent = "操作"; tabCtrl.setAttribute("aria-label", "再生コントロールを上に表示する");
   var tabList = document.createElement("button"); tabList.type = "button"; tabList.className = "p2lt-tab p2lt-tab-list"; tabList.textContent = "一覧"; tabList.setAttribute("aria-label", "コールカード一覧を上に表示する");
   var tabTl = document.createElement("button"); tabTl.type = "button"; tabTl.className = "p2lt-tab p2lt-tab-tl"; tabTl.textContent = "タイムライン"; tabTl.setAttribute("aria-label", "タイムラインを上に表示する");
+  /* v43: スライド操作ガイド。指先マーク+縦文字「スライド」だけのシンプルな見本表示 */
+  var GUIDE_MS = 2000;
+  var guide = document.createElement("div"); guide.id = "p2SlideGuide"; guide.setAttribute("aria-hidden", "true"); guide.setAttribute("data-guide-ms", String(GUIDE_MS));
+  guide.innerHTML = '<div class="p2g-move"><span class="p2g-text">スライド</span><span class="p2g-finger"><svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"><circle cx="13" cy="13" r="10.5" fill="rgba(255,255,255,.26)"/><circle cx="13" cy="13" r="6.6" fill="rgba(255,255,255,.96)" stroke="rgba(20,20,40,.55)" stroke-width="1.4"/><circle cx="13" cy="13" r="2.4" fill="#ff7ab8"/></svg></span></div>';
   var st = document.createElement("style"); st.id = "p2LayerStyles";
   st.textContent = "#p2LayerStage{position:relative}"
     + "#p2LayerCtrl{display:flex;flex-direction:column;gap:14px}"
@@ -593,9 +601,28 @@ requestAnimationFrame(loop);
     + ".p2tl-pos{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 6px rgba(255,255,255,.85);z-index:5;pointer-events:none}"
     + ".p2tl-empty{padding:18px 8px;font-size:13px;font-weight:700;color:#9aa3c7}"
     + ".p2tl-hint{margin-top:6px;font-size:10px;font-weight:700;color:#9aa3c7;text-align:right}"
-    + "@media (prefers-reduced-motion:reduce){#p2LayerStage.p2lt-active #p2LayerCtrl,#p2LayerStage.p2lt-active #playSceneList,#p2LayerStage.p2lt-active #p2LayerTl,.p2lt-tab{transition:none}}";
+    + "#p2SlideGuide{display:none}"
+    + "#p2LayerStage.p2lt-active #p2SlideGuide{display:block;position:absolute;right:0;top:0;bottom:14px;width:52px;z-index:8;pointer-events:none;opacity:0;transition:opacity .28s ease}"
+    + "#p2LayerStage.p2lt-active #p2SlideGuide.on{opacity:.92}"
+    + ".p2g-move{position:absolute;right:1px;top:8px;display:flex;align-items:flex-start;gap:1px}"
+    + "#p2SlideGuide.on .p2g-move{animation:p2gSlide 2s ease-in-out 1}"
+    + ".p2g-text{writing-mode:vertical-rl;font-size:11px;font-weight:900;letter-spacing:.18em;color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.85);margin-top:2px}"
+    + ".p2g-finger{display:block;filter:drop-shadow(0 2px 5px rgba(0,0,0,.5))}"
+    + "@keyframes p2gSlide{0%{transform:translateY(0)}12%{transform:translateY(6px)}48%{transform:translateY(104px)}62%{transform:translateY(104px)}96%,100%{transform:translateY(0)}}"
+    + "@media (prefers-reduced-motion:reduce){#p2LayerStage.p2lt-active #p2LayerCtrl,#p2LayerStage.p2lt-active #playSceneList,#p2LayerStage.p2lt-active #p2LayerTl,.p2lt-tab{transition:none}#p2SlideGuide.on .p2g-move{animation:none}}";
   document.head.appendChild(st);
   var built = false, ctrlH = 0;
+  var guideTimer = null, guideShown = false;
+  function showGuide() {
+    if (guideShown) return;
+    guideShown = true;
+    guide.classList.add("on");
+    if (guideTimer) clearTimeout(guideTimer);
+    guideTimer = setTimeout(hideGuide, GUIDE_MS);
+  }
+  function hideGuide() { guide.classList.remove("on"); if (guideTimer) { clearTimeout(guideTimer); guideTimer = null; } }
+  function resetGuide() { hideGuide(); guideShown = false; }
+  try { window.__p2ltGuide = { show: showGuide, reset: resetGuide, ms: GUIDE_MS, el: guide }; } catch (e) {}
   var sheets = { ctrl: ctrl, list: list, tl: tlSheet };
   function isPlayScreen() { return !document.body.classList.contains("scr-mk") && !document.body.classList.contains("scr-sp"); }
   function paintTabs() {
@@ -711,10 +738,12 @@ requestAnimationFrame(loop);
       if (h > 40) ctrlH = h;
       stage.classList.add("p2lt-active");
       applyFrontBack();
+      showGuide();
       if (stage.getAttribute("data-top") === "tl") renderTl(true);
     } else if (!active) {
       stage.classList.remove("p2lt-active");
       clearFrontBack();
+      resetGuide();
       stage.style.height = "";
       return;
     }
@@ -724,11 +753,12 @@ requestAnimationFrame(loop);
     if (built) return;
     app.insertBefore(stage, mRow1);
     ctrl.appendChild(row1); ctrl.appendChild(playrow); ctrl.appendChild(barwrap);
-    stage.appendChild(ctrl); stage.appendChild(list); stage.appendChild(tlSheet); stage.appendChild(tabCtrl); stage.appendChild(tabList); stage.appendChild(tabTl);
+    stage.appendChild(ctrl); stage.appendChild(list); stage.appendChild(tlSheet); stage.appendChild(tabCtrl); stage.appendChild(tabList); stage.appendChild(tabTl); stage.appendChild(guide);
     built = true; paintTabs(); sync();
   }
   function unbuild() {
     if (!built) return;
+    resetGuide();
     stage.classList.remove("p2lt-active"); stage.style.height = "";
     app.insertBefore(row1, mRow1); app.insertBefore(playrow, mPlay); app.insertBefore(barwrap, mBar); app.insertBefore(list, mList);
     if (stage.parentNode) stage.parentNode.removeChild(stage);
