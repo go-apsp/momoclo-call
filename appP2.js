@@ -283,10 +283,10 @@ requestAnimationFrame(loop);
 /* P2CS-BEGIN */
 (function () {
   var origCards = UI.cards.bind(UI);
-  var STYLES = ["stream", "stack", "bubble", "slide", "carousel", "pulse"];
-  var style = "stream";
-  try { style = localStorage.getItem("momo_p2_cardstyle_v2") || "stream"; } catch (e) {}
-  if (STYLES.indexOf(style) < 0) style = "stream";
+  var STYLES = ["stack", "bubble", "stream", "slide", "carousel", "pulse"];
+  var style = "bubble";
+  try { style = localStorage.getItem("momo_p2_cardstyle_v3") || "bubble"; } catch (e) {}
+  if (STYLES.indexOf(style) < 0) style = "bubble";
   var stEl = document.createElement("style");
   stEl.textContent = "#bubbles{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:7}"
     + ".p2bub{position:absolute;transform:translateX(-50%);padding:9px 18px;border-radius:999px;color:#fff;text-align:center;max-width:86%;background:rgba(255,255,255,.16);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.35);box-shadow:0 4px 18px rgba(0,0,0,.25),inset 0 2px 6px rgba(255,255,255,.35),inset 0 -6px 12px rgba(255,255,255,.08);opacity:0;animation-name:p2floatUp;animation-timing-function:ease-out;animation-fill-mode:forwards}"
@@ -307,40 +307,38 @@ requestAnimationFrame(loop);
     + ".p2c.k-call{background:rgba(255,45,110,.55)}"
     + ".p2c.k-sing{background:rgba(30,136,229,.55)}"
     + ".p2c.k-koko{background:rgba(255,190,0,.68);color:#2b1a00}"
-    + ".p2c.s-slide{bottom:8px;transform:translateX(-50%) translateY(120%);opacity:0;transition:transform .45s cubic-bezier(.22,.9,.35,1),opacity .45s ease}"
+    + ".p2c.s-slide{bottom:8px;transform:translateX(-50%) translateY(130%);opacity:0;transition:transform .55s cubic-bezier(.22,.9,.35,1),opacity .55s ease}"
     + ".p2c.s-slide.pp0{transform:translateX(-50%) translateY(0) scale(1);opacity:1;z-index:5}"
-    + ".p2c.s-slide.pp1{transform:translateX(-50%) translateY(-56px) scale(.92);opacity:.88;z-index:4}"
-    + ".p2c.s-slide.pp2{transform:translateX(-50%) translateY(-104px) scale(.84);opacity:.72;z-index:3}"
-    + ".p2c.s-slide.pp3{transform:translateX(-50%) translateY(-144px) scale(.78);opacity:.58;z-index:2}"
-    + ".p2c.s-slide.pp4{transform:translateX(-50%) translateY(-178px) scale(.74);opacity:.45;z-index:1}"
-    + ".p2c.s-slide.leaving{transform:translateX(-50%) translateY(-32px) scale(.9);opacity:0}"
-    + ".p2c.s-carousel{bottom:8px;transform:translateX(-50%) translateY(24px) scale(.92);opacity:0;transition:transform .45s cubic-bezier(.22,.9,.35,1),opacity .45s ease}"
-    + ".p2c.s-carousel.pp0{transform:translateX(-50%) translateY(0) scale(1);opacity:1;z-index:5}"
-    + ".p2c.s-carousel.pp1{transform:translateX(-50%) translateY(-7px) scale(.94);opacity:.88;z-index:4}"
-    + ".p2c.s-carousel.pp2{transform:translateX(-50%) translateY(-14px) scale(.88);opacity:.72;z-index:3}"
-    + ".p2c.s-carousel.pp3{transform:translateX(-50%) translateY(-20px) scale(.83);opacity:.55;z-index:2}"
-    + ".p2c.s-carousel.pp4{transform:translateX(-50%) translateY(-25px) scale(.79);opacity:.4;z-index:1}"
-    + ".p2c.s-carousel.leaving{transform:translateX(-50%) translateY(-18px) scale(.8);opacity:0}"
-    + ".p2c.s-pulse{bottom:10px;transform:translateX(-50%) scale(1.1);opacity:0;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s ease}"
-    + ".p2c.s-pulse.pp0{transform:translateX(-50%) translateY(0) scale(1);opacity:1;z-index:5}"
-    + ".p2c.s-pulse.pp1{transform:translateX(-50%) translateY(-9px) scale(.95);opacity:.8;z-index:4}"
-    + ".p2c.s-pulse.pp2{transform:translateX(-50%) translateY(-16px) scale(.9);opacity:.45;z-index:3}"
-    + ".p2c.s-pulse.pp3{transform:translateX(-50%) translateY(-21px) scale(.86);opacity:.3;z-index:2}"
-    + ".p2c.s-pulse.pp4{transform:translateX(-50%) translateY(-25px) scale(.83);opacity:.22;z-index:1}"
-    + ".p2c.s-pulse.leaving{transform:translateX(-50%) scale(.85);opacity:0}"
+    + ".p2c.s-slide.pp1{transform:translateX(-50%) translateY(-62px) scale(.9);opacity:.85;z-index:4}"
+    + ".p2c.s-slide.pp2{transform:translateX(-50%) translateY(-116px) scale(.82);opacity:.68;z-index:3}"
+    + ".p2c.s-slide.pp3{transform:translateX(-50%) translateY(-162px) scale(.75);opacity:.52;z-index:2}"
+    + ".p2c.s-slide.pp4{transform:translateX(-50%) translateY(-200px) scale(.7);opacity:.38;z-index:1}"
+    + ".p2c.s-slide.leaving{transform:translateX(-50%) translateY(-215px) scale(.68);opacity:0}"
+    + ".p2c.s-carousel{bottom:8px;transform:translateX(-50%) translateY(34px) scale(.84) rotate(-5deg);opacity:0;transition:transform .5s cubic-bezier(.22,.9,.35,1),opacity .5s ease}"
+    + ".p2c.s-carousel.pp0{transform:translateX(-50%) translateY(0) scale(1) rotate(0deg);opacity:1;z-index:5}"
+    + ".p2c.s-carousel.pp1{transform:translateX(-50%) translateY(-14px) scale(.9) rotate(-2.5deg);opacity:.9;z-index:4}"
+    + ".p2c.s-carousel.pp2{transform:translateX(-50%) translateY(-26px) scale(.81) rotate(2deg);opacity:.75;z-index:3}"
+    + ".p2c.s-carousel.pp3{transform:translateX(-50%) translateY(-36px) scale(.74) rotate(-3.5deg);opacity:.58;z-index:2}"
+    + ".p2c.s-carousel.pp4{transform:translateX(-50%) translateY(-44px) scale(.68) rotate(3deg);opacity:.42;z-index:1}"
+    + ".p2c.s-carousel.leaving{transform:translateX(-50%) translateY(-30px) scale(.7) rotate(6deg);opacity:0}"
+    + ".p2c.s-pulse{bottom:10px;transform:translateX(-50%) scale(1.45);opacity:0;transition:transform .45s cubic-bezier(.34,1.8,.64,1),opacity .35s ease}"
+    + ".p2c.s-pulse.pp0{transform:translateX(-50%) translateY(0) scale(1);opacity:1;z-index:5;animation:p2heartbeat .9s ease-in-out infinite}"
+    + "@keyframes p2heartbeat{0%,100%{scale:1}35%{scale:1.08}}"
+    + ".p2c.s-pulse.pp1{transform:translateX(-50%) translateY(-12px) scale(.92);opacity:.75;z-index:4}"
+    + ".p2c.s-pulse.pp2{transform:translateX(-50%) translateY(-22px) scale(.85);opacity:.5;z-index:3}"
+    + ".p2c.s-pulse.pp3{transform:translateX(-50%) translateY(-30px) scale(.8);opacity:.32;z-index:2}"
+    + ".p2c.s-pulse.pp4{transform:translateX(-50%) translateY(-36px) scale(.76);opacity:.18;z-index:1}"
+    + ".p2c.s-pulse.leaving{transform:translateX(-50%) scale(.65);opacity:0}"
     + ".p2csbtns{display:inline-flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}"
     + ".p2csbtns button{padding:5px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.08);color:#f4f4fb;font-size:12px}"
     + ".p2csbtns button.sel{background:var(--pink,#ff5d8f);border-color:transparent;font-weight:700}"
-    /* ストリーム(Gemini案1: 下からスライドインし、等間隔で上へ流れ、薄くなって消える。ココ好き!は上部) */
-    + ".p2c.s-stream{bottom:10px;border-radius:999px;padding:10px 18px;background:rgba(255,255,255,.92);color:#26264a;box-shadow:0 6px 20px rgba(0,0,0,.28);transform:translateX(-50%) translateY(46px);opacity:0;transition:transform .5s cubic-bezier(.22,.9,.35,1),opacity .5s ease}"
-    + ".p2c.s-stream.k-call{border:2px solid rgba(255,45,110,.85)}"
-    + ".p2c.s-stream.k-sing{border:2px solid rgba(30,136,229,.85)}"
-    + ".p2c.s-stream.k-koko{background:rgba(255,213,79,.95);color:#3a2a00;border:2px solid rgba(255,160,0,.7)}"
+    /* ストリーム(Gemini案1: 下からスライドインし、等間隔で上へ流れ、薄くなって消える。ココ好き!は上部。色は他の見せ方と同じ種類色の半透明) */
+    + ".p2c.s-stream{bottom:10px;border-radius:999px;padding:10px 18px;transform:translateX(-50%) translateY(64px);opacity:0;transition:transform .7s cubic-bezier(.22,.9,.35,1),opacity .7s ease}"
     + ".p2c.s-stream.pp0{transform:translateX(-50%) translateY(0);opacity:1;z-index:5}"
-    + ".p2c.s-stream.pp1{transform:translateX(-50%) translateY(-58px);opacity:.82;z-index:4}"
-    + ".p2c.s-stream.pp2{transform:translateX(-50%) translateY(-116px);opacity:.58;z-index:3}"
-    + ".p2c.s-stream.pp3{transform:translateX(-50%) translateY(-174px);opacity:.36;z-index:2}"
-    + ".p2c.s-stream.pp4{transform:translateX(-50%) translateY(-232px);opacity:.16;z-index:1}"
+    + ".p2c.s-stream.pp1{transform:translateX(-50%) translateY(-66px);opacity:.8;z-index:4}"
+    + ".p2c.s-stream.pp2{transform:translateX(-50%) translateY(-132px);opacity:.55;z-index:3}"
+    + ".p2c.s-stream.pp3{transform:translateX(-50%) translateY(-198px);opacity:.32;z-index:2}"
+    + ".p2c.s-stream.pp4{transform:translateX(-50%) translateY(-264px);opacity:.14;z-index:1}"
     + ".p2c.s-stream.leaving{opacity:0}"
     + ".p2c.s-stream.k-koko{bottom:auto;top:12%}"
     + ".p2c.s-stream.k-koko.kt0{transform:translateX(-50%) translateY(0);opacity:1;z-index:5}"
@@ -381,7 +379,7 @@ requestAnimationFrame(loop);
     if (style === "stream" && rec.kind === "koko") { rec.el.className = "p2c s-stream k-koko kt" + Math.min(rec.pos, 1); return; }
     rec.el.className = "p2c s-" + style + " k-" + rec.kind + " pp" + Math.min(rec.pos, 4);
   }
-  function leaveEl(el) { el.classList.add("leaving"); setTimeout(function () { el.remove(); }, 650); }
+  function leaveEl(el) { el.classList.add("leaving"); setTimeout(function () { el.remove(); }, 900); }
   function renderPos(on) {
     var seen = {};
     var main = on.filter(function (e) { return e.k !== "koko"; }).slice(style === "stream" ? -5 : -3);
@@ -432,9 +430,9 @@ requestAnimationFrame(loop);
   var row = document.createElement("div");
   row.className = "p2csRow";
   row.innerHTML = "<span class=\"p2csLbl\">カードの見せ方</span><span class=\"p2csbtns\">"
-    + "<button type=\"button\" data-cs=\"stream\">ストリーム</button>"
     + "<button type=\"button\" data-cs=\"stack\">縦積み</button>"
     + "<button type=\"button\" data-cs=\"bubble\">バブル</button>"
+    + "<button type=\"button\" data-cs=\"stream\">ストリーム</button>"
     + "<button type=\"button\" data-cs=\"slide\">スライド</button>"
     + "<button type=\"button\" data-cs=\"carousel\">カルーセル</button>"
     + "<button type=\"button\" data-cs=\"pulse\">パルス</button></span>";
@@ -445,7 +443,7 @@ requestAnimationFrame(loop);
     b.addEventListener("click", function () {
       var v = b.dataset.cs; if (v === style) return;
       style = v;
-      try { localStorage.setItem("momo_p2_cardstyle_v2", style); } catch (e) {}
+      try { localStorage.setItem("momo_p2_cardstyle_v3", style); } catch (e) {}
       paintBtns();
       clearCustom();
       if (style === "stack") { origCards([]); origCards(lastOn); }
