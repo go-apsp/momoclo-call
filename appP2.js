@@ -819,6 +819,141 @@ requestAnimationFrame(loop);
   build();
 })();
 
+/* ---------- プロトタイプ2 v44: 制作範囲を絞る(作成画面のみ) ----------
+   推しコール作成画面で、作る場所を「前／後」の二択で半分ずつ絞り込んでいくバー。
+   バーは動画エリア(#mvwrap)の直下に置き、バー1本の中で完結させる(外に説明を足して
+   画面を押し下げない)。見た目: 横幅いっぱい・高さ44px、両端が矢じり型(左=左向き三角/
+   右=右向き三角)、中はベタ塗りで左半分が青(#2196f3)・右半分が赤(#f44336)、半分で色が
+   変わる。左半分に「前」、右半分に「後」。中央には両色にまたがって、うっすら説明文字と
+   現在の範囲(開始〜終了)を小さく重ねる。説明文字は、全体が対象のとき「制作範囲を絞る」、
+   1回でも絞った後は「さらに範囲を絞る」、最大5段階に達したら「最大まで絞りました」。
+   左半分タップ=その範囲の前半、右半分タップ=後半が新しい範囲になる。最大5段階
+   (例: 240→120→60→30→15→7.5秒)。5段階では両半分を disabled にして絞れない見た目にする。
+   「途中でやめる」専用ボタンは付けない(どの段階でもそのまま作り始められる前提で、
+   制作途中でもバーを操作して範囲を切り替え直せる)。「1つ戻る」「全体に戻す」はバーの
+   直下にささやかな小さいボタンで両方付ける。
+   範囲の効き方: 250ms間隔の監視で、作成画面での再生が範囲の終わりを超えたら一時停止して
+   範囲の頭へ戻し、範囲より前から再生されていたら範囲の頭へ寄せる。これにより再生位置に
+   連動するノリノリながらモードのカード作成も範囲内に閉じる。プレビュー(mkPv)再生中と
+   スクラブドラッグ(mkScrSt/mkPosScrSt)中は監視を止める(既存仕組みを壊さない)。
+   作成画面を出たら全体に戻し、作成画面に入るたび・曲が変わるたび全体から始める。
+   対象は作成画面(body.scr-mk)のみ。再生画面の三層ステージ(v43)には触らない。 */
+(function () {
+  var mv = document.getElementById("mvwrap");
+  if (!mv || !mv.parentNode) return;
+  var MAXD = 5;
+  var bar = document.createElement("div"); bar.id = "p2RangeBar";
+  bar.innerHTML = '<div class="p2r-bar">'
+    + '<span class="p2r-tri p2r-tri-l"></span>'
+    + '<button type="button" class="p2r-half p2r-front">前</button>'
+    + '<button type="button" class="p2r-half p2r-back">後</button>'
+    + '<span class="p2r-tri p2r-tri-r"></span>'
+    + '<span class="p2r-center"><span class="p2r-cap">制作範囲を絞る</span><span class="p2r-time"></span></span>'
+    + '</div>'
+    + '<div class="p2r-sub"><button type="button" class="p2r-btn p2r-back1">← 1つ戻る</button><button type="button" class="p2r-btn p2r-all">全体に戻す</button><span class="p2r-stage"></span></div>';
+  mv.parentNode.insertBefore(bar, mv.nextSibling);
+  var capEl = bar.querySelector(".p2r-cap"), timeEl = bar.querySelector(".p2r-time"), stageEl = bar.querySelector(".p2r-stage");
+  var frontBtn = bar.querySelector(".p2r-front"), backBtn = bar.querySelector(".p2r-back");
+  var back1Btn = bar.querySelector(".p2r-back1"), allBtn = bar.querySelector(".p2r-all");
+  var st = document.createElement("style"); st.id = "p2RangeStyles";
+  st.textContent = "#p2RangeBar{display:none}"
+    + "body.scr-mk #p2RangeBar{display:block;margin:8px 0 2px}"
+    + ".p2r-bar{position:relative;display:flex;align-items:stretch;height:44px}"
+    + ".p2r-tri{flex:0 0 auto;width:0;height:0;border-top:22px solid transparent;border-bottom:22px solid transparent}"
+    + ".p2r-tri-l{border-right:16px solid #2196f3}"
+    + ".p2r-tri-r{border-left:16px solid #f44336}"
+    + ".p2r-half{flex:1;border:0;margin:0;padding:0 10px;font-family:inherit;font-size:15px;font-weight:900;color:#fff;cursor:pointer;display:flex;align-items:center}"
+    + ".p2r-front{background:#2196f3;justify-content:flex-start}"
+    + ".p2r-back{background:#f44336;justify-content:flex-end}"
+    + ".p2r-half:disabled{opacity:.45;cursor:default}"
+    + "#p2RangeBar.maxed .p2r-half{filter:grayscale(.4)}"
+    + ".p2r-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;line-height:1.3}"
+    + ".p2r-cap{display:block;font-size:12px;font-weight:900;letter-spacing:.12em;color:rgba(255,255,255,.85);text-shadow:0 1px 4px rgba(0,0,0,.45)}"
+    + ".p2r-time{display:block;font-size:10px;font-weight:900;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.55);font-variant-numeric:tabular-nums}"
+    + ".p2r-sub{display:flex;align-items:center;gap:6px;margin-top:5px}"
+    + ".p2r-btn{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.07);color:#cfd2f2;border-radius:999px;padding:3px 9px;font-size:10px;font-weight:800;font-family:inherit;cursor:pointer}"
+    + ".p2r-btn:disabled{opacity:.35;cursor:default}"
+    + ".p2r-stage{margin-left:auto;font-size:10px;font-weight:800;color:#8e91b8}";
+  document.head.appendChild(st);
+  function baseRange() {
+    var R = null;
+    try { R = curRange(); } catch (e) {}
+    if (R && R.e > R.s) return { a: R.s, b: R.e };
+    var d = 0;
+    try { d = dur() || 0; } catch (e) {}
+    return { a: 0, b: d > 0 ? d : 240 };
+  }
+  var cur = null;
+  function inMk() { return document.body.classList.contains("scr-mk"); }
+  function paint() {
+    if (!cur) return;
+    capEl.textContent = cur.depth >= MAXD ? "最大まで絞りました" : (cur.depth === 0 ? "制作範囲を絞る" : "さらに範囲を絞る");
+    timeEl.textContent = fmt(cur.a) + "〜" + fmt(cur.b);
+    stageEl.textContent = "絞り込み " + cur.depth + "/" + MAXD;
+    var maxed = cur.depth >= MAXD;
+    frontBtn.disabled = maxed; backBtn.disabled = maxed;
+    bar.classList.toggle("maxed", maxed);
+    back1Btn.disabled = cur.hist.length === 0;
+    allBtn.disabled = cur.depth === 0;
+  }
+  function reset() {
+    var base = baseRange();
+    cur = { a: base.a, b: base.b, depth: 0, hist: [] };
+    paint();
+  }
+  function narrow(dir) {
+    if (!cur || cur.depth >= MAXD) return;
+    if (!(cur.b - cur.a > 0.2)) return;
+    cur.hist.push({ a: cur.a, b: cur.b });
+    var mid = (cur.a + cur.b) / 2;
+    if (dir === "front") cur.b = mid; else cur.a = mid;
+    cur.depth++;
+    try { var t = now(); if (t < cur.a || t >= cur.b) playerSeek(cur.a); } catch (e) {}
+    paint();
+  }
+  frontBtn.addEventListener("click", function () { narrow("front"); });
+  backBtn.addEventListener("click", function () { narrow("back"); });
+  back1Btn.addEventListener("click", function () {
+    if (!cur || !cur.hist.length) return;
+    var h = cur.hist.pop();
+    cur.a = h.a; cur.b = h.b; cur.depth = Math.max(0, cur.depth - 1);
+    paint();
+  });
+  allBtn.addEventListener("click", function () { reset(); });
+  function songKey() { try { return String(si) + "|" + (SONGS[si] ? SONGS[si].title : ""); } catch (e) { return ""; } }
+  var lastSongKey = songKey(), wasMk = inMk();
+  setInterval(function () {
+    var mk = inMk();
+    if (mk !== wasMk) { reset(); wasMk = mk; }
+    if (!mk) return;
+    var sk = songKey();
+    if (sk && lastSongKey && sk !== lastSongKey) { lastSongKey = sk; reset(); return; }
+    if (sk) lastSongKey = sk;
+    if (!cur || cur.depth === 0) {
+      var nb = baseRange();
+      if (!cur || nb.a !== cur.a || nb.b !== cur.b) { cur = { a: nb.a, b: nb.b, depth: 0, hist: [] }; paint(); }
+      return;
+    }
+    try {
+      if (typeof mkPv !== "undefined" && mkPv) return;
+      if (typeof mkScrSt !== "undefined" && mkScrSt && mkScrSt.active) return;
+      if (typeof mkPosScrSt !== "undefined" && mkPosScrSt && mkPosScrSt.active) return;
+      var stt = (typeof playerState === "function") ? playerState() : -1;
+      if (stt !== 1) return;
+      var t = now();
+      if (t < cur.a - 0.05) playerSeek(cur.a);
+      else if (t >= cur.b) { playerPause(); playerSeek(cur.a); }
+    } catch (e) {}
+  }, 250);
+  var mo = new MutationObserver(function () {
+    var mk = inMk();
+    if (mk !== wasMk) { reset(); wasMk = mk; }
+  });
+  mo.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  try { window.__p2Range = { get: function () { return cur ? { a: cur.a, b: cur.b, depth: cur.depth, hist: cur.hist.length } : null; }, narrow: narrow, reset: reset, el: bar, MAXD: MAXD }; } catch (e) {}
+  reset();
+})();
+
 UI.songSel(si);
 loadSongs();
 checkSpHash();
