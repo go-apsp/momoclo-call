@@ -1165,7 +1165,7 @@ requestAnimationFrame(loop);
           + '<button type="button" class="mkdel" data-a="delScene" data-i="' + i + '" aria-label="削除">×</button>'
           /* v52: お気に置くは、選択中のカードにだけ、上辺に付箋のように出す(中央の常時丸ボタンは
              他の項目と混雑して押しにくいので廃止)。見た目(タブ形)は v52 のスタイルで付ける */
-          + (i === sel ? '<button type="button" class="p2uni-place" data-place="' + i + '" title="お気に置く: 押したままタイムラインへ動かして離すと位置が決まります">お気に置く</button>' : '')
+          + (i === sel ? '<button type="button" class="p2uni-place" data-place="' + i + '" title="お気に置く: 押したままタイムラインへ動かして離すと位置が決まります" aria-label="お気に置く"></button>' : '')
           + '</div>' + boardHtml;
       };
       /* v52: 編集中のカード(編集ボードが開いている / 内容パネルで編集中)は、新規作成カードの
@@ -4238,5 +4238,34 @@ try { if (!localStorage.getItem("momo_welcome_hide")) $("welcome").classList.add
     window.__p2Uni = {version: 53};
     window.__p2Uni53 = { axis: function () { try { return mkTlAxis(); } catch (e) { return null; } } };
   } catch (e) { try { console.warn("p2Uni53", e); } catch (err) {} }
+})();
+
+/* ================= プロトタイプ2 v54: お気に置くボタンの形の訂正 =================
+   v52 で付けた四角い付箋タブ形が祐治のイメージと違ったための訂正。
+   イメージは「元の丸いボタンの形のまま、選んだカードの上に付箋のようにつける」で、
+   形は水玉(しずく): 下は丸く、上は尖っている。尖った部分は「今選んでいる再生位置」を
+   指す印という意味合い。色味は元の丸ボタン(うっすら青・白フチ・影で浮いて見える)を
+   踏襲し、中心の白い点も元のボタンと同じ。文字ラベルは元の丸ボタン同様に持たない
+   (title / aria-label で補う)。付く場所と出る条件は v52 の付箋式のまま: 選択中の
+   カードの上辺に、上へはみ出して付く。選択時だけ表示。ドラッグの挙動は一切変えない。
+   形は SVG のしずく型パス(白フチ=stroke)で描き、影は drop-shadow で形に沿わせる */
+(function p2Uni54() {
+  try {
+    var dropSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 52'%3E%3Cpath d='M20 3C24 12 37 21 37 33A17 17 0 1 1 3 33C3 21 16 12 20 3Z' fill='rgba(77,201,255,0.55)' stroke='%23ffffff' stroke-width='2.5'/%3E%3C/svg%3E";
+    var st = document.createElement("style"); st.id = "p2Uni54Styles";
+    st.textContent = [
+      /* v52 の四角タブ指定を、水玉(しずく)形に上書きする */
+      ".p2uni-place{top:-26px;transform:translateX(-50%);width:34px;height:44px;padding:0;border:0;border-radius:0;background:transparent url(\"" + dropSvg + "\") center/contain no-repeat;box-shadow:none;filter:drop-shadow(0 3px 6px rgba(0,0,0,.5));font-size:0;line-height:0;z-index:4}",
+      /* 元の丸ボタンと同じ、中心の白い点(しずくの丸い部分に置く) */
+      ".p2uni-place:after{display:block;content:\"\";position:absolute;left:50%;top:63%;width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.92);transform:translate(-50%,-50%)}",
+      /* はみ出し(26px)が上のカードに重ならないよう、選択中カードの上余白を広げる */
+      "#mkList .p2uni-card.sel{margin-top:30px}",
+      ".p2uni-pinned .p2uni-card.sel{margin-top:0}"
+    ].join("\n");
+    document.head.appendChild(st);
+
+    window.__p2Uni = {version: 54};
+    window.__p2Uni54 = {};
+  } catch (e) { try { console.warn("p2Uni54", e); } catch (err) {} }
 })();
 })().catch(e => window.__show("起動エラー: " + (e && e.message)));
