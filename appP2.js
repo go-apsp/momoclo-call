@@ -649,6 +649,13 @@ requestAnimationFrame(loop);
   var TCOL = { call: "#ff6b9d", sing: "#4dc9ff", koko: "#ffd23f" };   /* 既存図解と同じ種類色 */
   var tlKey = null, tlManualUntil = 0, tlLastAuto = -1;
   function tlTarget() {
+    /* プロトタイプ2 v50: 作成セッション中はタイムラインも作りかけのプレビューにする */
+    var pvScenes = null;
+    try { pvScenes = window.__p2UniPreviewScenes && window.__p2UniPreviewScenes(); } catch (e) {}
+    if (pvScenes && pvScenes.length) {
+      var pvCall = { id: "__p2pv__", ownerName: "プレビュー", versionName: "作りかけ", scenes: pvScenes };
+      return { c: pvCall, D: Math.max(dur() || 0, pvScenes.reduce(function (m, s) { return Math.max(m, (+s.t || 0) + (+s.d || 0)); }, 0), 1) };
+    }
     /* 対象コールと長さDの決め方は既存の tlNow と同じ優先順位: act → EV系の pseudo → calls[0] */
     try {
       if (act && calls.some(function (x) { return x.id === act; })) {
@@ -1481,6 +1488,156 @@ requestAnimationFrame(loop);
   } catch (e) { try { console.warn("p2Uni49", e); } catch (err) {} }
 })();
 
+/* ================= プロトタイプ2 v50: プレビュー連動と保存導線(段階3/3) =================
+   - 作成を始めたら、右の付箋の一覧・タイムラインは作りかけのプレビューに切り替わる
+   - 操作シートの右上にだけ「プレビュー ON/OFF」の小さい切替を置く(OFFで直前に見ていたコールへ戻る)
+   - 作成に入る直前の再生状態(曲・コール・再生位置)を保持し、下書き保存/登録が完了したらそこへ戻す
+   - 作成レイヤー最下部に「下書き保存」「この推しコールを登録」。既存の制作終了フローの保存経路につなぎ、
+     完了後は A.save 側でカードが空になり、新規作成カードだけの初期状態に戻る(範囲もリセット)
+   - サイトを離れようとした時だけ、作りかけがあれば beforeunload で離脱確認を出す
+     (ブラウザ標準の確認ダイアログで、文面はブラウザ固定のものになる) */
+(function p2Uni50() {
+  try {
+    var st = document.createElement("style"); st.id = "p2Uni50Styles";
+    st.textContent = [
+      "#p2UniPvToggle{position:absolute;top:4px;right:4px;z-index:6;font-size:10px;font-weight:700;padding:3px 8px;border-radius:8px;border:1px solid #8e91b8;background:rgba(20,20,40,.55);color:#cfd2f2;cursor:pointer;font-family:inherit;opacity:.9}",
+      "#p2UniPvToggle.off{opacity:.55}",
+      "#p2UniSaveBar{order:99;display:flex;gap:10px;margin-top:8px}",
+      "#p2UniSaveBar button{flex:1;height:48px;border-radius:24px;font-family:inherit;font-size:14px;font-weight:900;cursor:pointer}",
+      "#p2UniSaveBar .p2uni-draft{background:none;border:2px solid #8e91b8;color:#cfd2f2}",
+      "#p2UniSaveBar .p2uni-reg{background:#ffd23f;border:2px solid #ffd23f;color:#2a2410}"
+    ].join("\n");
+    document.head.appendChild(st);
+
+    var session = false, snapshot = null, pvOn = true, lastSig = "__init__";
+    var listBox = document.getElementById("playSceneList");
+    var titleEl = listBox ? listBox.querySelector(".psl-title") : null;
+    var origTitle = titleEl ? titleEl.textContent : null;
+
+    window.__p2UniPreviewScenes = function () {
+      if (!session || !pvOn) return null;
+      try { return mkPlaybackScenes(mk.scenes); } catch (e) { return null; }
+    };
+    window.__p2UniPreviewList = function (box, items) {
+      if (screen !== "play" || !session || !pvOn) return false;
+      var scs = [];
+      try { scs = mkPlaybackScenes(mk.scenes); } catch (e) {}
+      var title = box.querySelector(".psl-title");
+      if (title) title.textContent = "プレビュー(作りかけの推しコール)";
+      if (!scs.length) {
+        items.innerHTML = '<div style="font-size:12px;color:var(--mut);padding:6px 2px">まだ配置したカードがありません</div>';
+      } else {
+        items.innerHTML = scs.map(function (sc) {
+          var label = String(sc.x || LAB[sc.k] || "コール").trim();
+          return '<button type="button" class="psl-item p2uni-pv-item" data-t="' + sc.t + '"><span class="psl-time">' + esc(fmt(Math.max(0, +sc.t || 0))) + '</span><span class="psl-text">' + esc(label) + '</span></button>';
+        }).join("");
+      }
+      box.classList.add("on");
+      return true;
+    };
+
+    /* プレビュー項目タップで、その場面の6秒前へ(既存 playSceneJump と同じ) */
+    var itemsEl = document.getElementById("playSceneItems");
+    if (itemsEl) itemsEl.addEventListener("click", function (e) {
+      var b = e.target && e.target.closest ? e.target.closest(".p2uni-pv-item") : null;
+      if (!b) return;
+      e.stopPropagation(); e.preventDefault();
+      var t = parseFloat(b.dataset.t);
+      if (playerReady() && !isNaN(t)) playerSeek(Math.max(0, t - 6));
+    });
+
+    /* 操作シート右上のプレビュー ON/OFF(切替はこの1箇所だけ) */
+    var pvBtn = null;
+    function paintPvToggle() {
+      var ctrl = document.getElementById("p2LayerCtrl"); if (!ctrl) return;
+      if (!pvBtn) {
+        pvBtn = document.createElement("button"); pvBtn.type = "button"; pvBtn.id = "p2UniPvToggle";
+        pvBtn.title = "作成中のプレビュー表示の切り替え";
+        pvBtn.addEventListener("click", function (ev) {
+          ev.stopPropagation();
+          pvOn = !pvOn; lastSig = "__changed__";
+          if (!pvOn && titleEl && origTitle != null) titleEl.textContent = origTitle;
+          paintPvToggle();
+          try { paintPlaySceneList(); } catch (e) {}
+        });
+        ctrl.appendChild(pvBtn);
+      }
+      pvBtn.style.display = session ? "" : "none";
+      pvBtn.textContent = pvOn ? "プレビュー ON" : "プレビュー OFF";
+      pvBtn.classList.toggle("off", !pvOn);
+    }
+
+    /* 作成レイヤー最下部の保存ボタン2つ */
+    function uniFinish(pub) {
+      if (!mk.scenes.length) { toast("カードがありません"); return; }
+      if (!pub && !me) { toast("ゲストは下書き保存できません。登録ならできます"); return; }
+      if (!authStateReady) { pendingMkFinishOpen = true; toast("準備中です。少し待ってからもう一度押してください"); return; }
+      mkFinishDraft = {step: -1, pub: null, name: "", title: "", versionName: "", note: ""};
+      chooseMkFinish(pub);
+    }
+    var mkSec = document.getElementById("mk");
+    if (mkSec) {
+      var btnBar = document.createElement("div"); btnBar.id = "p2UniSaveBar";
+      btnBar.innerHTML = '<button type="button" class="p2uni-draft">下書き保存</button><button type="button" class="p2uni-reg">この推しコールを登録</button>';
+      btnBar.querySelector(".p2uni-draft").addEventListener("click", function () { uniFinish(false); });
+      btnBar.querySelector(".p2uni-reg").addEventListener("click", function () { uniFinish(true); });
+      mkSec.appendChild(btnBar);
+    }
+
+    function finishOpen() {
+      var fo = document.getElementById("mkFinishOverlay");
+      return !!(fo && fo.style.display === "flex");
+    }
+    function restoreSnapshot() {
+      if (!snapshot) return;
+      var snap = snapshot, changed = false;
+      try {
+        if (snap.si != null && SONGS[snap.si] && si !== snap.si) {
+          si = snap.si; VID = SONGS[si].vid; UI.songSel(si); cueCurrentSong(); changed = true;
+        }
+        if (snap.act && act !== snap.act && calls.some(function (c) { return c.id === snap.act; })) {
+          act = snap.act; applyAct(); changed = true;
+        }
+        render();
+        if (playerReady() && snap.pos) playerSeek(snap.pos);
+        if (changed) toast("作成の前に見ていたコールに戻りました");
+      } catch (e) {}
+    }
+    function tick50() {
+      var inMk = document.body.classList.contains("scr-mk");
+      if (inMk && !session) {
+        session = true; pvOn = true; lastSig = "__init__";
+        var pos = 0; try { pos = playerReady() ? now() : 0; } catch (e) {}
+        snapshot = {act: act, si: si, pos: pos};
+      }
+      if (session && !inMk && !mk.scenes.length && !finishOpen() && !mkFinishSaving) {
+        restoreSnapshot();
+        session = false; snapshot = null;
+        try { paintPlaySceneList(); } catch (e) {}
+        try { if (window.__p2Range && window.__p2Range.reset) window.__p2Range.reset(); } catch (e) {}
+      }
+      paintPvToggle();
+      if (titleEl && origTitle != null && !(session && pvOn) && titleEl.textContent !== origTitle) titleEl.textContent = origTitle;
+      if (screen === "play" && session) {
+        var sig = pvOn + "|" + mk.scenes.map(function (s) { return s.t + "," + s.d + "," + s.k + "," + s.x; }).join("|");
+        if (sig !== lastSig) { lastSig = sig; try { paintPlaySceneList(); } catch (e) {} }
+      }
+    }
+    var mo = new MutationObserver(function () { tick50(); });
+    mo.observe(document.body, {attributes: true, attributeFilter: ["class"]});
+    setInterval(tick50, 500);
+    tick50();
+
+    /* 作りかけがあるままサイトを離れようとしたら確認(ブラウザ標準ダイアログ) */
+    window.addEventListener("beforeunload", function (e) {
+      if (mk.scenes && mk.scenes.length) { e.preventDefault(); e.returnValue = ""; }
+    });
+
+    window.__p2Uni = {version: 50};
+    window.__p2Uni50 = { get session() { return session; }, get pvOn() { return pvOn; } };
+  } catch (e) { try { console.warn("p2Uni50", e); } catch (err) {} }
+})();
+
 UI.songSel(si);
 loadSongs();
 checkSpHash();
@@ -1589,6 +1746,7 @@ let pEvOpen = false, evFor = null;
 function paintPlaySceneList() {
   const box = $("playSceneList"), items = $("playSceneItems");
   if (!box || !items) return;
+  if (window.__p2UniPreviewList && window.__p2UniPreviewList(box, items)) return;   /* プロトタイプ2 v50: 作成中は作りかけプレビュー */
   if (screen !== "play" || !Array.isArray(EV) || !EV.length) { box.classList.remove("on"); items.innerHTML = ""; return; }
   items.innerHTML = EV.map((sc, i) => {
     const label = String(sc.x || LAB[sc.k] || "コール").trim();
