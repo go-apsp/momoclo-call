@@ -261,9 +261,10 @@ function loop(ts) {
   if (pl && act && !isMine() && !mkPv) { const q = sessFor(); if (!q.t0) { q.t0 = Date.now(); q.ready = loadPrev(q); } }   // 再生を始めてから10分を数える
   if (!drag) { bar.max = dur(); bar.value = t; }
   $("tm").textContent = fmt(t); $("dur").textContent = fmt(dur());
-  const SRC = mkPv ? mkPv.scenes : EV;
+  const pvSrc = (!mkPv && screen === "play" && window.__p2UniPreviewScenes) ? window.__p2UniPreviewScenes() : null;   // プロトタイプ2 v52: 作成中プレビューONの間は、再生側のカード演出も作りかけのシーンを流す(プレビューOFFでは従来どおり視聴中コール)
+  const SRC = mkPv ? mkPv.scenes : (pvSrc || EV);
   let on = SRC.filter(x => t >= x.t && t < x.t + x.d);           // いま出ている場面(重なってもそれぞれ本来のタイミング)
-  if (wakuHold && !mkPv) {   // build 62: 湧く!を押した場面は、再生位置に関係なく設定時間いっぱい表示し続ける
+  if (wakuHold && !mkPv && !pvSrc) {   // build 62: 湧く!を押した場面は、再生位置に関係なく設定時間いっぱい表示し続ける
     if (performance.now() < wakuHold.until) { if (!on.includes(wakuHold.e)) on.push(wakuHold.e); }
     else wakuHold = null;
   }
@@ -274,7 +275,7 @@ function loop(ts) {
   const e = on.slice().reverse().find(x => x.k !== "koko") || null;   // 「自分も湧く!」の対象
   const sessOwn = !!(act && mySession.has(act));   // build 62: この訪問中に作ったコールは湧きも押せない
   document.querySelectorAll(".wk").forEach(x => { x.classList.toggle("hot", !!e); x.classList.toggle("off", sessOwn); });
-  cur = mkPv ? null : e;
+  cur = (mkPv || pvSrc) ? null : e;   // プロトタイプ2 v52: プレビュー中は作りかけを「湧く!」の対象にしない(mkPvと同じ)
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
@@ -1138,8 +1139,6 @@ requestAnimationFrame(loop);
       var h = uniNewCardHtml();
       if (!scenes.length) return h + '<div style="font-size:12px;color:var(--mut);padding:4px 2px">まだカードがありません。上の「新規作成」の時刻をタップすると、聞いている位置に空カードができます。</div>';
       var entries = scenes.map(function (e, i) { return {e: e, i: i}; });
-      var placed = entries.filter(function (o) { return mkIsPlaced(o.e); });
-      var unplaced = entries.filter(function (o) { return !mkIsPlaced(o.e); });
       var card = function (o) {
         var e = o.e, i = o.i, empty = uniIsEmpty(e), isPl = mkIsPlaced(e);
         /* v51: カード全体を1つの選択ボタン(mkpick)にせず、時刻・文言・長さをそれぞれ独立した
@@ -1163,10 +1162,32 @@ requestAnimationFrame(loop);
           + '</div>'
           + '<button type="button" class="p2uni-copy" data-copy="' + i + '">コピー</button>'
           + '<button type="button" class="mkdel" data-a="delScene" data-i="' + i + '" aria-label="削除">×</button>'
-          + '<button type="button" class="p2uni-place" data-place="' + i + '" title="お気に置く: 押したままタイムラインへ動かして離すと位置が決まります" aria-label="お気に置く"></button>'
+          /* v52: お気に置くは、選択中のカードにだけ、上辺に付箋のように出す(中央の常時丸ボタンは
+             他の項目と混雑して押しにくいので廃止)。見た目(タブ形)は v52 のスタイルで付ける */
+          + (i === sel ? '<button type="button" class="p2uni-place" data-place="' + i + '" title="お気に置く: 押したままタイムラインへ動かして離すと位置が決まります">お気に置く</button>' : '')
           + '</div>' + boardHtml;
       };
-      var out = placed.map(card).join("");
+      /* v52: 編集中のカード(編集ボードが開いている / 内容パネルで編集中)は、新規作成カードの
+         直下へ出して .p2uni-pinned で上に固定する。編集中に一覧をスクロールしても、そのカードと
+         編集ボードが上に留まって流れないようにするため。編集が終われば通常の並びに戻る */
+      var editEntry = null;
+      entries.forEach(function (o) {
+        if (editEntry) return;
+        var bh = "";
+        try { bh = window.__p2Uni49 ? window.__p2Uni49.boardHtml(o.i, o.e) : ""; } catch (err) {}
+        var cp = false;
+        try {
+          var cpn = document.getElementById("mkContentPanel");
+          cp = !!(cpn && cpn.style.display === "flex" && typeof mkCpTarget !== "undefined" && mkCpTarget === o.e);
+        } catch (err) {}
+        if (bh || cp) editEntry = o;
+      });
+      var rest = editEntry ? entries.filter(function (o) { return o !== editEntry; }) : entries;
+      var placed = rest.filter(function (o) { return mkIsPlaced(o.e); });
+      var unplaced = rest.filter(function (o) { return !mkIsPlaced(o.e); });
+      var out = "";
+      if (editEntry) out += '<div class="p2uni-pinned">' + card(editEntry) + '</div>';
+      out += placed.map(card).join("");
       if (unplaced.length) out += '<div style="font-size:11px;color:var(--mut);margin:8px 0 2px">未配置のカード(内容だけ先に作ったもの)</div>' + unplaced.map(card).join("");
       return h + out;
     };
@@ -4097,5 +4118,65 @@ try { if (!localStorage.getItem("momo_welcome_hide")) $("welcome").classList.add
     window.__p2Uni51 = {arrange: arrange, restore: restore, goToSheet: goToSheet,
       get arranged() { return arranged; }, tabsEl: tabsBox};
   } catch (e) { try { console.warn("p2Uni51", e); } catch (err) {} }
+})();
+
+/* ================= プロトタイプ2 v52: 実機フィードバック3件 =================
+   1. 編集するカードは一番上に固定: 編集中(編集ボードが開いている / 内容パネルで編集中)の
+      カードを、新規作成カードの直下へ出して上に固定する。描画の並べ替えは v48 の
+      __p2UniCards 側で行い、ここでは固定表示(.p2uni-pinned)の見た目を持つ。
+      固定は #mkList 内の position:sticky で、編集中に一覧をスクロールしてもカードと
+      編集ボードが上に留まる。編集が終われば(ボードを閉じる/決定)通常の並びに戻る
+   2. お気に置くボタンは付箋式に: 各カード中央の常時丸ボタンは、他の項目と混雑して
+      押しにくいので廃止。選択中のカードにだけ、その上辺に付箋のようにピロッと
+      飛び出したタブとして出す(描画は v48 側で選択中のカードにのみ生成し、見た目は
+      ここで v49 の丸ボタン用スタイルを上書きする)。ドラッグの挙動は v49/v51 のまま
+   3. プレビューで作りかけのカードが流れる: プレビューONの間は、再生側のカード演出
+      (本体 loop の UI.cards / UI.nexts)の対象も作りかけのシーンにする(loop 側で対応)。
+      ここでは __p2UniPreviewScenes にシグネチャキャッシュを付け、毎フレームの
+      再計算と配列の作り直しを避ける(中身の決め方は v50 と同じ) */
+(function p2Uni52() {
+  try {
+    var st = document.createElement("style"); st.id = "p2Uni52Styles";
+    st.textContent = [
+      /* --- 1: 編集中カードの固定表示 --- */
+      ".p2uni-pinned{position:sticky;top:0;z-index:6;background:#14152b;padding:16px 0 6px;border-radius:0 0 12px 12px;box-shadow:0 12px 20px rgba(0,0,0,.5)}",
+      ".p2uni-pinned .p2uni-card.sel{margin-top:0}",
+      /* --- 2: お気に置く付箋タブ(v49の中央丸ボタンを上書き) --- */
+      ".p2uni-place{top:-14px;transform:translateX(-50%);width:auto;height:25px;padding:0 14px;border-radius:10px 10px 0 0;border-bottom:0;background:rgba(77,201,255,.95);color:#07304a;font-size:11px;font-weight:900;font-family:inherit;line-height:1;box-shadow:0 -3px 9px rgba(0,0,0,.45);z-index:4}",
+      ".p2uni-place:after{display:none}",
+      "#mkList .p2uni-card.sel{margin-top:18px}"
+    ].join("\n");
+    document.head.appendChild(st);
+
+    /* --- 1b: 内容パネルで編集中のカードも固定の対象にする ---
+       パネルが開いている間は一覧が再描画されないため、開閉のタイミングで描き直して
+       対象カードの固定/解除を反映する(パネル自体はモーダルなので一覧の再描画と干渉しない) */
+    var cpPanel = document.getElementById("mkContentPanel");
+    if (cpPanel) {
+      var cpWasOpen = cpPanel.style.display === "flex";
+      var cpMo = new MutationObserver(function () {
+        var open = cpPanel.style.display === "flex";
+        if (open === cpWasOpen) return;
+        cpWasOpen = open;
+        if (document.body.classList.contains("scr-mk")) { try { renderMk(); } catch (e) {} }
+      });
+      cpMo.observe(cpPanel, {attributes: true, attributeFilter: ["style"]});
+    }
+
+    /* --- 3: プレビューシーンのキャッシュ付き公開(v50の同名関数を置き換える) --- */
+    var pvSig = "__none__", pvVal = null;
+    window.__p2UniPreviewScenes = function () {
+      var S = window.__p2Uni50;
+      if (!S || !S.session || !S.pvOn) { pvSig = "__none__"; pvVal = null; return null; }
+      var sig = mk.scenes.map(function (s) { return s.t + "," + s.d + "," + s.k + "," + s.x + "," + (s.placed ? 1 : 0); }).join("|");
+      if (sig === pvSig) return pvVal;
+      pvSig = sig;
+      try { pvVal = mkPlaybackScenes(mk.scenes); } catch (e) { pvVal = null; }
+      return pvVal;
+    };
+
+    window.__p2Uni = {version: 52};
+    window.__p2Uni52 = { get pvSig() { return pvSig; } };
+  } catch (e) { try { console.warn("p2Uni52", e); } catch (err) {} }
 })();
 })().catch(e => window.__show("起動エラー: " + (e && e.message)));
