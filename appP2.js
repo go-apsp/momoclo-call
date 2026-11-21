@@ -982,7 +982,21 @@ requestAnimationFrame(loop);
     if (mk !== wasMk) { reset(); wasMk = mk; }
   });
   mo.observe(document.body, { attributes: true, attributeFilter: ["class"] });
-  try { window.__p2Range = { get: function () { return cur ? { a: cur.a, b: cur.b, depth: cur.depth, hist: cur.hist.length } : null; }, narrow: narrow, reset: reset, el: bar, tl: songTl, MAXD: MAXD }; } catch (e) {}
+  try { window.__p2Range = { get: function () { return cur ? { a: cur.a, b: cur.b, depth: cur.depth, hist: cur.hist.length } : null; }, narrow: narrow, reset: reset, el: bar, tl: songTl, MAXD: MAXD,
+    /* v47: 絞っている間(depth>=1)は、スクラブ・打ち込みで決まる位置も範囲内に閉じるためのクランプ。
+       tail は末尾から空ける秒数(カードの長さ等)。絞っていない時と作成画面の外では素通し */
+    clamp: function (t, tail) {
+      if (!cur || cur.depth === 0 || !inMk()) return t;
+      var hi = cur.b - (tail || 0);
+      if (hi < cur.a) hi = cur.a;
+      return Math.max(cur.a, Math.min(hi, t));
+    },
+    /* v47: 開始位置 t が範囲内にある時だけ、長さ d が範囲の終わりを超えないようにする */
+    span: function (t, d) {
+      if (!cur || cur.depth === 0 || !inMk()) return d;
+      if (t < cur.a || t >= cur.b) return d;
+      return Math.min(d, Math.max(0.5, cur.b - t));
+    } }; } catch (e) {}
   reset();
 })();
 
@@ -1644,6 +1658,16 @@ function mkSetZoom(on, c) {
 /* ---------- build 64: シーク連動スクラブ(お気に置きにいっちゃうモードの「置きに行く」操作と、選択中カードの位置探りで共用)。
    指の絶対位置対応: 画面幅より少し狭い帯に曲全体を割り当て、指の横位置そのものが曲の位置になる。
    デッドゾーン(手ブレ抑制: 小さい動きは無視)と、反応の鈍さ(絶対位置への追従速度)で操作感を調整できる ---------- */
+/* プロトタイプ2 v47: 制作範囲を絞っている間は、ドラッグスクラブや打ち込みで決まる位置も
+   v44の範囲内に閉じる(絞っていない時は素通しで従来通り)。本体は v44 ブロックの __p2Range が持つ */
+function p2RangeClamp(t, tail) {
+  try { const R = window.__p2Range; if (R && R.clamp) return R.clamp(t, tail); } catch (e) {}
+  return t;
+}
+function p2RangeSpan(t, d) {
+  try { const R = window.__p2Range; if (R && R.span) return R.span(t, d); } catch (e) {}
+  return d;
+}
 function mkBandAbs(clientX) {
   const W = window.innerWidth || 360;
   const m = Math.max(10, Math.round(W * 0.04));
@@ -1693,6 +1717,7 @@ function mkScrMove(e) {
   const g = mkTune.gain;
   let target = scr.src.fromPlaceButton ? absT : (g >= 1 ? absT : scr.target + (absT - scr.target) * g);   // 置きに行くは指と1対1。それ以外は反応の鈍さ: gain が小さいほど、再生位置は指の絶対位置へゆっくり近づく
   target = Math.max(0, Math.min(mkTlD(), target));
+  target = p2RangeClamp(target);   // v47: 絞った範囲の外へはドラッグで動かさない
   scr.target = target; mkTlCenter = target; mkTlApplyView();
   mkMoveGhost(e, target);
   if (scr.lastSeek === null || Math.abs(target - scr.lastSeek) >= 0.15) { scr.lastSeek = target; playerSeek(Math.round(target * 10) / 10); if (playerReady() && playerState() !== 1) playerPlay(); }   // プロトタイプ2: ドラッグ中に何かの理由で止まっても、指の動きで再開する
@@ -1700,7 +1725,7 @@ function mkScrMove(e) {
   if (scr.settle) clearTimeout(scr.settle);
   scr.settle = setTimeout(() => {   // 指を止めたら(約320ms)、指の絶対位置から再生して聞き直せる
     if (!mkScrSt || !mkScrSt.active) return;
-    const t = Math.max(0, Math.min(mkTlD(), Math.round(mkScrAbs(mkScrSt.lastX, mkScrSt.src) * 10) / 10));
+    const t = p2RangeClamp(Math.max(0, Math.min(mkTlD(), Math.round(mkScrAbs(mkScrSt.lastX, mkScrSt.src) * 10) / 10)));
     mkScrSt.target = t; mkScrSt.lastSeek = t; mkTlCenter = t; mkTlApplyView();
     mkMoveGhost({clientX: mkScrSt.lastX, clientY: mkScrSt.lastY}, t);
     playerSeek(t); if (playerReady()) playerPlay();
@@ -1716,7 +1741,7 @@ function mkScrEnd(commit, upX) {
     if (sc.src.fromPlaceButton && !sc.moved) return;   // プロトタイプ2 移植3: ただのタップでは配置しない
     if (commit) {
       if (upX != null) sc.target = mkScrAbs(upX, sc.src);
-      const t = Math.max(0, Math.min(mkTlD() - 0.5, Math.round(sc.target * 10) / 10));
+      const t = p2RangeClamp(Math.max(0, Math.min(mkTlD() - 0.5, Math.round(sc.target * 10) / 10)), 0.5);   // v47: 配置位置も範囲内に閉じる
       if (sc.src.scene && mk.scenes.includes(sc.src.scene)) {   // プロトタイプ2 移植3: 未配置カードそのものを配置する
         const target = sc.src.scene;
         target.t = t; target.placed = true;
@@ -2544,7 +2569,7 @@ const A = {
     if (Date.now() - mkHoldClickAt < 500) return;   // 長押しで処理済みのクリックは握りつぶす
     if (mkMode === "oki") { openMkContentPanel(null); return; }
     // カード作成だけ: 再生中でも停止中でも、今の位置に仮の長さ5秒で1枚作る
-    const t = Math.round(clampT(now()));
+    const t = p2RangeClamp(Math.round(clampT(now())));   // v47: 絞った範囲の外には作らない(停止中に範囲外へシークしていた場合も)
     const sc = {t: t, d: 5, placed: true, k: mk.type, x: $("mkText").value.trim()};
     mk.scenes.push(sc);
     mkSortScenes();
@@ -2605,7 +2630,7 @@ const A = {
     if (!mkIsPlaced(sc)) return toast("未配置のカードです。配置の操作は次の移植で入ります");
     const D = Math.max(dur() || 0, 1);
     let v = Math.round(now() * 10) / 10;
-    v = Math.max(0, Math.min(Math.max(0, D - sc.d), v));
+    v = p2RangeClamp(Math.max(0, Math.min(Math.max(0, D - sc.d), v)), sc.d);   // v47: 範囲内に閉じる
     if (v !== sc.t) { sc.t = v; mkSortScenes(); mkSel = mk.scenes.indexOf(sc); renderMk(); }
     toast("「" + (sc.x || LAB[sc.k]) + "」を今の再生位置(" + fmt(sc.t) + ")へ持ってきました");
     guideEvent("tweak");
@@ -2717,7 +2742,7 @@ const A = {
     if (!mkIsPlaced(sc)) return toast("未配置のカードは位置を直せません");
     const D = Math.max(dur() || 0, 1);
     let t = Math.round((sc.t + parseFloat(dt)) * 10) / 10;
-    t = Math.max(0, Math.min(Math.max(0, D - sc.d), t));
+    t = p2RangeClamp(Math.max(0, Math.min(Math.max(0, D - sc.d), t)), sc.d);   // v47: 微調整でも範囲外へ出さない
     if (t !== sc.t) { sc.t = t; mkSortScenes(); mkSel = mk.scenes.indexOf(sc); renderMk(); }
     guideEvent("fine");
   },
@@ -2979,13 +3004,14 @@ document.addEventListener("input", e => {
     if (el < 0.25) { if (commit) A.mkMain(); mkHoldClickAt = Date.now(); return; }
     mkHoldClickAt = Date.now();   // 長押しとして処理したので、続くクリックは握りつぶす
     if (h.rel) {   // 選択中カードの長さ決め直し: 0.3秒以上押した場合だけ確定(うっかり触れただけでは変えない)
-      if (commit && el >= 0.3) { h.rel.d = h.d; renderMk(); toast("「" + (h.rel.x || LAB[h.rel.k]) + "」の長さを " + h.d.toFixed(1) + " 秒に決め直しました"); guideEvent("lenDone"); }
+      if (commit && el >= 0.3) { h.rel.d = p2RangeSpan(h.rel.t, h.d); renderMk(); toast("「" + (h.rel.x || LAB[h.rel.k]) + "」の長さを " + h.rel.d.toFixed(1) + " 秒に決め直しました"); guideEvent("lenDone"); }
       else renderMk();
       return;
     }
     if (!commit) return;
     // 新規カード: 押した位置から、押していた長さで作る。種類・文言は「次に作るカード」の設定を使う
-    const sc = {t: h.t0, d: h.d, placed: true, k: mk.type, x: $("mkText").value.trim()};
+    // v47: 長押し中に再生が範囲の終わりで止まっても壁時計で測り続けるため、長さが範囲を超える場合は範囲内に収める
+    const sc = {t: h.t0, d: p2RangeSpan(h.t0, h.d), placed: true, k: mk.type, x: $("mkText").value.trim()};
     mk.scenes.push(sc); mkSortScenes();
     if (sc.x) $("mkText").value = "";
     renderMk();
@@ -2998,7 +3024,7 @@ document.addEventListener("input", e => {
     e.preventDefault();
     try { btn.setPointerCapture(e.pointerId); } catch (err) {}
     if (mkMode === "oki") { mkHoldClickAt = Date.now(); openMkContentPanel(null); return; }
-    let t0 = Math.round(clampT(now()) * 10) / 10;
+    let t0 = p2RangeClamp(Math.round(clampT(now()) * 10) / 10, 0.5);   // v47: 打ち込み開始位置も絞った範囲内に閉じる(末尾0.5秒は長さの最低分)
     mkHoldSt = {t0: t0, at: performance.now(), d: 0.5, rel: null, timer: null};
     mkSetZoom(true, t0);
     mkHoldSt.timer = setInterval(upd, 50);
@@ -3036,7 +3062,7 @@ $("mkTlInner").addEventListener("click", e => {
     const ratio = Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width)));
     const w = mkTlWin(), D = mkTlD();
     let t = w.a + ratio * w.span;
-    t = Math.max(0, Math.min(Math.max(0, D - sc.d), Math.round(t * 10) / 10));
+    t = p2RangeClamp(Math.max(0, Math.min(Math.max(0, D - sc.d), Math.round(t * 10) / 10)), sc.d);   // v47: つまみドラッグも範囲内に閉じる
     sc.t = t; mkTlCenter = t; mkTlApplyView(); paintKnob();
     const pt = $("mkPosTime"); if (pt) pt.textContent = fmt(t) + "〜" + fmt(t + sc.d);
     if (kd.lastSeek === null || Math.abs(t - kd.lastSeek) >= 0.15) { kd.lastSeek = t; playerSeek(t); }
@@ -3062,7 +3088,7 @@ $("mkTlInner").addEventListener("click", e => {
     const was = st.active, sc = st.sc;
     mkPosScrSt = null;
     if (!was) return;
-    if (e && e.clientX != null && mk.scenes.indexOf(sc) >= 0) sc.t = Math.max(0, Math.min(Math.max(0, mkTlD() - sc.d), Math.round(mkBandAbs(e.clientX) * 10) / 10));
+    if (e && e.clientX != null && mk.scenes.indexOf(sc) >= 0) sc.t = p2RangeClamp(Math.max(0, Math.min(Math.max(0, mkTlD() - sc.d), Math.round(mkBandAbs(e.clientX) * 10) / 10)), sc.d);   // v47: 範囲内に閉じる
     mkSetZoom(false);
     mkSortScenes(); mkSel = mk.scenes.indexOf(sc);
     renderMk();
@@ -3086,7 +3112,7 @@ $("mkTlInner").addEventListener("click", e => {
     else { st.anchorX = e.clientX; }
     const absT = mkBandAbs(e.clientX), g = mkTune.gain;
     let target = g >= 1 ? absT : st.target + (absT - st.target) * g;
-    target = Math.max(0, Math.min(Math.max(0, mkTlD() - sc.d), Math.round(target * 10) / 10));
+    target = p2RangeClamp(Math.max(0, Math.min(Math.max(0, mkTlD() - sc.d), Math.round(target * 10) / 10)), sc.d);   // v47: 範囲内に閉じる
     st.target = target; sc.t = target; mkTlCenter = target; mkTlApplyView(); paintKnob();
     const pt = $("mkPosTime"); if (pt) pt.textContent = fmt(target) + "〜" + fmt(target + sc.d);
     if (st.lastSeek === null || Math.abs(target - st.lastSeek) >= 0.15) { st.lastSeek = target; playerSeek(target); }
@@ -3095,7 +3121,7 @@ $("mkTlInner").addEventListener("click", e => {
     st.settle = setTimeout(() => {
       if (!mkPosScrSt || !mkPosScrSt.active) return;
       const sc2 = mkPosScrSt.sc; if (mk.scenes.indexOf(sc2) < 0) return;
-      const t = Math.max(0, Math.min(Math.max(0, mkTlD() - sc2.d), Math.round(mkBandAbs(mkPosScrSt.lastX) * 10) / 10));
+      const t = p2RangeClamp(Math.max(0, Math.min(Math.max(0, mkTlD() - sc2.d), Math.round(mkBandAbs(mkPosScrSt.lastX) * 10) / 10)), sc2.d);   // v47: 範囲内に閉じる
       mkPosScrSt.target = t; mkPosScrSt.lastSeek = t; sc2.t = t; mkTlCenter = t; mkTlApplyView(); paintKnob();
       const pt2 = $("mkPosTime"); if (pt2) pt2.textContent = fmt(t) + "〜" + fmt(t + sc2.d);
       playerSeek(t); if (playerReady()) playerPlay();
