@@ -1143,12 +1143,16 @@ requestAnimationFrame(loop);
         var dHtml = isPl
           ? '<span class="mkd p2uni-zone" data-zone="dur" data-i="' + i + '">' + e.d + '秒</span>'
           : '<span class="mkd">まだ置いていません</span>';
-        return '<div class="mkcard' + (i === sel ? " sel" : "") + (isPl ? "" : " pend") + '" data-ci="' + i + '">'
+        var boardHtml = "";
+        try { if (window.__p2Uni49) boardHtml = window.__p2Uni49.boardHtml(i, e); } catch (err) {}
+        return '<div class="mkcard p2uni-card' + (i === sel ? " sel" : "") + (isPl ? "" : " pend") + '" data-ci="' + i + '">'
           + '<button type="button" class="mkpick" data-a="mkPick" data-i="' + i + '">'
           + timeHtml + '<span class="mkk">' + LAB[e.k] + '</span>' + xHtml + dHtml
           + '</button>'
+          + '<button type="button" class="p2uni-copy" data-copy="' + i + '">コピー</button>'
           + '<button type="button" class="mkdel" data-a="delScene" data-i="' + i + '" aria-label="削除">×</button>'
-          + '</div>';
+          + '<button type="button" class="p2uni-place" data-place="' + i + '" title="お気に置く: 押したままタイムラインへ動かして離すと位置が決まります" aria-label="お気に置く"></button>'
+          + '</div>' + boardHtml;
       };
       var out = placed.map(card).join("");
       if (unplaced.length) out += '<div style="font-size:11px;color:var(--mut);margin:8px 0 2px">未配置のカード(内容だけ先に作ったもの)</div>' + unplaced.map(card).join("");
@@ -1217,6 +1221,264 @@ requestAnimationFrame(loop);
     setInterval(function () { ensureTab(); trackDraftSong(); }, 800);
     window.__p2Uni = {version: 48};
   } catch (e) { try { console.warn("p2Uni48", e); } catch (err) {} }
+})();
+
+/* ================= プロトタイプ2 v49: カード操作一式(段階2/3) =================
+   - お気に置くボタン: 各カード中央のうっすら青い丸(白フチ+影で大きく見せる)。押したまま動かすとカードが浮いてドラッグでき、
+     制作タイムライン(拡大表示中も含む)の上で離すと位置確定、外で離すとキャンセル。配置済みは開始時に「カード位置が変わります」と出す。置き直し無制限
+   - コピーボタン: 押すと直下に同じカード(時刻も同じ)を複製
+   - 編集ボード: 時刻タップ=位置用 / 長さタップ=長さ用(あわせてヒント吹き出し「長押しでコールの長さを編集」)。
+     大きめの −/＋、秒数の直接入力とホイール変更、決定ボタン。位置は0.1秒単位、長さは0.5〜20秒、範囲絞り中は v47 クランプ適用
+   - 長さの長押し: 押している長さで長さを決め直す(従来方式)。短いタップとの区別は既存の閾値 0.25秒
+   - 文言タップ編集は v48 の内容パネル連携(元の内容入りで開く)をそのまま使う */
+(function p2Uni49() {
+  try {
+    var st = document.createElement("style"); st.id = "p2Uni49Styles";
+    st.textContent = [
+      ".p2uni-card{position:relative}",
+      ".p2uni-copy{flex:none;align-self:center;font-size:11px;font-weight:700;border:1.5px solid #8e91b8;background:none;color:#cfd2f2;border-radius:8px;padding:6px 8px;cursor:pointer;font-family:inherit}",
+      ".p2uni-place{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:50%;border:2px solid #fff;background:rgba(77,201,255,.45);box-shadow:0 2px 8px rgba(0,0,0,.5),0 0 0 4px rgba(77,201,255,.22);cursor:grab;z-index:3;touch-action:none;padding:0}",
+      ".p2uni-place:after{content:\"\";position:absolute;left:50%;top:50%;width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.9);transform:translate(-50%,-50%)}",
+      ".p2uni-ghost{position:fixed;z-index:9999;pointer-events:none;opacity:.9;box-shadow:0 14px 30px rgba(0,0,0,.55);background:var(--panel);border-radius:10px;margin:0}",
+      ".p2uni-hint{position:absolute;right:6px;top:-23px;background:#fff;color:#222;font-size:11px;font-weight:700;padding:3px 8px;border-radius:9px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.35);z-index:5}",
+      ".p2uni-board{display:flex;align-items:center;gap:8px;padding:8px 4px 12px 40px;flex-wrap:wrap}",
+      ".p2uni-board-label{font-size:12px;font-weight:900;color:#cfd2f2}",
+      ".p2uni-board button{height:44px;min-width:44px;font-size:19px;font-weight:900;border-radius:12px;border:2px solid #8e91b8;background:var(--bg);color:var(--ink);cursor:pointer;font-family:inherit;padding:0 10px}",
+      ".p2uni-board .p2uni-board-ok{background:#ffd23f;color:#2a2410;border-color:#ffd23f;font-size:14px}",
+      ".p2uni-board-in{width:86px;height:44px;text-align:center;font-size:16px;font-weight:900;border-radius:12px;border:2px solid #8e91b8;background:var(--bg);color:var(--ink);font-family:inherit}",
+      ".p2uni-board-unit{font-size:12px;color:var(--mut)}",
+      "#mkTlBox.p2uni-tlhot{outline:2px solid #4dc9ff;outline-offset:2px}"
+    ].join("\n");
+    document.head.appendChild(st);
+
+    /* ---------- 編集ボード ---------- */
+    var board = null;   /* {sc, kind:"pos"|"dur", val} */
+    function boardClamp(kind, v, sc) {
+      if (kind === "dur") return Math.round(Math.max(0.5, Math.min(20, v)) * 10) / 10;
+      var D = Math.max(dur() || 0, 1);
+      v = Math.max(0, Math.min(Math.max(0, D - (sc ? sc.d : 0)), v));
+      v = p2RangeClamp(v, sc ? sc.d : 0);
+      return Math.round(v * 10) / 10;
+    }
+    window.__p2Uni49 = {
+      boardHtml: function (i, e) {
+        if (!board || board.sc !== e) return "";
+        var label = board.kind === "pos" ? "位置" : "長さ";
+        return '<div class="p2uni-board" data-board="' + i + '">'
+          + '<span class="p2uni-board-label">' + label + '</span>'
+          + '<button type="button" data-badj="-1" aria-label="減らす">−</button>'
+          + '<input class="p2uni-board-in" type="text" inputmode="decimal" value="' + board.val.toFixed(1) + '" aria-label="' + label + '(秒)">'
+          + '<span class="p2uni-board-unit">秒</span>'
+          + '<button type="button" data-badj="1" aria-label="増やす">＋</button>'
+          + '<button type="button" class="p2uni-board-ok" data-bok="' + i + '">決定</button>'
+          + '<button type="button" class="p2uni-board-x" data-bx="1" aria-label="閉じる">×</button>'
+          + '</div>';
+      }
+    };
+    function openBoard(i, kind) {
+      var sc = mk.scenes[i]; if (!sc) return;
+      mkSel = i; mkSelOrigT = sc.t;
+      board = {sc: sc, kind: kind, val: kind === "pos" ? (sc.t || 0) : sc.d};
+      renderMk();
+      if (kind === "pos" && mkIsPlaced(sc) && playerReady()) playerSeek(sc.t);
+    }
+    function applyBoard() {
+      if (!board) return;
+      var sc = board.sc, inp = document.querySelector(".p2uni-board-in");
+      var v = inp ? parseFloat(inp.value) : board.val;
+      if (isNaN(v)) v = board.val;
+      if (board.kind === "pos") {
+        sc.t = boardClamp("pos", v, sc); sc.placed = true;
+        mkSortScenes(); mkSel = mk.scenes.indexOf(sc);
+        toast("位置を " + fmt(sc.t) + " にしました");
+      } else {
+        v = boardClamp("dur", v, sc);
+        if (mkIsPlaced(sc)) v = Math.round(Math.max(0.5, p2RangeSpan(sc.t, v)) * 10) / 10;
+        sc.d = v;
+        toast("長さを " + sc.d + " 秒にしました");
+      }
+      board = null; renderMk();
+    }
+    function stepBoard(dir) {
+      if (!board) return;
+      var inp = document.querySelector(".p2uni-board-in");
+      var v = inp ? parseFloat(inp.value) : board.val;
+      if (isNaN(v)) v = board.val;
+      v = boardClamp(board.kind, v + dir * 0.1, board.sc);
+      board.val = v;
+      if (inp) inp.value = v.toFixed(1);
+    }
+    function showDurHint(i) {
+      var card = document.querySelector('#mkList .mkcard[data-ci="' + i + '"]');
+      if (!card) return;
+      var h = document.createElement("div"); h.className = "p2uni-hint"; h.textContent = "長押しでコールの長さを編集";
+      card.appendChild(h);
+      setTimeout(function () { try { h.remove(); } catch (e) {} }, 2200);
+    }
+
+    /* ---------- コピー ---------- */
+    function uniCopy(i) {
+      var sc = mk.scenes[i]; if (!sc) return;
+      mk.scenes.splice(i + 1, 0, {t: sc.t, d: sc.d, placed: sc.placed, k: sc.k, x: sc.x});
+      mkSel = i + 1; board = null;
+      renderMk();
+      toast("カードをコピーしました");
+    }
+
+    /* ---------- お気に置くドラッグ ---------- */
+    var placeDrag = null;
+    function tlHit(x, y) {
+      var cands = [];
+      var zb = document.getElementById("mkTlZoomBox");
+      if (document.body.classList.contains("mk-tl-on") && zb) cands.push({el: zb, slide: document.getElementById("mkTlZoomSlide"), zoom: true});
+      var box = document.getElementById("mkTlBox");
+      if (box) cands.push({el: box, slide: document.getElementById("mkTlSlide"), zoom: false});
+      for (var n = 0; n < cands.length; n++) {
+        var r = cands[n].el.getBoundingClientRect();
+        if (r.width > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+          cands[n].win = cands[n].zoom ? mkTlWin15() : mkTlWin();
+          return cands[n];
+        }
+      }
+      return null;
+    }
+    function dragT(hit, x) {
+      var r = (hit.slide || hit.el).getBoundingClientRect();
+      if (!r.width) return null;
+      var ratio = Math.max(0, Math.min(1, (x - r.left) / r.width));
+      return hit.win.a + ratio * hit.win.span;
+    }
+    function startPlaceDrag(e, i, btn) {
+      var sc = mk.scenes[i]; if (!sc) return;
+      mkSel = i; board = null;
+      var card = btn.closest ? btn.closest(".mkcard") : null;
+      var r = card ? card.getBoundingClientRect() : {left: e.clientX - 60, top: e.clientY - 20, width: 240, height: 48};
+      var ghost = card ? card.cloneNode(true) : document.createElement("div");
+      ghost.classList.add("p2uni-ghost"); ghost.removeAttribute("id");
+      ghost.style.width = r.width + "px"; ghost.style.left = r.left + "px"; ghost.style.top = r.top + "px";
+      document.body.appendChild(ghost);
+      placeDrag = {sc: sc, origT: sc.t, origPlaced: mkIsPlaced(sc), ghost: ghost, dx: e.clientX - r.left, dy: e.clientY - r.top, over: false, lastSeek: 0, zoomed: false};
+      if (placeDrag.origPlaced) toast("カード位置が変わります");
+      try { btn.setPointerCapture && btn.setPointerCapture(e.pointerId); } catch (err) {}
+    }
+    function movePlaceDrag(e) {
+      var pd = placeDrag; if (!pd) return;
+      pd.ghost.style.left = (e.clientX - pd.dx) + "px";
+      pd.ghost.style.top = (e.clientY - pd.dy) + "px";
+      var hit = tlHit(e.clientX, e.clientY);
+      pd.over = !!hit;
+      var box = document.getElementById("mkTlBox"); if (box) box.classList.toggle("p2uni-tlhot", !!hit);
+      if (!hit) return;
+      var t = dragT(hit, e.clientX); if (t == null) return;
+      var D = Math.max(dur() || 0, 1);
+      t = Math.round(Math.max(0, Math.min(Math.max(0, D - pd.sc.d), t)) * 10) / 10;
+      t = p2RangeClamp(t, pd.sc.d);
+      pd.sc.t = t; pd.sc.placed = true;
+      mkSetZoom(true, t); pd.zoomed = true;
+      renderMkTl(); paintKnob();
+      var n = Date.now();
+      if (n - pd.lastSeek > 120 && playerReady()) { pd.lastSeek = n; playerSeek(t); }
+    }
+    function endPlaceDrag(e) {
+      var pd = placeDrag; placeDrag = null;
+      var box = document.getElementById("mkTlBox"); if (box) box.classList.remove("p2uni-tlhot");
+      var hit = tlHit(e.clientX, e.clientY);
+      if (hit) {
+        var t = dragT(hit, e.clientX);
+        if (t != null) {
+          var D = Math.max(dur() || 0, 1);
+          t = Math.round(Math.max(0, Math.min(Math.max(0, D - pd.sc.d), t)) * 10) / 10;
+          pd.sc.t = p2RangeClamp(t, pd.sc.d); pd.sc.placed = true;
+        }
+      }
+      if (pd.zoomed) mkSetZoom(false);
+      pd.ghost.remove();
+      if (hit) {
+        mkSortScenes(); mkSel = mk.scenes.indexOf(pd.sc); renderMk();
+        toast("「" + (pd.sc.x || LAB[pd.sc.k]) + "」を " + fmt(pd.sc.t) + " に置きました");
+      } else {
+        pd.sc.t = pd.origT; if (!pd.origPlaced) pd.sc.placed = false;
+        renderMkTl(); paintKnob(); renderMk();
+        toast("キャンセルしました");
+      }
+    }
+    function cancelPlaceDrag() {
+      if (!placeDrag) return;
+      var pd = placeDrag; placeDrag = null;
+      var box = document.getElementById("mkTlBox"); if (box) box.classList.remove("p2uni-tlhot");
+      if (pd.zoomed) mkSetZoom(false);
+      pd.ghost.remove();
+      pd.sc.t = pd.origT; if (!pd.origPlaced) pd.sc.placed = false;
+      renderMk();
+    }
+
+    /* ---------- 一覧への委譲ハンドラ ---------- */
+    var listEl = document.getElementById("mkList");
+    var durHold = null;
+    if (listEl) {
+      listEl.addEventListener("pointerdown", function (e) {
+        var pl = e.target && e.target.closest ? e.target.closest("[data-place]") : null;
+        if (pl) { e.preventDefault(); startPlaceDrag(e, +pl.dataset.place, pl); return; }
+        var z = e.target && e.target.closest ? e.target.closest('[data-zone="dur"]') : null;
+        if (z) {
+          var i = +z.dataset.i, sc = mk.scenes[i]; if (!sc) return;
+          durHold = {i: i, sc: sc, at: Date.now(), active: false, span: z};
+          try { z.setPointerCapture && z.setPointerCapture(e.pointerId); } catch (err) {}
+        }
+      });
+      listEl.addEventListener("pointermove", function (e) { if (placeDrag) movePlaceDrag(e); });
+      listEl.addEventListener("pointerup", function (e) {
+        if (placeDrag) { endPlaceDrag(e); return; }
+        if (durHold) {
+          var held = (Date.now() - durHold.at) / 1000, dh = durHold; durHold = null;
+          if (dh.active) {
+            var d = Math.round(Math.max(0.5, Math.min(20, held)) * 10) / 10;
+            if (mkIsPlaced(dh.sc)) d = Math.round(Math.max(0.5, p2RangeSpan(dh.sc.t, d)) * 10) / 10;
+            dh.sc.d = d; board = null; renderMk();
+            toast("長さを " + d + " 秒にしました");
+          } else {
+            openBoard(dh.i, "dur");
+            showDurHint(dh.i);
+          }
+        }
+      });
+      listEl.addEventListener("pointercancel", function () { durHold = null; cancelPlaceDrag(); });
+      listEl.addEventListener("click", function (e) {
+        var cp = e.target && e.target.closest ? e.target.closest("[data-copy]") : null;
+        if (cp) { e.stopPropagation(); e.preventDefault(); uniCopy(+cp.dataset.copy); return; }
+        var bok = e.target && e.target.closest ? e.target.closest("[data-bok]") : null;
+        if (bok) { e.stopPropagation(); e.preventDefault(); applyBoard(); return; }
+        var bx = e.target && e.target.closest ? e.target.closest("[data-bx]") : null;
+        if (bx) { e.stopPropagation(); e.preventDefault(); board = null; renderMk(); return; }
+        var adj = e.target && e.target.closest ? e.target.closest("[data-badj]") : null;
+        if (adj) { e.stopPropagation(); e.preventDefault(); stepBoard(+adj.dataset.badj); return; }
+        var z = e.target && e.target.closest ? e.target.closest("[data-zone]") : null;
+        if (z && z.dataset.zone === "time") { e.stopPropagation(); e.preventDefault(); openBoard(+z.dataset.i, "pos"); return; }
+        if (z && z.dataset.zone === "dur") { e.stopPropagation(); e.preventDefault(); return; }
+      });
+      listEl.addEventListener("wheel", function (e) {
+        var inp = e.target && e.target.closest ? e.target.closest(".p2uni-board-in") : null;
+        if (!inp || !board) return;
+        e.preventDefault();
+        var v = parseFloat(inp.value); if (isNaN(v)) v = board.val;
+        v = boardClamp(board.kind, v + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 1 : 0.1), board.sc);
+        board.val = v; inp.value = v.toFixed(1);
+      }, {passive: false});
+      listEl.addEventListener("input", function (e) {
+        var inp = e.target && e.target.closest ? e.target.closest(".p2uni-board-in") : null;
+        if (inp && board) { var v = parseFloat(inp.value); if (!isNaN(v)) board.val = v; }
+      });
+      setInterval(function () {
+        if (!durHold) return;
+        var held = (Date.now() - durHold.at) / 1000;
+        if (held >= 0.25) {
+          durHold.active = true;
+          if (durHold.span) durHold.span.textContent = "長さ " + Math.max(0.5, Math.min(20, held)).toFixed(1) + "秒";
+        }
+      }, 100);
+    }
+    window.__p2Uni = {version: 49};
+  } catch (e) { try { console.warn("p2Uni49", e); } catch (err) {} }
 })();
 
 UI.songSel(si);
