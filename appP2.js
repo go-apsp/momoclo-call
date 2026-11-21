@@ -1076,8 +1076,9 @@ requestAnimationFrame(loop);
       if (track) { posEl = document.createElement("div"); posEl.className = "p2stl-pos"; posEl.style.left = "0%"; track.appendChild(posEl); }
     }
     function uniBase() {
-      var g = null; try { g = window.__p2Range && window.__p2Range.get(); } catch (e) {}
-      if (g && g.depth > 0) return {a: g.a, b: g.b};
+      /* v53: 再生位置の線は、赤い範囲と真ん中の線(v44 paintTl)と同じ軸(登録範囲 or 曲全体)で描く。
+         以前は絞った範囲を軸にしていたため、絞ると線だけがバーの端から端まで動いてしまい、
+         赤い範囲の位置と合っていなかった(祐治の実機指摘3) */
       var R = curRange(); if (R) return {a: R.s, b: R.e};
       return {a: 0, b: Math.max(1, dur() || 240)};
     }
@@ -1384,7 +1385,7 @@ requestAnimationFrame(loop);
       for (var n = 0; n < cands.length; n++) {
         var r = cands[n].el.getBoundingClientRect();
         if (r.width > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
-          cands[n].win = cands[n].zoom ? mkTlWin15() : mkTlWin();
+          cands[n].win = cands[n].zoom ? mkTlWin15() : mkTlAxis();   /* v53: 通常帯は表示と同じ主軸で変換する(従来は拡大ON時に30秒窓で変換し、通常表示=曲全体/範囲とも拡大表示=15秒ともずれていた) */
           return cands[n];
         }
       }
@@ -1399,13 +1400,17 @@ requestAnimationFrame(loop);
     function startPlaceDrag(e, i, btn) {
       var sc = mk.scenes[i]; if (!sc) return;
       mkSel = i; board = null;
+      /* v53: 拡大タイムラインは、メインのタイムラインに指が入った時ではなく、ドラッグを
+         始めた瞬間に浮かび上がらせる(祐治の実機指摘2) */
+      var zoomNow = false;
+      try { mkSetZoom(true, mkIsPlaced(sc) ? sc.t : (now() || 0)); zoomNow = true; } catch (err) {}
       var card = btn.closest ? btn.closest(".mkcard") : null;
       var r = card ? card.getBoundingClientRect() : {left: e.clientX - 60, top: e.clientY - 20, width: 240, height: 48};
       var ghost = card ? card.cloneNode(true) : document.createElement("div");
       ghost.classList.add("p2uni-ghost"); ghost.removeAttribute("id");
       ghost.style.width = r.width + "px"; ghost.style.left = r.left + "px"; ghost.style.top = r.top + "px";
       document.body.appendChild(ghost);
-      placeDrag = {sc: sc, origT: sc.t, origPlaced: mkIsPlaced(sc), ghost: ghost, dx: e.clientX - r.left, dy: e.clientY - r.top, over: false, lastSeek: 0, zoomed: false, settle: null, lastX: e.clientX, lastY: e.clientY};
+      placeDrag = {sc: sc, origT: sc.t, origPlaced: mkIsPlaced(sc), ghost: ghost, dx: e.clientX - r.left, dy: e.clientY - r.top, over: false, lastSeek: 0, zoomed: zoomNow, settle: null, lastX: e.clientX, lastY: e.clientY};
       if (placeDrag.origPlaced) toast("カード位置が変わります");
       try { btn.setPointerCapture && btn.setPointerCapture(e.pointerId); } catch (err) {}
     }
@@ -1416,7 +1421,7 @@ requestAnimationFrame(loop);
       var slide = document.getElementById("mkTlSlide");
       if (slide) {
         var r = slide.getBoundingClientRect();
-        if (r.width > 10) return Math.max(0, Math.min(1, (x - r.left) / r.width)) * mkTlD();
+        if (r.width > 10) { var ax = mkTlAxis(); return ax.a + Math.max(0, Math.min(1, (x - r.left) / r.width)) * ax.span; }   /* v53: 主軸に合わせる */
       }
       return mkBandAbs(x);
     }
@@ -2281,6 +2286,19 @@ function paintPosEdit() {
 const MK_TL_KINDS = ["call", "sing", "koko"];
 let mkTlZoom = false, mkTlCenter = 0, mkTlLastD = 0, mkTlPh = null;
 function mkTlD() { return Math.max(1, dur() || 240); }
+/* プロトタイプ2 v53: 制作タイムライン通常表示の主軸。表示(renderMkTl / mkTlApplyView / 打ち込みプレビュー)と
+   操作変換(mkBandAbs / mkScrAbs / つまみドラッグ / お気に置くドラッグ)は、必ずこの同じ軸を使う。
+   範囲を絞っている間は、絞った範囲 [a, b] を帯の横幅いっぱいに割り当てる(絞った幅の中で相対的に
+   位置を選べるようにするため)。絞っていなければ曲全体 [0, D]。拡大表示(15秒窓)は別の軸で従来どおり */
+let mkTlLastAxis = "";
+function mkTlAxis() {
+  const d = mkTlD();
+  try {
+    const R = window.__p2Range && window.__p2Range.get();
+    if (R && R.depth > 0 && R.b > R.a) return { a: R.a, span: R.b - R.a, ranged: true };
+  } catch (e) {}
+  return { a: 0, span: d, ranged: false };
+}
 function mkTlWin() {
   const d = mkTlD();
   if (!mkTlZoom) return {a: 0, span: d};
@@ -2300,19 +2318,27 @@ function mkTlWin15() {
 function renderMkTl() {
   const inner = $("mkTlInner"); if (!inner) return;
   const d = mkTlD();
-  let barsHtml = "";
-  MK_TL_KINDS.forEach(k => {
-    const bars = mk.scenes.filter(s => mkIsPlaced(s) && s.k === k).map(s => {
-      const l = Math.max(0, s.t / d * 100), w = Math.max(0.8, s.d / d * 100), idx = mk.scenes.indexOf(s), sel2 = idx === mkSel;
-      return '<div class="mktl-bar mb-' + k + (sel2 ? " selb2" : "") + '" data-mksel="' + idx + '" style="left:' + l + '%;width:' + w + '%" title="' + fmt(s.t) + "〜" + fmt(s.t + s.d) + " " + LAB[k] + " " + esc(s.x) + '"><span>' + fmt(s.t) + "〜" + fmt(s.t + s.d) + " " + esc(s.x) + "</span></div>";
-    }).join("");
-    barsHtml += '<div class="mktl-lane">' + bars + "</div>";
-  });
+  const ax = mkTlAxis();
+  /* v53: バーは2つの軸で描く。通常表示(#mkTlInner)は主軸(絞り中は範囲を全幅)、
+     拡大表示(#mkTlZoomInner)は曲全体軸のまま(15秒窓で切り取って見せるため) */
+  const barsFor = (baseA, baseSpan) => {
+    let h = "";
+    MK_TL_KINDS.forEach(k => {
+      const bars = mk.scenes.filter(s => mkIsPlaced(s) && s.k === k).map(s => {
+        const l = (s.t - baseA) / baseSpan * 100, w = Math.max(0.8, s.d / baseSpan * 100), idx = mk.scenes.indexOf(s), sel2 = idx === mkSel;
+        return '<div class="mktl-bar mb-' + k + (sel2 ? " selb2" : "") + '" data-mksel="' + idx + '" style="left:' + l + '%;width:' + w + '%" title="' + fmt(s.t) + "〜" + fmt(s.t + s.d) + " " + LAB[k] + " " + esc(s.x) + '"><span>' + fmt(s.t) + "〜" + fmt(s.t + s.d) + " " + esc(s.x) + "</span></div>";
+      }).join("");
+      h += '<div class="mktl-lane">' + bars + "</div>";
+    });
+    return h;
+  };
+  const barsHtml = barsFor(0, d);
+  const barsMain = barsFor(ax.a, ax.span);
   let ticksFull = "";
   const steps = [5, 10, 15, 20, 30, 60]; let step = 60;
-  for (let si2 = 0; si2 < steps.length; si2++) { if (d / steps[si2] <= 14) { step = steps[si2]; break; } }
-  for (let t2 = 0; t2 <= d; t2 += step) {
-    const l3 = t2 / d * 100;
+  for (let si2 = 0; si2 < steps.length; si2++) { if (ax.span / steps[si2] <= 14) { step = steps[si2]; break; } }
+  for (let t2 = Math.ceil(ax.a / step) * step; t2 <= ax.a + ax.span + 0.001; t2 += step) {
+    const l3 = (t2 - ax.a) / ax.span * 100;
     ticksFull += '<div class="mktl-tick big" style="left:' + l3 + '%"></div><span class="mktl-tlab" style="left:' + l3 + '%">' + fmt(t2) + "</span>";
   }
   let ticksZoom = "";
@@ -2320,10 +2346,10 @@ function renderMkTl() {
     const big = t % 5 === 0, l2 = t / d * 100;
     ticksZoom += '<div class="mktl-tick' + (big ? " big" : "") + '" style="left:' + l2 + '%"></div>' + (big ? '<span class="mktl-tlab" style="left:' + l2 + '%">' + fmt(t) + "</span>" : "");
   }
-  inner.innerHTML = barsHtml + '<div class="mktl-ticks">' + ticksFull + "</div>";
+  inner.innerHTML = barsMain + '<div class="mktl-ticks">' + ticksFull + "</div>";
   const zinner = $("mkTlZoomInner");
   if (zinner) zinner.innerHTML = barsHtml + '<div class="mktl-ticks">' + ticksZoom + "</div>";
-  const md = $("mkTlMode"); if (md) md.textContent = "全体表示";
+  const md = $("mkTlMode"); if (md) md.textContent = ax.ranged ? "範囲表示" : "全体表示";
   mkTlApplyView();
 }
 function mkTlApplyView() {
@@ -2332,14 +2358,15 @@ function mkTlApplyView() {
   const t = now() || 0;
   inner.style.width = "100%";
   inner.style.transform = "translateX(0%)";
+  const ax = mkTlAxis();   /* v53: 再生線・つまみの位置も主軸で描く(表示と変換を一致させる) */
   const pl = $("mkTlPlay");
-  if (pl) { const p = t / d * 100; if (p >= 0 && p <= 100) { pl.style.display = "block"; pl.style.left = p + "%"; } else pl.style.display = "none"; }
+  if (pl) { const p = (t - ax.a) / ax.span * 100; if (p >= 0 && p <= 100) { pl.style.display = "block"; pl.style.left = p + "%"; } else pl.style.display = "none"; }
   const pos = $("mkTlPos"); if (pos) pos.textContent = "現在 " + fmt(t);
   const kn = $("mkTlKnob");
   if (kn) {
     const sc = (mkSel >= 0 && mk.scenes[mkSel]) ? mk.scenes[mkSel] : null;
     if (sc && mkIsPlaced(sc)) {
-      const kp = sc.t / d * 100;
+      const kp = (sc.t - ax.a) / ax.span * 100;
       if (kp >= 0 && kp <= 100) { kn.style.display = "block"; kn.style.left = kp + "%"; kn.setAttribute("aria-valuenow", Math.round(sc.t)); } else kn.style.display = "none";
     } else kn.style.display = "none";
   }
@@ -2390,13 +2417,14 @@ function mkBandAbs(clientX) {
   const width = Math.max(50, W - m * 2);
   let r = (clientX - m) / width;
   r = Math.max(0, Math.min(1, r));
-  return r * mkTlD();
+  const ax = mkTlAxis();   /* v53: 割り当てる区間を表示と同じ主軸にする(絞り中は範囲) */
+  return ax.a + r * ax.span;
 }
-/* プロトタイプ2: 置きに行くドラッグ専用の指位置→時刻。タイムラインの箱の左端=曲の頭、右端=曲の最後として、指の横位置そのままを時刻にする */
+/* プロトタイプ2: 置きに行くドラッグ専用の指位置→時刻。タイムラインの帯の左端=主軸の始点、右端=主軸の終点として、指の横位置そのままを時刻にする */
 function mkScrAbs(clientX, src) {
   if (src && src.fromPlaceButton) {
-    const vw = $("mkTlView");
-    if (vw) { const rc = vw.getBoundingClientRect(); if (rc.width > 10) return Math.max(0, Math.min(1, (clientX - rc.left) / rc.width)) * mkTlD(); }
+    const vw = $("mkTlSlide");   /* v53: バーが実際に描かれる帯そのものを使う(従来はラベル列52pxを含む mkTlView で、その分だけずれていた) */
+    if (vw) { const rc = vw.getBoundingClientRect(); if (rc.width > 10) { const ax = mkTlAxis(); return ax.a + Math.max(0, Math.min(1, (clientX - rc.left) / rc.width)) * ax.span; } }
   }
   return mkBandAbs(clientX);
 }
@@ -3690,15 +3718,16 @@ document.addEventListener("input", e => {
     if (!el) { el = document.createElement("div"); el.id = "mkTlPrev"; inner.appendChild(el); }
     const d = mkTlD();
     const li = Math.max(0, MK_TL_KINDS.indexOf(h.rel ? h.rel.k : mk.type));
-    el.style.left = (h.t0 / d * 100) + "%";
-    el.style.width = Math.max(1.2, h.d / d * 100) + "%";
+    const ax = mkTlAxis();   /* v53: 通常表示側のプレビューは主軸で、拡大表示側は曲全体軸で(それぞれの表示に合わせる) */
+    el.style.left = ((h.t0 - ax.a) / ax.span * 100) + "%";
+    el.style.width = Math.max(1.2, h.d / ax.span * 100) + "%";
     el.style.top = (li * 23 + 2) + "px";
     el.textContent = h.d.toFixed(1) + "秒";
     const zinner = $("mkTlZoomInner");
     if (zinner) {
       let zel = $("mkTlZoomPrev");
       if (!zel) { zel = document.createElement("div"); zel.id = "mkTlZoomPrev"; zinner.appendChild(zel); }
-      zel.style.left = el.style.left; zel.style.width = el.style.width; zel.style.top = el.style.top;
+      zel.style.left = (h.t0 / d * 100) + "%"; zel.style.width = Math.max(1.2, h.d / d * 100) + "%"; zel.style.top = el.style.top;
       zel.textContent = el.textContent;
     }
   };
@@ -3778,8 +3807,8 @@ $("mkTlInner").addEventListener("click", e => {
     const sc = kd.sc; if (mk.scenes.indexOf(sc) < 0) return;
     const slide = $("mkTlSlide"), r = slide.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width)));
-    const w = mkTlWin(), D = mkTlD();
-    let t = w.a + ratio * w.span;
+    const ax = mkTlAxis(), D = mkTlD();   /* v53: 表示と同じ主軸で変換する(従来は拡大表示の15秒窓とも通常表示の曲全体とも違う、30秒窓で変換していた) */
+    let t = ax.a + ratio * ax.span;
     t = p2RangeClamp(Math.max(0, Math.min(Math.max(0, D - sc.d), Math.round(t * 10) / 10)), sc.d);   // v47: つまみドラッグも範囲内に閉じる
     sc.t = t; mkTlCenter = t; mkTlApplyView(); paintKnob();
     const pt = $("mkPosTime"); if (pt) pt.textContent = fmt(t) + "〜" + fmt(t + sc.d);
@@ -3901,6 +3930,8 @@ paintTune();
 setInterval(() => {
   if (screen !== "mk") return;
   if (Math.abs(mkTlD() - mkTlLastD) > 1) { mkTlLastD = mkTlD(); renderMkTl(); return; }
+  const axNow = mkTlAxis(), akNow = axNow.a + "/" + axNow.span;   /* v53: 範囲の絞り/戻しで主軸が変わったら描き直す */
+  if (akNow !== mkTlLastAxis) { mkTlLastAxis = akNow; renderMkTl(); return; }
   if (mkTlZoom && !mkScrSt && !mkPosScrSt && !mkHoldSt) mkTlCenter = now() || 0;
   mkTlApplyView();
 }, 250);
@@ -4178,5 +4209,34 @@ try { if (!localStorage.getItem("momo_welcome_hide")) $("welcome").classList.add
     window.__p2Uni = {version: 52};
     window.__p2Uni52 = { get pvSig() { return pvSig; } };
   } catch (e) { try { console.warn("p2Uni52", e); } catch (err) {} }
+})();
+
+/* ================= プロトタイプ2 v53: 座標軸の照合と修正 =================
+   祐治の指示で、シークバーと各タイムラインとドラッグ操作について「表示の座標軸」と
+   「操作の座標変換」を実物で全部照合し、ずれていた所だけを直した(修正は各所の本体側)。
+   照合結果:
+   - シークバー: 表示(bar.value=再生位置 / max=曲の長さ)と操作(change→その値へシーク)は
+     同じ曲全体軸で一致していた。そのまま(絞り中もシークバーは曲全体、という従来仕様も維持)
+   - シークバー上の選択カード帯(paintKnob): 曲全体軸で一致していた
+   - 曲全体タイムラインの赤い範囲と真ん中の線(v44 paintTl): 登録範囲 or 曲全体の軸で一致していた
+   - 曲全体タイムラインの再生位置の線: 【ずれ】絞った範囲を軸にしていたため、絞ると線だけが
+     バーの端から端まで動き、赤の位置と合わなかった → paintTl と同じ軸に統一(uniBase)
+   - 制作タイムライン通常表示: 曲全体軸だった。絞った幅の中で相対的に選べるようにするため、
+     主軸 mkTlAxis() を新設(絞り中は範囲を全幅に割り当て)し、表示(renderMkTl / mkTlApplyView /
+     打ち込みプレビュー)と変換の全てをその軸に統一した
+   - お気に置くドラッグの通常帯変換: 【ずれ】拡大が入ると30秒窓(mkTlWin)で変換しており、
+     通常表示とも拡大表示(15秒)とも合っていなかった → 主軸に統一(tlHit / absDragT)
+   - つまみドラッグ: 【ずれ】同じく30秒窓で変換していた → 主軸に統一
+   - 置きに行く変換(mkScrAbs): 【ずれ】ラベル列(52px)を含む mkTlView の幅で変換しており、
+     バーが描かれる帯(mkTlSlide)とずれていた → mkTlSlide + 主軸に統一
+   - スクラブ変換(mkBandAbs): 割り当て区間を主軸に統一(帯の取り方は build 64 の設計どおり)
+   - 拡大タイムライン表示と拡大帯の変換: どちらも15秒窓(mkTlWin15)で一致していた
+   - 拡大タイムラインの出方: 【ずれ】お気に置くではタイムラインに指が入って初めて拡大が
+     出ていた → ドラッグ開始の瞬間に出す(startPlaceDrag) */
+(function p2Uni53() {
+  try {
+    window.__p2Uni = {version: 53};
+    window.__p2Uni53 = { axis: function () { try { return mkTlAxis(); } catch (e) { return null; } } };
+  } catch (e) { try { console.warn("p2Uni53", e); } catch (err) {} }
 })();
 })().catch(e => window.__show("起動エラー: " + (e && e.message)));
