@@ -251,7 +251,7 @@ function loop(ts) {
   if (st === 0 && sess) { sess = null; paintApply(); }   // 曲が終わったら、次回の再生でリセット
   if (mkPv && t >= mkPv.until) { mkPv = null; playerPause(); paintPvBtn(); toast("プレビューが終わりました"); }   // プレビューは表示終了+3秒で止める
   if (pl !== loop.prevPl) { loop.prevPl = pl; guideEvent(pl ? "play" : "pause"); }   // build 62: ガイドモードの再生/停止の検知
-  const R = curRange(); if (R && pl && !mkPv && !(mkScrSt && mkScrSt.active) && t >= R.e) playerPause();   // 再生範囲の終わりで止める(配置ドラッグ中は止めない: プロトタイプ2)
+  const R = curRange(); if (R && pl && !mkPv && !(mkScrSt && mkScrSt.active) && !(window.__p2PlaceDragActive && window.__p2PlaceDragActive()) && t >= R.e) playerPause();   // 再生範囲の終わりで止める(配置ドラッグ中は止めない: プロトタイプ2 / v55: お気に置くドラッグ中も止めない)
   if (spRange && pl && !mkPv && t >= spRange.b) { spRange = null; playerPause(); toast("シェアポイントの範囲が終わりました"); }   // シェアポイントの終点で止める
   const kr = mkPv ? null : kanranRange();   // build 63: 観覧モードの有効範囲(作成中プレビューでは効かせない)
   if (kr && pl) {   // 観覧モード: 指定範囲の外には出ない(手前なら始点へ寄せ、終点で止めて始点へ戻す)
@@ -978,6 +978,7 @@ requestAnimationFrame(loop);
       if (typeof mkPv !== "undefined" && mkPv) return;
       if (typeof mkScrSt !== "undefined" && mkScrSt && mkScrSt.active) return;
       if (typeof mkPosScrSt !== "undefined" && mkPosScrSt && mkPosScrSt.active) return;
+      if (window.__p2PlaceDragActive && window.__p2PlaceDragActive()) return;   // v55: お気に置くドラッグ中は範囲の終わりで止めない(ドラッグ側が位置を決めている)
       var stt = (typeof playerState === "function") ? playerState() : -1;
       if (stt !== 1) return;
       var t = now();
@@ -1155,8 +1156,6 @@ requestAnimationFrame(loop);
         var dHtml = isPl
           ? '<button type="button" class="mkd p2uni-zone" data-zone="dur" data-i="' + i + '">' + e.d + '秒</button>'
           : '<span class="mkd">まだ置いていません</span>';
-        var boardHtml = "";
-        try { if (window.__p2Uni49) boardHtml = window.__p2Uni49.boardHtml(i, e); } catch (err) {}
         return '<div class="mkcard p2uni-card' + (i === sel ? " sel" : "") + (isPl ? "" : " pend") + '" data-ci="' + i + '">'
           + '<div class="mkpick">'
           + timeHtml + '<span class="mkk">' + LAB[e.k] + '</span>' + xHtml + dHtml
@@ -1166,29 +1165,13 @@ requestAnimationFrame(loop);
           /* v52: お気に置くは、選択中のカードにだけ、上辺に付箋のように出す(中央の常時丸ボタンは
              他の項目と混雑して押しにくいので廃止)。見た目(タブ形)は v52 のスタイルで付ける */
           + (i === sel ? '<button type="button" class="p2uni-place" data-place="' + i + '" title="お気に置く: 押したままタイムラインへ動かして離すと位置が決まります" aria-label="お気に置く"></button>' : '')
-          + '</div>' + boardHtml;
+          + '</div>';
       };
-      /* v52: 編集中のカード(編集ボードが開いている / 内容パネルで編集中)は、新規作成カードの
-         直下へ出して .p2uni-pinned で上に固定する。編集中に一覧をスクロールしても、そのカードと
-         編集ボードが上に留まって流れないようにするため。編集が終われば通常の並びに戻る */
-      var editEntry = null;
-      entries.forEach(function (o) {
-        if (editEntry) return;
-        var bh = "";
-        try { bh = window.__p2Uni49 ? window.__p2Uni49.boardHtml(o.i, o.e) : ""; } catch (err) {}
-        var cp = false;
-        try {
-          var cpn = document.getElementById("mkContentPanel");
-          cp = !!(cpn && cpn.style.display === "flex" && typeof mkCpTarget !== "undefined" && mkCpTarget === o.e);
-        } catch (err) {}
-        if (bh || cp) editEntry = o;
-      });
-      var rest = editEntry ? entries.filter(function (o) { return o !== editEntry; }) : entries;
-      var placed = rest.filter(function (o) { return mkIsPlaced(o.e); });
-      var unplaced = rest.filter(function (o) { return !mkIsPlaced(o.e); });
-      var out = "";
-      if (editEntry) out += '<div class="p2uni-pinned">' + card(editEntry) + '</div>';
-      out += placed.map(card).join("");
+      /* v55: 編集は一覧の中では行わない(埋め込みボードと v52 の固定表示は廃止)。
+         編集は中央に浮かぶ大きなカード(__p2Uni55)で完結させるため、一覧は通常の並びのまま */
+      var placed = entries.filter(function (o) { return mkIsPlaced(o.e); });
+      var unplaced = entries.filter(function (o) { return !mkIsPlaced(o.e); });
+      var out = placed.map(card).join("");
       if (unplaced.length) out += '<div style="font-size:11px;color:var(--mut);margin:8px 0 2px">未配置のカード(内容だけ先に作ったもの)</div>' + unplaced.map(card).join("");
       return h + out;
     };
@@ -1226,7 +1209,10 @@ requestAnimationFrame(loop);
         var z = e.target && e.target.closest ? e.target.closest('[data-zone="content"]') : null;
         if (z) {
           e.stopPropagation(); e.preventDefault();
-          var sc = mk.scenes[+z.dataset.i]; if (sc) openMkContentPanel(sc);
+          var sc = mk.scenes[+z.dataset.i]; if (!sc) return;
+          /* v55: 内容の編集も、中央に浮かぶ大きなカードの中で完結させる */
+          if (window.__p2Uni55 && window.__p2Uni55.open) window.__p2Uni55.open(+z.dataset.i, "content");
+          else openMkContentPanel(sc);
           return;
         }
         var nt2 = e.target && e.target.closest ? e.target.closest("#p2UniNewTime") : null;
@@ -1309,6 +1295,12 @@ requestAnimationFrame(loop);
           + '</div>';
       }
     };
+    /* v55: 編集の入口は「中央に浮かぶ大きなカード」に一本化する。ポップアップが
+       使えない場合だけ、従来の埋め込みボードに落とす(安全弁) */
+    function openEditor(i, kind) {
+      if (window.__p2Uni55 && window.__p2Uni55.open) { window.__p2Uni55.open(i, kind); return; }
+      openBoard(i, kind);
+    }
     function openBoard(i, kind) {
       var sc = mk.scenes[i]; if (!sc) return;
       mkSel = i; mkSelOrigT = sc.t;
@@ -1404,7 +1396,7 @@ requestAnimationFrame(loop);
          始めた瞬間に浮かび上がらせる(祐治の実機指摘2) */
       var zoomNow = false;
       try { mkSetZoom(true, mkIsPlaced(sc) ? sc.t : (now() || 0)); zoomNow = true; } catch (err) {}
-      var card = btn.closest ? btn.closest(".mkcard") : null;
+      var card = btn.closest ? (btn.closest(".mkcard") || btn.closest(".p2uni-pop-face")) : null;   /* v55: 大きな編集カードから掴んだ時は、その顔部分をゴーストにする */
       var r = card ? card.getBoundingClientRect() : {left: e.clientX - 60, top: e.clientY - 20, width: 240, height: 48};
       var ghost = card ? card.cloneNode(true) : document.createElement("div");
       ghost.classList.add("p2uni-ghost"); ghost.removeAttribute("id");
@@ -1446,7 +1438,7 @@ requestAnimationFrame(loop);
         renderMkTl(); paintKnob();
       }
       var n = Date.now();
-      if (n - pd.lastSeek > 120 && playerReady()) { pd.lastSeek = n; playerSeek(t); }
+      if (n - pd.lastSeek > 120 && playerReady()) { pd.lastSeek = n; playerSeek(t); if (playerState() !== 1) playerPlay(); }   /* v55: シークだけでは止まったままになるため、再生が止まっていたら再開する(旧スクラブ mkScrMove と同じ扱い) */
       /* v51: 指を止めたら(約320ms)、場所がどこでもその位置から再生して聞き直せる
          (スクラブの settle と同じ時間)。ドロップが有効なのはタイムライン上だけ、は変えない */
       if (pd.settle) clearTimeout(pd.settle);
@@ -1457,6 +1449,7 @@ requestAnimationFrame(loop);
     }
     function endPlaceDrag(e) {
       var pd = placeDrag; placeDrag = null;
+      if (!pd) return;
       if (pd.settle) clearTimeout(pd.settle);
       var box = document.getElementById("mkTlBox"); if (box) box.classList.remove("p2uni-tlhot");
       var hit = tlHit(e.clientX, e.clientY);
@@ -1515,8 +1508,7 @@ requestAnimationFrame(loop);
             dh.sc.d = d; board = null; renderMk();
             toast("長さを " + d + " 秒にしました");
           } else {
-            openBoard(dh.i, "dur");
-            showDurHint(dh.i);
+            openEditor(dh.i, "dur");
           }
         }
       });
@@ -1531,7 +1523,7 @@ requestAnimationFrame(loop);
         var adj = e.target && e.target.closest ? e.target.closest("[data-badj]") : null;
         if (adj) { e.stopPropagation(); e.preventDefault(); stepBoard(+adj.dataset.badj); return; }
         var z = e.target && e.target.closest ? e.target.closest("[data-zone]") : null;
-        if (z && z.dataset.zone === "time") { e.stopPropagation(); e.preventDefault(); openBoard(+z.dataset.i, "pos"); return; }
+        if (z && z.dataset.zone === "time") { e.stopPropagation(); e.preventDefault(); openEditor(+z.dataset.i, "pos"); return; }
         if (z && z.dataset.zone === "dur") { e.stopPropagation(); e.preventDefault(); return; }
         /* v51: ゾーン以外のカード面のタップは「選択だけ」。時刻・長さは上の分岐で処理済み、
            文言ゾーンは v48 側のハンドラが内容パネルを開くので、ここでは対象にしない */
@@ -1563,6 +1555,16 @@ requestAnimationFrame(loop);
         }
       }, 100);
     }
+    /* v55: 大きな編集カード(ポップアップ)から、お気に置くドラッグとコピーを使えるよう公開する。
+       あわせて、ドラッグ中かどうかを本体 loop と範囲監視から見えるようにする(ドラッグ中に
+       範囲の終わりで止めないための判定に使う) */
+    window.__p2Uni49.startPlaceDrag = startPlaceDrag;
+    window.__p2Uni49.movePlaceDrag = movePlaceDrag;
+    window.__p2Uni49.endPlaceDrag = endPlaceDrag;
+    window.__p2Uni49.cancelPlaceDrag = cancelPlaceDrag;
+    window.__p2Uni49.copy = uniCopy;
+    window.__p2Uni49.isPlacing = function () { return !!placeDrag; };
+    window.__p2PlaceDragActive = function () { return !!placeDrag; };
     window.__p2Uni = {version: 49};
   } catch (e) { try { console.warn("p2Uni49", e); } catch (err) {} }
 })();
@@ -4267,5 +4269,323 @@ try { if (!localStorage.getItem("momo_welcome_hide")) $("welcome").classList.add
     window.__p2Uni = {version: 54};
     window.__p2Uni54 = {};
   } catch (e) { try { console.warn("p2Uni54", e); } catch (err) {} }
+})();
+
+/* ================= プロトタイプ2 v55: 編集は「中央に浮かぶ大きなカード」で + ドラッグ中の再生停止の直し =================
+   祐治が図で確認・承認した形:
+   1. カードを選んで編集に入ったら、一覧の中の埋め込み編集(編集ボード)は廃止し、そのカードが
+      中央に大きく浮かび上がって固定表示される(上のレイヤー。後ろの一覧は薄く見える)。
+      時刻(位置)・長さ・文言/種類・コピーは全部このカードの中で決められる。位置と長さの
+      操作は従来の編集ボードと同じ(大きめの −/＋、秒数の直接入力とホイール、決定)。
+      カードの上には水玉形のお気に置く(v54の形そのまま)が付き、掴めばそのまま制作
+      タイムラインへ持っていける。タイムラインのレイヤーはこの浮かぶカードより上にする
+      (拡大タイムライン z-90 > 浮かぶカード z-80。ドラッグ中は通常タイムラインも
+      body.p2uni-pop-on で z-85 に持ち上げ、見えて触れる状態を保つ)。
+      閉じれば一覧に戻る。v52 の「選択カードを一覧の上に固定(sticky)」はこの方式に置き換え
+      (一覧側の並べ替え・固定は v48 の描画側で廃止済み)。
+      空カードも、選べば(「コールを指定」タップ)同じ大きなカードで内容を決められる。
+   2. 置きに行く最中に音が止まる問題の直し(本体側で対応済みのものの要点):
+      原因は2つ。(a) 本体 loop の「登録範囲の終わりで止める」と v44 範囲監視の
+      「絞った範囲の終わりで止める」が、旧スクラブ(mkScrSt)しか例外にしておらず、
+      お気に置くドラッグ中にも pause を呼んでいた。(b) ドラッグ中の追従シークが
+      seek だけで play を再発行しないため、一度止まると指を止めるまで無音だった。
+      → ドラッグ中は両方の監視を止め(loop / v44 watch に __p2PlaceDragActive の例外を追加)、
+        追従シークの後に止まっていたら playerPlay() で再開するようにした(v49側)。 */
+(function p2Uni55() {
+  try {
+    var st = document.createElement("style"); st.id = "p2Uni55Styles";
+    st.textContent = [
+      "#p2UniPop{display:none;position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:18px;box-sizing:border-box}",
+      "#p2UniPop .p2uni-pop-card{position:relative;width:min(100%,430px);max-height:88vh;overflow-y:auto;box-sizing:border-box;background:#1d1f3d;border:1.5px solid #8e91b8;border-radius:16px;padding:34px 14px 14px;box-shadow:0 18px 44px rgba(0,0,0,.6);color:var(--ink)}",
+      ".p2uni-pop-face{position:relative;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:12px 10px;margin-bottom:6px}",
+      ".p2uni-pop-time{font-size:24px;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap}",
+      ".p2uni-pop-kind{flex:none;font-size:11px;font-weight:900;color:#cfd2f2;background:rgba(255,255,255,.1);border-radius:999px;padding:3px 8px}",
+      ".p2uni-pop-x{flex:1;min-width:0;font-size:17px;font-weight:800;overflow-wrap:anywhere}",
+      ".p2uni-pop-xempty{color:#9aa0d8}",
+      ".p2uni-pop-dur{font-size:15px;font-weight:900;white-space:nowrap}",
+      ".p2uni-pop-xbtn{flex:none;width:36px;height:36px;border-radius:50%;border:1.5px solid #8e91b8;background:none;color:#cfd2f2;font-size:16px;font-weight:900;cursor:pointer;font-family:inherit;line-height:1}",
+      ".p2uni-pop-sec{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 6px;border-top:1px solid rgba(255,255,255,.1)}",
+      ".p2uni-pop-sec.focus{background:rgba(255,210,63,.09);border-radius:10px}",
+      ".p2uni-pop-label{font-size:13px;font-weight:900;color:#cfd2f2;min-width:38px}",
+      ".p2uni-pop-sec button{height:44px;min-width:44px;font-size:19px;font-weight:900;border-radius:12px;border:2px solid #8e91b8;background:var(--bg);color:var(--ink);cursor:pointer;font-family:inherit;padding:0 10px}",
+      ".p2uni-pop-sec button.p2uni-pop-ok{background:#ffd23f;color:#2a2410;border-color:#ffd23f;font-size:14px}",
+      ".p2uni-pop-in{width:86px;height:44px;text-align:center;font-size:16px;font-weight:900;border-radius:12px;border:2px solid #8e91b8;background:var(--bg);color:var(--ink);font-family:inherit;box-sizing:border-box}",
+      ".p2uni-pop-unit{font-size:12px;color:var(--mut)}",
+      ".p2uni-pop-text{flex:1;min-width:150px;height:44px;box-sizing:border-box;padding:0 12px;font-size:16px;font-weight:700;border-radius:12px;border:2px solid #8e91b8;background:var(--bg);color:var(--ink);font-family:inherit}",
+      ".p2uni-pop-types{display:flex;gap:6px;flex-wrap:wrap}",
+      ".p2uni-pop-types button{font-size:13px;min-height:44px;height:44px}",
+      ".p2uni-pop-types button.sel{border-color:#ff8fc0;background:rgba(255,105,170,.28);color:#fff}",
+      ".p2uni-pop-presets{display:flex;flex-wrap:wrap;gap:6px;width:100%}",
+      ".p2uni-pop-presets:empty{display:none}",
+      ".p2uni-pop-plab{width:100%;font-size:11px;font-weight:700;color:#9aa3c7}",
+      ".p2uni-pop-presets button{min-height:36px;height:36px;padding:6px 10px;font-size:12px;border-radius:999px}",
+      ".p2uni-pop-foot{display:flex;gap:10px;margin-top:8px}",
+      ".p2uni-pop-foot button{flex:1;height:46px;border-radius:12px;border:2px solid #8e91b8;background:none;color:#cfd2f2;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit}",
+      /* ドラッグ中は通常タイムラインも浮かぶカードより上に出す(拡大タイムライン z-90 は元々上) */
+      "body.p2uni-pop-on #mkTlBox{position:relative;z-index:85}"
+    ].join("\n");
+    document.head.appendChild(st);
+
+    var popEl = null, pop = null, popDrag = false, presetSig = "__none__";
+
+    function popClampPos(v, sc) {
+      var D = Math.max(dur() || 0, 1);
+      v = Math.max(0, Math.min(Math.max(0, D - (sc ? sc.d : 0)), v));
+      v = p2RangeClamp(v, sc ? sc.d : 0);
+      return Math.round(v * 10) / 10;
+    }
+    function popClampDur(v) { return Math.round(Math.max(0.5, Math.min(20, v)) * 10) / 10; }
+
+    function buildPop() {
+      if (popEl) return popEl;
+      popEl = document.createElement("div");
+      popEl.id = "p2UniPop";
+      popEl.setAttribute("role", "dialog");
+      popEl.setAttribute("aria-modal", "true");
+      popEl.setAttribute("aria-label", "カードの編集");
+      popEl.innerHTML =
+        '<div class="p2uni-pop-card">'
+        + '<div class="p2uni-pop-face">'
+        + '<button type="button" class="p2uni-place p2uni-pop-place" title="お気に置く: 押したままタイムラインへ動かして離すと位置が決まります" aria-label="お気に置く"></button>'
+        + '<span class="p2uni-pop-time"></span>'
+        + '<span class="p2uni-pop-kind"></span>'
+        + '<span class="p2uni-pop-x"></span>'
+        + '<span class="p2uni-pop-dur"></span>'
+        + '<button type="button" class="p2uni-pop-xbtn" data-popclose aria-label="閉じる">×</button>'
+        + '</div>'
+        + '<div class="p2uni-pop-sec" data-sec="pos">'
+        + '<span class="p2uni-pop-label">位置</span>'
+        + '<button type="button" data-popadj="pos|-1" aria-label="位置を減らす">−</button>'
+        + '<input class="p2uni-pop-in" data-popin="pos" type="text" inputmode="decimal" aria-label="位置(秒)">'
+        + '<span class="p2uni-pop-unit">秒</span>'
+        + '<button type="button" data-popadj="pos|1" aria-label="位置を増やす">＋</button>'
+        + '<button type="button" class="p2uni-pop-ok" data-popok="pos">決定</button>'
+        + '</div>'
+        + '<div class="p2uni-pop-sec" data-sec="dur">'
+        + '<span class="p2uni-pop-label">長さ</span>'
+        + '<button type="button" data-popadj="dur|-1" aria-label="長さを減らす">−</button>'
+        + '<input class="p2uni-pop-in" data-popin="dur" type="text" inputmode="decimal" aria-label="長さ(秒)">'
+        + '<span class="p2uni-pop-unit">秒</span>'
+        + '<button type="button" data-popadj="dur|1" aria-label="長さを増やす">＋</button>'
+        + '<button type="button" class="p2uni-pop-ok" data-popok="dur">決定</button>'
+        + '</div>'
+        + '<div class="p2uni-pop-sec" data-sec="content">'
+        + '<span class="p2uni-pop-label">内容</span>'
+        + '<input class="p2uni-pop-text" type="text" maxlength="30" placeholder="例: ハイ!ハイ!" autocomplete="off" aria-label="コールの内容">'
+        + '<div class="p2uni-pop-presets"></div>'
+        + '<div class="p2uni-pop-types">'
+        + '<button type="button" data-poptype="call">コール</button>'
+        + '<button type="button" data-poptype="sing">シンガロン</button>'
+        + '<button type="button" data-poptype="koko">ココ好き!</button>'
+        + '</div>'
+        + '<button type="button" class="p2uni-pop-ok" data-popok="content">内容を決定</button>'
+        + '</div>'
+        + '<div class="p2uni-pop-foot">'
+        + '<button type="button" data-popcopy>コピー</button>'
+        + '<button type="button" data-popclose>閉じる</button>'
+        + '</div>'
+        + '</div>';
+      document.body.appendChild(popEl);
+
+      popEl.addEventListener("click", function (e) {
+        if (e.target === popEl) { closePop(); return; }
+        var cl = e.target.closest ? e.target.closest("[data-popclose]") : null;
+        if (cl) { closePop(); return; }
+        var adj = e.target.closest ? e.target.closest("[data-popadj]") : null;
+        if (adj && pop) {
+          var p = adj.dataset.popadj.split("|");
+          stepPop(p[0], +p[1]);
+          return;
+        }
+        var ok = e.target.closest ? e.target.closest("[data-popok]") : null;
+        if (ok && pop) {
+          if (ok.dataset.popok === "pos") applyPopPos();
+          else if (ok.dataset.popok === "dur") applyPopDur();
+          else applyPopContent();
+          return;
+        }
+        var tp = e.target.closest ? e.target.closest("[data-poptype]") : null;
+        if (tp && pop) {
+          pop.typeK = tp.dataset.poptype;
+          paintPopTypes();
+          return;
+        }
+        var cp = e.target.closest ? e.target.closest("[data-popcopy]") : null;
+        if (cp && pop) { copyPop(); return; }
+        var pr = e.target.closest ? e.target.closest("[data-poppreset]") : null;
+        if (pr && pop) {
+          var P = PRESETS[+pr.dataset.poppreset]; if (!P) return;
+          var tin = popEl.querySelector(".p2uni-pop-text");
+          if (tin) tin.value = P.x;
+          pop.typeK = P.k;
+          paintPopTypes();
+          toast("プリセット「" + P.x + "」を入れました。種類を確認して「内容を決定」を押してください");
+          return;
+        }
+      });
+      popEl.addEventListener("input", function (e) {
+        if (!pop) return;
+        var inp = e.target.closest ? e.target.closest("[data-popin]") : null;
+        if (inp) {
+          var v = parseFloat(inp.value);
+          if (!isNaN(v)) { if (inp.dataset.popin === "pos") pop.posVal = v; else pop.durVal = v; }
+        }
+      });
+      popEl.addEventListener("wheel", function (e) {
+        if (!pop) return;
+        var inp = e.target.closest ? e.target.closest("[data-popin]") : null;
+        if (!inp) return;
+        e.preventDefault();
+        var kind = inp.dataset.popin;
+        var v = parseFloat(inp.value);
+        if (isNaN(v)) v = kind === "pos" ? pop.posVal : pop.durVal;
+        v = (kind === "pos" ? popClampPos(v + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 1 : 0.1), pop.sc) : popClampDur(v + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 1 : 0.1)));
+        if (kind === "pos") pop.posVal = v; else pop.durVal = v;
+        inp.value = v.toFixed(1);
+      }, {passive: false});
+
+      var placeBtn = popEl.querySelector(".p2uni-pop-place");
+      placeBtn.addEventListener("pointerdown", function (e) {
+        if (!pop) return;
+        var idx = mk.scenes.indexOf(pop.sc); if (idx < 0) return;
+        e.preventDefault();
+        if (window.__p2Uni49 && window.__p2Uni49.startPlaceDrag) {
+          window.__p2Uni49.startPlaceDrag(e, idx, placeBtn);
+          popDrag = true;
+        }
+      });
+      return popEl;
+    }
+
+    function paintPopTypes() {
+      if (!popEl || !pop) return;
+      popEl.querySelectorAll("[data-poptype]").forEach(function (b) { b.classList.toggle("sel", b.dataset.poptype === pop.typeK); });
+    }
+    function paintPopPresets() {
+      if (!popEl) return;
+      var box = popEl.querySelector(".p2uni-pop-presets");
+      if (!box) return;
+      var sig = PRESETS.map(function (p) { return p.x; }).join("|");
+      if (sig === presetSig) return;
+      presetSig = sig;
+      if (!PRESETS.length) { box.innerHTML = ""; return; }
+      box.innerHTML = '<span class="p2uni-pop-plab">プリセットから入れる</span>' + PRESETS.map(function (p, i) {
+        return '<button type="button" data-poppreset="' + i + '">' + esc(p.x) + '</button>';
+      }).join("");
+    }
+    function paintPop() {
+      if (!popEl || !pop) return;
+      var sc = pop.sc;
+      popEl.querySelector(".p2uni-pop-time").textContent = mkIsPlaced(sc) ? fmt(sc.t) : "未配置";
+      popEl.querySelector(".p2uni-pop-kind").textContent = LAB[sc.k];
+      var xEl = popEl.querySelector(".p2uni-pop-x");
+      xEl.textContent = sc.x ? sc.x : "コールを指定";
+      xEl.classList.toggle("p2uni-pop-xempty", !sc.x);
+      popEl.querySelector(".p2uni-pop-dur").textContent = sc.d + "秒";
+      var pi = popEl.querySelector('[data-popin="pos"]'); if (pi) pi.value = pop.posVal.toFixed(1);
+      var di = popEl.querySelector('[data-popin="dur"]'); if (di) di.value = pop.durVal.toFixed(1);
+      var tin = popEl.querySelector(".p2uni-pop-text"); if (tin && tin.value !== (sc.x || "")) tin.value = sc.x || "";
+      paintPopTypes();
+      paintPopPresets();
+    }
+    function markFocus(kind) {
+      if (!popEl) return;
+      popEl.querySelectorAll(".p2uni-pop-sec").forEach(function (s) { s.classList.toggle("focus", s.dataset.sec === kind); });
+    }
+
+    function openPop(i, focus) {
+      var sc = mk.scenes[i]; if (!sc) return;
+      buildPop();
+      mkSel = i; mkSelOrigT = sc.t;
+      pop = {sc: sc, posVal: (sc.t || 0), durVal: sc.d, typeK: sc.k};
+      popEl.style.display = "flex";
+      document.body.classList.add("p2uni-pop-on");
+      paintPop();
+      markFocus(focus || "content");
+      renderMk();
+      if (mkIsPlaced(sc) && playerReady()) playerSeek(sc.t);
+    }
+    function closePop() {
+      pop = null;
+      if (popEl) popEl.style.display = "none";
+      document.body.classList.remove("p2uni-pop-on");
+    }
+    function stepPop(kind, dir) {
+      var inp = popEl.querySelector('[data-popin="' + kind + '"]');
+      var v = inp ? parseFloat(inp.value) : NaN;
+      if (isNaN(v)) v = kind === "pos" ? pop.posVal : pop.durVal;
+      v = kind === "pos" ? popClampPos(v + dir * 0.1, pop.sc) : popClampDur(v + dir * 0.1);
+      if (kind === "pos") pop.posVal = v; else pop.durVal = v;
+      if (inp) inp.value = v.toFixed(1);
+    }
+    function applyPopPos() {
+      var inp = popEl.querySelector('[data-popin="pos"]');
+      var v = inp ? parseFloat(inp.value) : NaN;
+      if (isNaN(v)) v = pop.posVal;
+      pop.sc.t = popClampPos(v, pop.sc); pop.sc.placed = true; pop.posVal = pop.sc.t;
+      mkSortScenes(); mkSel = mk.scenes.indexOf(pop.sc);
+      paintPop(); renderMk();
+      if (playerReady()) playerSeek(pop.sc.t);
+      toast("位置を " + fmt(pop.sc.t) + " にしました");
+    }
+    function applyPopDur() {
+      var inp = popEl.querySelector('[data-popin="dur"]');
+      var v = inp ? parseFloat(inp.value) : NaN;
+      if (isNaN(v)) v = pop.durVal;
+      v = popClampDur(v);
+      if (mkIsPlaced(pop.sc)) v = Math.round(Math.max(0.5, p2RangeSpan(pop.sc.t, v)) * 10) / 10;
+      pop.sc.d = v; pop.durVal = v;
+      paintPop(); renderMk();
+      toast("長さを " + v + " 秒にしました");
+    }
+    function applyPopContent() {
+      var tin = popEl.querySelector(".p2uni-pop-text");
+      var x = tin ? tin.value.trim() : "";
+      if (!x) { toast("コールの内容を入力してください"); return; }
+      pop.sc.x = x; pop.sc.k = pop.typeK;
+      mk.type = pop.typeK;
+      var mt = document.getElementById("mkText"); if (mt) mt.value = x;
+      document.querySelectorAll("#mkTypes button").forEach(function (b) { b.classList.toggle("sel", b.dataset.i === pop.typeK); });
+      paintPop(); renderMk();
+      toast("カードの内容を変更しました");
+      try { guideEvent("contentEdit"); } catch (e) {}
+    }
+    function copyPop() {
+      var idx = mk.scenes.indexOf(pop.sc); if (idx < 0) return;
+      if (window.__p2Uni49 && window.__p2Uni49.copy) window.__p2Uni49.copy(idx);
+      var nsc = mk.scenes[mkSel];
+      if (nsc && nsc !== pop.sc) {
+        pop.sc = nsc; pop.posVal = (nsc.t || 0); pop.durVal = nsc.d; pop.typeK = nsc.k;
+        paintPop();
+      }
+    }
+
+    /* ポップアップからのドラッグは、一覧の委譲ハンドラを通らないので window で中継する */
+    window.addEventListener("pointermove", function (e) {
+      if (popDrag && window.__p2Uni49) window.__p2Uni49.movePlaceDrag(e);
+    });
+    window.addEventListener("pointerup", function (e) {
+      if (!popDrag) return;
+      popDrag = false;
+      if (window.__p2Uni49) window.__p2Uni49.endPlaceDrag(e);
+      if (pop) { pop.posVal = (pop.sc.t || 0); paintPop(); }
+    });
+    window.addEventListener("pointercancel", function () {
+      if (!popDrag) return;
+      popDrag = false;
+      if (window.__p2Uni49) window.__p2Uni49.cancelPlaceDrag();
+      if (pop) { pop.posVal = (pop.sc.t || 0); paintPop(); }
+    });
+
+    /* 作成画面を離れたり、対象カードが無くなったら閉じる */
+    setInterval(function () {
+      if (!pop) return;
+      if (!document.body.classList.contains("scr-mk")) { closePop(); return; }
+      if (mk.scenes.indexOf(pop.sc) < 0) closePop();
+    }, 400);
+
+    window.__p2Uni55 = { open: openPop, close: closePop, get current() { return pop ? pop.sc : null; } };
+    window.__p2Uni = {version: 55};
+  } catch (e) { try { console.warn("p2Uni55", e); } catch (err) {} }
 })();
 })().catch(e => window.__show("起動エラー: " + (e && e.message)));
