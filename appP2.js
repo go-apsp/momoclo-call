@@ -1000,6 +1000,225 @@ requestAnimationFrame(loop);
   reset();
 })();
 
+/* ================= プロトタイプ2 v48: 作成レイヤー統合UI(段階1/3) =================
+   - 作成は付箋レイヤーの一番下の層として常駐させる。再生画面の三層ステージ左下に、下向き付箋「作成」を追加し、タップで作成へ入る
+   - 作成の2モード制(ノリノリながら/お気に置き)は廃止し mkMode="uni" に固定。モード切替タブは隠し、「置きに行く」兼用(oki前提の各処理)は自然に無効になる
+   - 作成レイヤーの並び: シークバー(見た目は細い線・当たり判定は広く・時刻テキストなし・速度セレクトなし)
+     → 曲全体タイムライン(v46の浮き表示をやめシークバー直下へ移動。赤=現在の範囲/白線=範囲の真ん中/白い縦線=再生位置)
+     → 制作タイムライン(常時表示) → 再生の段(▶再生+送りのみ) → カード一覧 → 作る用パーツ
+   - カード一覧の先頭に常設「新規作成カード」: 時刻は再生位置に連動。タップで空カード(長さ3.0秒)、長押しで押した長さの空カードを作る
+   - 空カードは文言欄「コールを指定」が薄く点滅。タップで既存の内容パネル(mkContentPanel)がそのカードに対して開く
+   - 作りかけ(mk.scenes)は、再生側で別の曲を見に行っても保持される(A.song の接続変更 + 作成対象の曲を覚えて復元) */
+(function p2Uni48() {
+  try {
+    document.body.classList.add("p2uni");
+    try { mkMode = "uni"; } catch (e) {}
+
+    var st = document.createElement("style"); st.id = "p2UniStyles";
+    st.textContent = [
+      "body.scr-mk.p2uni #mkModeTabs{display:none!important}",
+      "body.scr-mk.p2uni #mkTlNote{display:none!important}",
+      "body.scr-mk.p2uni #mkBigWrap{display:none!important}",
+      "body.scr-mk.p2uni #mkRateSelect{display:none!important}",
+      "body.scr-mk.p2uni .p2row1 .sq{display:none!important}",
+      "body.scr-mk.p2uni .dots{display:none!important}",
+      "body.scr-mk.p2uni #mkPosEdit,body.scr-mk.p2uni #mkEdit{display:none!important}",
+      "body.scr-mk.p2uni #mkVer,body.scr-mk.p2uni #mkNote,body.scr-mk.p2uni #mkGuestName,body.scr-mk.p2uni #mkPubBtn,body.scr-mk.p2uni #mkPvBtn,body.scr-mk.p2uni #mkSaveBtn,body.scr-mk.p2uni .mkyameru{display:none!important}",
+      "body.scr-mk.p2uni #mkPresets,body.scr-mk.p2uni #mkApplyNote{display:block!important}",
+      "body.scr-mk.p2uni #mkTypes{display:flex!important}",
+      "body.scr-mk.p2uni .mkTextRow{display:flex!important}",
+      "body.scr-mk.p2uni #mkTuneBtn{display:block!important}",
+      "body.scr-mk.p2uni #mkTlBox{display:flex!important}",
+      "body.scr-mk.p2uni #mkTlBox{order:1}",
+      "body.scr-mk.p2uni .mk-card-list{order:2}",
+      "body.scr-mk.p2uni #mkPresets{order:3}",
+      "body.scr-mk.p2uni #mkApplyNote{order:4}",
+      "body.scr-mk.p2uni #mkTypes{order:5}",
+      "body.scr-mk.p2uni .mkTextRow{order:6}",
+      "body.scr-mk.p2uni #mkTuneBtn{order:7}",
+      "body.scr-mk.p2uni #mkTunePanel{order:8}",
+      "body.scr-mk.p2uni #barwrap .times{display:none!important}",
+      "body.scr-mk.p2uni #barin{padding:11px 0;cursor:pointer}",
+      "body.scr-mk.p2uni #p2SongTl{position:relative;left:auto;right:auto;bottom:auto;height:14px;margin:0 0 4px;opacity:1}",
+      "#p2SongTl .p2stl-pos{position:absolute;top:-2px;bottom:-2px;width:2px;background:#fff;box-shadow:0 0 4px rgba(0,0,0,.8)}",
+      "#p2LayerStage.p2lt-active{margin-bottom:30px}",
+      ".p2uni-tab{position:absolute;left:8px;bottom:-27px;z-index:60;border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:13px;color:#10330f;background:#b9f6a5;padding:5px 16px 7px;border-radius:0 0 12px 12px;box-shadow:0 4px 10px rgba(0,0,0,.45)}",
+      "#p2UniTabMk{display:none;position:fixed;left:8px;bottom:0;z-index:60;border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:13px;color:#10330f;background:#7ed957;padding:6px 16px 8px;border-radius:12px 12px 0 0;box-shadow:0 -3px 10px rgba(0,0,0,.4)}",
+      "body.scr-mk.p2uni #p2UniTabMk{display:block}",
+      ".p2uni-new{position:relative;margin:28px 0 10px;border:2px dashed #8e91b8;border-radius:12px;padding:8px;background:rgba(142,145,184,.08)}",
+      ".p2uni-new .p2uni-bubble{position:absolute;left:10px;top:-23px;background:#fff;color:#222;font-size:11px;font-weight:700;padding:3px 8px;border-radius:9px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.35);z-index:2}",
+      ".p2uni-new .p2uni-bubble:after{content:\"\";position:absolute;left:22px;bottom:-5px;width:10px;height:10px;background:#fff;transform:rotate(45deg)}",
+      ".p2uni-newrow{display:flex;align-items:center;gap:8px}",
+      ".p2uni-newtime{font-weight:900;font-size:17px;color:#cfd2f2;background:none;border:0;font-family:inherit;cursor:pointer;padding:6px 4px;min-width:70px;text-align:left}",
+      ".p2uni-newlabel{flex:1;font-weight:900;font-size:15px;color:#7ed957}",
+      ".p2uni-newhint{font-size:10px;color:var(--mut);line-height:1.5}",
+      ".p2uni-empty{color:#9aa0d8;font-weight:700;animation:p2uniBlink 1.2s ease-in-out infinite}",
+      "@keyframes p2uniBlink{0%,100%{opacity:1}50%{opacity:.35}}",
+      ".p2uni-zone{cursor:pointer}"
+    ].join("\n");
+    document.head.appendChild(st);
+
+    /* 曲全体タイムラインをシークバー直下へ移動し、再生位置の白線を追加 */
+    var posEl = null;
+    var songTl = document.getElementById("p2SongTl"), barwrap = document.getElementById("barwrap");
+    if (songTl && barwrap && barwrap.parentNode) {
+      var track = songTl.querySelector(".p2stl-track");
+      if (track) { posEl = document.createElement("div"); posEl.className = "p2stl-pos"; posEl.style.left = "0%"; track.appendChild(posEl); }
+      barwrap.parentNode.insertBefore(songTl, barwrap.nextSibling);
+    }
+    function uniBase() {
+      var g = null; try { g = window.__p2Range && window.__p2Range.get(); } catch (e) {}
+      if (g && g.depth > 0) return {a: g.a, b: g.b};
+      var R = curRange(); if (R) return {a: R.s, b: R.e};
+      return {a: 0, b: Math.max(1, dur() || 240)};
+    }
+
+    /* 再生画面ステージ左下の下向き付箋「作成」 */
+    var tab = null;
+    function ensureTab() {
+      var stage = document.getElementById("p2LayerStage"); if (!stage) return;
+      if (tab && tab.parentNode === stage) return;
+      if (!tab) {
+        tab = document.createElement("button"); tab.type = "button"; tab.className = "p2uni-tab"; tab.id = "p2UniTab";
+        tab.textContent = "作成 ▽"; tab.title = "推しコールを作る(作りかけはそのまま残ります)";
+        tab.addEventListener("click", function (ev) {
+          ev.stopPropagation();
+          if (document.body.classList.contains("scr-mk")) return;
+          var gb = document.getElementById("guideBar");
+          if (gb && gb.classList.contains("on")) return;   /* ガイド進行中はガイド側の入口に任せる */
+          A.startMk();
+        });
+      }
+      stage.appendChild(tab);
+    }
+    ensureTab();
+
+    /* 作成画面側の固定タブ: タップで再生側へ戻る(作りかけは保持される) */
+    var tabMk = document.createElement("button"); tabMk.type = "button"; tabMk.id = "p2UniTabMk";
+    tabMk.textContent = "作成 ▽"; tabMk.title = "いま作成中です。タップで再生画面へ戻ります(作りかけは残ります)";
+    tabMk.addEventListener("click", function () { if (document.body.classList.contains("scr-mk")) exitMk(); });
+    document.body.appendChild(tabMk);
+
+    /* 作成対象の曲を覚える: 再生側で曲を変えても、作成に戻ると下書きの曲へ復元する */
+    var uniSong = null, wasMk = false;
+    function trackDraftSong() {
+      var inMk = document.body.classList.contains("scr-mk");
+      if (inMk && !wasMk) {
+        if (mk.scenes.length && uniSong != null && si !== uniSong && SONGS[uniSong]) {
+          si = uniSong; VID = SONGS[si].vid; UI.songSel(si); cueCurrentSong(); renderMk();
+        }
+        if (!mk.scenes.length) uniSong = si;
+      }
+      wasMk = inMk;
+      if (inMk && mk.scenes.length) uniSong = si;
+      if (inMk && mkMode !== "uni") { try { mkMode = "uni"; paintMkMode(); } catch (e) {} }
+    }
+
+    /* ---------- カード一覧の描画(新規作成カード + 空カード対応) ---------- */
+    function uniIsEmpty(sc) { return !(sc.x && String(sc.x).trim()); }
+    function uniNewCardHtml() {
+      var t = 0; try { t = playerReady() ? now() : 0; } catch (e) {}
+      return '<div class="p2uni-new" id="p2UniNew">'
+        + '<div class="p2uni-bubble">聞きながらタップで再生位置を決定</div>'
+        + '<div class="p2uni-newrow">'
+        + '<button type="button" class="p2uni-newtime" id="p2UniNewTime">' + fmt(t) + '</button>'
+        + '<div class="p2uni-newlabel">新規作成</div>'
+        + '<div class="p2uni-newhint">タップ: その位置に空カード<br>長押し: 押した長さで作成</div>'
+        + '</div></div>';
+    }
+    window.__p2UniCards = function (scenes, sel) {
+      var h = uniNewCardHtml();
+      if (!scenes.length) return h + '<div style="font-size:12px;color:var(--mut);padding:4px 2px">まだカードがありません。上の「新規作成」の時刻をタップすると、聞いている位置に空カードができます。</div>';
+      var entries = scenes.map(function (e, i) { return {e: e, i: i}; });
+      var placed = entries.filter(function (o) { return mkIsPlaced(o.e); });
+      var unplaced = entries.filter(function (o) { return !mkIsPlaced(o.e); });
+      var card = function (o) {
+        var e = o.e, i = o.i, empty = uniIsEmpty(e), isPl = mkIsPlaced(e);
+        var timeHtml = isPl
+          ? '<span class="mkt p2uni-zone" data-zone="time" data-i="' + i + '">' + fmt(e.t) + '</span>'
+          : '<span class="mkt">未配置</span>';
+        var xHtml = empty
+          ? '<span class="mkx p2uni-empty p2uni-zone" data-zone="content" data-i="' + i + '">コールを指定</span>'
+          : '<span class="mkx p2uni-zone" data-zone="content" data-i="' + i + '">' + esc(e.x) + '</span>';
+        var dHtml = isPl
+          ? '<span class="mkd p2uni-zone" data-zone="dur" data-i="' + i + '">' + e.d + '秒</span>'
+          : '<span class="mkd">まだ置いていません</span>';
+        return '<div class="mkcard' + (i === sel ? " sel" : "") + (isPl ? "" : " pend") + '" data-ci="' + i + '">'
+          + '<button type="button" class="mkpick" data-a="mkPick" data-i="' + i + '">'
+          + timeHtml + '<span class="mkk">' + LAB[e.k] + '</span>' + xHtml + dHtml
+          + '</button>'
+          + '<button type="button" class="mkdel" data-a="delScene" data-i="' + i + '" aria-label="削除">×</button>'
+          + '</div>';
+      };
+      var out = placed.map(card).join("");
+      if (unplaced.length) out += '<div style="font-size:11px;color:var(--mut);margin:8px 0 2px">未配置のカード(内容だけ先に作ったもの)</div>' + unplaced.map(card).join("");
+      return h + out;
+    };
+
+    /* ---------- 新規作成カード: タップで空カード(3.0秒) / 長押しで押した長さ ---------- */
+    var newHold = null;
+    function uniCreateEmpty(t0, durSec) {
+      var d = Math.round(Math.max(0.5, Math.min(20, durSec)) * 10) / 10;
+      var tt = Math.round((+t0 || 0) * 10) / 10;
+      tt = p2RangeClamp(tt, d);
+      d = Math.round(Math.max(0.5, p2RangeSpan(tt, d)) * 10) / 10;
+      var sc = {t: tt, d: d, placed: true, k: mk.type || "call", x: ""};
+      mk.scenes.push(sc); mkSortScenes();
+      mkSel = mk.scenes.indexOf(sc); mkSelOrigT = sc.t;
+      renderMk();
+      toast("空カードを作りました(" + fmt(sc.t) + " / " + sc.d + "秒)。「コールを指定」をタップして内容を入れてください");
+    }
+    var listEl = document.getElementById("mkList");
+    if (listEl) {
+      listEl.addEventListener("pointerdown", function (e) {
+        var nt = e.target && e.target.closest ? e.target.closest("#p2UniNewTime") : null;
+        if (!nt) return;
+        e.preventDefault();
+        newHold = {t0: (function () { try { return playerReady() ? now() : 0; } catch (err) { return 0; } })(), at: Date.now()};
+        try { nt.setPointerCapture && nt.setPointerCapture(e.pointerId); } catch (err) {}
+      });
+      listEl.addEventListener("pointerup", function (e) {
+        if (!newHold) return;
+        var held = (Date.now() - newHold.at) / 1000, t0 = newHold.t0; newHold = null;
+        if (held >= 0.25) uniCreateEmpty(t0, held);
+        else uniCreateEmpty(t0, 3);
+      });
+      listEl.addEventListener("pointercancel", function () { newHold = null; });
+      listEl.addEventListener("click", function (e) {
+        var z = e.target && e.target.closest ? e.target.closest('[data-zone="content"]') : null;
+        if (z) {
+          e.stopPropagation(); e.preventDefault();
+          var sc = mk.scenes[+z.dataset.i]; if (sc) openMkContentPanel(sc);
+          return;
+        }
+        var nt2 = e.target && e.target.closest ? e.target.closest("#p2UniNewTime") : null;
+        if (nt2) { e.stopPropagation(); e.preventDefault(); }
+      });
+    }
+
+    /* 新規作成カードの時刻連動 + 全体タイムラインの再生位置線 */
+    setInterval(function () {
+      if (!document.body.classList.contains("scr-mk")) return;
+      var el = document.getElementById("p2UniNewTime");
+      if (el) {
+        if (newHold) el.textContent = "長さ " + Math.max(0.5, Math.min(20, (Date.now() - newHold.at) / 1000)).toFixed(1) + "秒";
+        else { try { el.textContent = fmt(playerReady() ? now() : 0); } catch (e) {} }
+      }
+      if (posEl) {
+        try {
+          var b = uniBase(), pc = (now() - b.a) / Math.max(0.001, b.b - b.a) * 100;
+          posEl.style.left = Math.max(0, Math.min(100, pc)) + "%";
+        } catch (e) {}
+      }
+    }, 250);
+
+    var mo = new MutationObserver(function () { ensureTab(); trackDraftSong(); });
+    mo.observe(document.body, {attributes: true, attributeFilter: ["class"]});
+    setInterval(function () { ensureTab(); trackDraftSong(); }, 800);
+    window.__p2Uni = {version: 48};
+  } catch (e) { try { console.warn("p2Uni48", e); } catch (err) {} }
+})();
+
 UI.songSel(si);
 loadSongs();
 checkSpHash();
@@ -1205,6 +1424,7 @@ function mkSortScenes() {
   });
 }
 function mkCardsHtml(scenes, sel) {
+  if (window.__p2UniCards) return window.__p2UniCards(scenes, sel);   // プロトタイプ2 v48: 統合UIのカード一覧描画へ委譲
   if (!scenes.length) return '<div style="font-size:12px;color:var(--mut);padding:8px 2px">まだカードがありません。カード作成ボタンから内容を作成できます。</div>';
   const entries = scenes.map((e, i) => ({e, i}));
   const placed = entries.filter(o => mkIsPlaced(o.e));
@@ -2276,7 +2496,9 @@ const A = {
     try { localStorage.setItem("momo_song", String(si)); } catch (e) {}
     cueCurrentSong();
     mkPv = null; refPlay = false; randPlay = false; spRange = null;
-    mk = {scenes: [], type: "call", from: null, base: ""}; mkSel = -1; mkLenPhase = null; renderMk(); UI.songSel(si); sess = null; paintApply(); applyAct(); loadCalls();
+    /* プロトタイプ2 v48: 作りかけは再生側で曲を変えても保持する。作成中の曲の切替は作成レイヤー内での操作のときだけ下書きをリセットする */
+    if (screen === "mk") { mk = {scenes: [], type: "call", from: null, base: ""}; mkSel = -1; mkLenPhase = null; }
+    renderMk(); UI.songSel(si); sess = null; paintApply(); applyAct(); loadCalls();
   },
   menu: () => { const m = $("menu"); m.style.display = m.style.display === "block" ? "none" : "block"; document.body.classList.toggle("menu-open", m.style.display === "block"); },
   openOv: () => { $("menu").style.display = "none"; document.body.classList.remove("menu-open"); document.body.classList.add("ov-open"); $("ov").style.display = "block"; render(); },
