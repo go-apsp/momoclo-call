@@ -1065,13 +1065,14 @@ requestAnimationFrame(loop);
     ].join("\n");
     document.head.appendChild(st);
 
-    /* 曲全体タイムラインをシークバー直下へ移動し、再生位置の白線を追加 */
+    /* 曲全体タイムライン: 再生位置の白線を追加するだけにし、DOM移動は v51 の配置処理に任せる。
+       (v48〜v50 ではここで #barwrap の隣へ移していたが、その隣は三層ステージの操作シート内で、
+        作成画面に入るとステージごと取り外されて全体タイムラインが画面から消える不具合があった) */
     var posEl = null;
-    var songTl = document.getElementById("p2SongTl"), barwrap = document.getElementById("barwrap");
-    if (songTl && barwrap && barwrap.parentNode) {
+    var songTl = document.getElementById("p2SongTl");
+    if (songTl) {
       var track = songTl.querySelector(".p2stl-track");
       if (track) { posEl = document.createElement("div"); posEl.className = "p2stl-pos"; posEl.style.left = "0%"; track.appendChild(posEl); }
-      barwrap.parentNode.insertBefore(songTl, barwrap.nextSibling);
     }
     function uniBase() {
       var g = null; try { g = window.__p2Range && window.__p2Range.get(); } catch (e) {}
@@ -1141,21 +1142,25 @@ requestAnimationFrame(loop);
       var unplaced = entries.filter(function (o) { return !mkIsPlaced(o.e); });
       var card = function (o) {
         var e = o.e, i = o.i, empty = uniIsEmpty(e), isPl = mkIsPlaced(e);
+        /* v51: カード全体を1つの選択ボタン(mkpick)にせず、時刻・文言・長さをそれぞれ独立した
+           ボタンにする(秒数だけをタップしても他の部分が巻き込まれないようにするため)。
+           土台の .mkpick は data-a を持たない div にし、文書全体のクリック委譲(A.mkPick)が
+           カード面のタップでは発火しないようにする */
         var timeHtml = isPl
-          ? '<span class="mkt p2uni-zone" data-zone="time" data-i="' + i + '">' + fmt(e.t) + '</span>'
+          ? '<button type="button" class="mkt p2uni-zone" data-zone="time" data-i="' + i + '">' + fmt(e.t) + '</button>'
           : '<span class="mkt">未配置</span>';
         var xHtml = empty
-          ? '<span class="mkx p2uni-empty p2uni-zone" data-zone="content" data-i="' + i + '">コールを指定</span>'
-          : '<span class="mkx p2uni-zone" data-zone="content" data-i="' + i + '">' + esc(e.x) + '</span>';
+          ? '<button type="button" class="mkx p2uni-empty p2uni-zone" data-zone="content" data-i="' + i + '">コールを指定</button>'
+          : '<button type="button" class="mkx p2uni-zone" data-zone="content" data-i="' + i + '">' + esc(e.x) + '</button>';
         var dHtml = isPl
-          ? '<span class="mkd p2uni-zone" data-zone="dur" data-i="' + i + '">' + e.d + '秒</span>'
+          ? '<button type="button" class="mkd p2uni-zone" data-zone="dur" data-i="' + i + '">' + e.d + '秒</button>'
           : '<span class="mkd">まだ置いていません</span>';
         var boardHtml = "";
         try { if (window.__p2Uni49) boardHtml = window.__p2Uni49.boardHtml(i, e); } catch (err) {}
         return '<div class="mkcard p2uni-card' + (i === sel ? " sel" : "") + (isPl ? "" : " pend") + '" data-ci="' + i + '">'
-          + '<button type="button" class="mkpick" data-a="mkPick" data-i="' + i + '">'
+          + '<div class="mkpick">'
           + timeHtml + '<span class="mkk">' + LAB[e.k] + '</span>' + xHtml + dHtml
-          + '</button>'
+          + '</div>'
           + '<button type="button" class="p2uni-copy" data-copy="' + i + '">コピー</button>'
           + '<button type="button" class="mkdel" data-a="delScene" data-i="' + i + '" aria-label="削除">×</button>'
           + '<button type="button" class="p2uni-place" data-place="' + i + '" title="お気に置く: 押したままタイムラインへ動かして離すと位置が決まります" aria-label="お気に置く"></button>'
@@ -1332,6 +1337,21 @@ requestAnimationFrame(loop);
       toast("カードをコピーしました");
     }
 
+    /* ---------- カード面(ゾーン以外)のタップ = 選択だけ ----------
+       v51: A.mkPick は使わない。mkPick は「選択中カードの再タップで内容パネルを開く」動きを
+       含むため、ゾーンのタップに続くクリックがカード面に着地すると内容パネルが開いてしまう
+       (秒数タップが他の部分を巻き込む不具合の一因)。ここでは選択と音の確認だけを行う */
+    function selectCardUni(i) {
+      var sc = mk.scenes[i]; if (!sc) return;
+      if (mkSel === i) return;   /* 選択中の再タップでは何も開かない(各ゾーンが単独で反応する仕様) */
+      mkSel = i; mkLenPhase = null; mkSelOrigT = sc.t;
+      mk.type = sc.k;
+      board = null;
+      renderMk();
+      if (mkIsPlaced(sc) && playerReady()) { playerSeek(sc.t); playerPlay(); }
+      try { guideEvent("picked"); } catch (e) {}
+    }
+
     /* ---------- お気に置くドラッグ ---------- */
     var placeDrag = null;
     function tlHit(x, y) {
@@ -1364,30 +1384,54 @@ requestAnimationFrame(loop);
       ghost.classList.add("p2uni-ghost"); ghost.removeAttribute("id");
       ghost.style.width = r.width + "px"; ghost.style.left = r.left + "px"; ghost.style.top = r.top + "px";
       document.body.appendChild(ghost);
-      placeDrag = {sc: sc, origT: sc.t, origPlaced: mkIsPlaced(sc), ghost: ghost, dx: e.clientX - r.left, dy: e.clientY - r.top, over: false, lastSeek: 0, zoomed: false};
+      placeDrag = {sc: sc, origT: sc.t, origPlaced: mkIsPlaced(sc), ghost: ghost, dx: e.clientX - r.left, dy: e.clientY - r.top, over: false, lastSeek: 0, zoomed: false, settle: null, lastX: e.clientX, lastY: e.clientY};
       if (placeDrag.origPlaced) toast("カード位置が変わります");
       try { btn.setPointerCapture && btn.setPointerCapture(e.pointerId); } catch (err) {}
+    }
+    /* v51: タイムラインの外でも、指の横位置から対応する曲位置を求める(制作タイムラインの
+       スライド帯の左端=曲の頭・右端=曲の終わりとして、縦位置は問わない)。
+       スクラブ(mkScr)の mkBandAbs と同じ考え方で、帯が取れない時だけ画面幅ベースに落とす */
+    function absDragT(x) {
+      var slide = document.getElementById("mkTlSlide");
+      if (slide) {
+        var r = slide.getBoundingClientRect();
+        if (r.width > 10) return Math.max(0, Math.min(1, (x - r.left) / r.width)) * mkTlD();
+      }
+      return mkBandAbs(x);
     }
     function movePlaceDrag(e) {
       var pd = placeDrag; if (!pd) return;
       pd.ghost.style.left = (e.clientX - pd.dx) + "px";
       pd.ghost.style.top = (e.clientY - pd.dy) + "px";
+      pd.lastX = e.clientX; pd.lastY = e.clientY;
       var hit = tlHit(e.clientX, e.clientY);
       pd.over = !!hit;
       var box = document.getElementById("mkTlBox"); if (box) box.classList.toggle("p2uni-tlhot", !!hit);
-      if (!hit) return;
-      var t = dragT(hit, e.clientX); if (t == null) return;
+      /* v51: ドロップ可否(タイムライン上かどうか)と、再生プレビューの位置計算を分ける。
+         指がどこにあっても、その横位置に対応する位置へ仮置きし、音も追従させる */
+      var t = hit ? dragT(hit, e.clientX) : absDragT(e.clientX);
+      if (t == null) return;
       var D = Math.max(dur() || 0, 1);
       t = Math.round(Math.max(0, Math.min(Math.max(0, D - pd.sc.d), t)) * 10) / 10;
       t = p2RangeClamp(t, pd.sc.d);
-      pd.sc.t = t; pd.sc.placed = true;
-      mkSetZoom(true, t); pd.zoomed = true;
-      renderMkTl(); paintKnob();
+      if (t !== pd.sc.t || !mkIsPlaced(pd.sc)) {
+        pd.sc.t = t; pd.sc.placed = true;
+        if (hit) { mkSetZoom(true, t); pd.zoomed = true; }
+        renderMkTl(); paintKnob();
+      }
       var n = Date.now();
       if (n - pd.lastSeek > 120 && playerReady()) { pd.lastSeek = n; playerSeek(t); }
+      /* v51: 指を止めたら(約320ms)、場所がどこでもその位置から再生して聞き直せる
+         (スクラブの settle と同じ時間)。ドロップが有効なのはタイムライン上だけ、は変えない */
+      if (pd.settle) clearTimeout(pd.settle);
+      pd.settle = setTimeout(function () {
+        if (placeDrag !== pd) return;
+        if (playerReady()) { playerSeek(pd.sc.t); playerPlay(); }
+      }, 320);
     }
     function endPlaceDrag(e) {
       var pd = placeDrag; placeDrag = null;
+      if (pd.settle) clearTimeout(pd.settle);
       var box = document.getElementById("mkTlBox"); if (box) box.classList.remove("p2uni-tlhot");
       var hit = tlHit(e.clientX, e.clientY);
       if (hit) {
@@ -1412,6 +1456,7 @@ requestAnimationFrame(loop);
     function cancelPlaceDrag() {
       if (!placeDrag) return;
       var pd = placeDrag; placeDrag = null;
+      if (pd.settle) clearTimeout(pd.settle);
       var box = document.getElementById("mkTlBox"); if (box) box.classList.remove("p2uni-tlhot");
       if (pd.zoomed) mkSetZoom(false);
       pd.ghost.remove();
@@ -1462,6 +1507,14 @@ requestAnimationFrame(loop);
         var z = e.target && e.target.closest ? e.target.closest("[data-zone]") : null;
         if (z && z.dataset.zone === "time") { e.stopPropagation(); e.preventDefault(); openBoard(+z.dataset.i, "pos"); return; }
         if (z && z.dataset.zone === "dur") { e.stopPropagation(); e.preventDefault(); return; }
+        /* v51: ゾーン以外のカード面のタップは「選択だけ」。時刻・長さは上の分岐で処理済み、
+           文言ゾーンは v48 側のハンドラが内容パネルを開くので、ここでは対象にしない */
+        if (e.target && e.target.closest && e.target.closest("[data-zone]")) return;
+        var pk = e.target && e.target.closest ? e.target.closest(".mkpick") : null;
+        if (pk) {
+          var card = pk.closest ? pk.closest(".mkcard") : null;
+          if (card && card.dataset.ci != null) { e.stopPropagation(); e.preventDefault(); selectCardUni(+card.dataset.ci); }
+        }
       });
       listEl.addEventListener("wheel", function (e) {
         var inp = e.target && e.target.closest ? e.target.closest(".p2uni-board-in") : null;
@@ -1698,8 +1751,10 @@ async function loadCalls() {
         rs.sort((a, b) => ((a.createdAt && a.createdAt.seconds) || 0) - ((b.createdAt && b.createdAt.seconds) || 0));
         if (rs.length) {
           refCalls = rs;
-          applyRef(rs[0]);
-          refApplied = true;
+          /* プロトタイプ2 v51: 作成レイヤー表示中に曲を変えた時は、参考コールを自動適用しない
+             (applyRef は作成画面を抜けてしまうため、作成の中で曲を選ぶと再生画面へ移ってしまう不具合の修正)。
+             参考コールの一覧(refCalls)だけは従来どおり保持する */
+          if (screen !== "mk") { applyRef(rs[0]); refApplied = true; }
         }
       }
     } catch (e) {}
@@ -3831,4 +3886,216 @@ setInterval(() => {
 document.addEventListener("fullscreenchange", () => { if (native && !document.fullscreenElement && $("mv").classList.contains("fs")) A.fs(); });
 /* build 62: ウェルカムカード。「表示しない」にチェックして閉じた場合のみ、次回から出さない */
 try { if (!localStorage.getItem("momo_welcome_hide")) $("welcome").classList.add("on"); } catch (e) {}
+
+/* ================= プロトタイプ2 v51: 統合UIを承認済みイラストに一致させる作り直し =================
+   祐治の実機確認で出た6件の指摘への対応:
+   1. 作成レイヤーでも右の付箋(操作/一覧/タイムライン)を常時表示し、タップ/スライドで切り替えられるようにする
+      → 作成パネル(#mk)の右端に、三層ステージと同じ見た目の付箋帯を置く。選ぶと再生側の
+        該当シートが上に出る(作りかけは保持され、一覧/タイムラインはプレビューになる)
+   2. 作成画面の下に残っていたイラストにない部品(プリセット/種類/文言入力/手ブレ抑制/作成モード
+      引き出し等)を常時表示から外し、並び順をイラストどおりにする
+      → 並び: 範囲絞りバー → シークバー → 曲全体タイムライン → 制作タイムライン → 再生の段
+        → カード一覧 → 下書き保存/登録。シークバー等の共用部品は、作成画面に入る時に #mk の
+        中へ物理的に移し、出る時に元の場所へ戻す(プレイヤー #mvwrap は従来どおり動かさない)。
+        文言と種類は内容パネルで完結させ、プリセットも内容パネルの中から選べるようにする
+   3. お気に置くドラッグ中、指を止めたら場所を問わずその位置で再生されるようにする(v49側で対応)
+   4. 曲全体タイムラインが作成画面で消えていた問題(v48側の移動先がステージ内だった)を、
+      この配置処理で #mk 内へ移すことで解消する。赤=範囲/白線=真ん中/再生位置の線は v44・v48 の描画をそのまま使う
+   5. 作成中に曲を変えると再生画面へ移ってしまう問題(loadCalls の参考コール自動適用を、
+      作成表示中は行わないよう本体側で対応)
+   6. カードの時刻・文言・長さがそれぞれ単独で反応するようにする(v48のカード描画と v49の
+      ハンドラで対応。カード全体を1つのボタンにしない) */
+(function p2Uni51() {
+  try {
+    var st = document.createElement("style"); st.id = "p2Uni51Styles";
+    st.textContent = [
+      /* --- 2: イラストにない常時表示部品を外す(v48の強制表示を上書き) --- */
+      "body.scr-mk.p2uni #mkPresets,body.scr-mk.p2uni #mkApplyNote,body.scr-mk.p2uni #mkTypes,body.scr-mk.p2uni .mkTextRow,body.scr-mk.p2uni #mkTuneBtn,body.scr-mk.p2uni #mkTunePanel{display:none!important}",
+      "body.scr-mk.p2uni #mkDrawer{display:none!important}",
+      "body.scr-mk.p2uni #mk>h2{display:none!important}",
+      /* v48が付けた order は、DOM移動で並べる v51 では邪魔になるので全部 0 に戻す */
+      "body.scr-mk.p2uni #mkTlBox,body.scr-mk.p2uni .mk-card-list,body.scr-mk.p2uni #mkPresets,body.scr-mk.p2uni #mkApplyNote,body.scr-mk.p2uni #mkTypes,body.scr-mk.p2uni .mkTextRow,body.scr-mk.p2uni #mkTuneBtn,body.scr-mk.p2uni #mkTunePanel{order:0}",
+      /* --- 作成パネル: 右端に付箋帯の受け皿(32px)を確保 --- */
+      "body.scr-mk.p2uni #mk{position:relative;padding-right:42px}",
+      /* --- 1: 作成レイヤー右端の付箋帯(三層ステージの付箋と同じ見た目) --- */
+      "#p2Uni51Tabs{display:none}",
+      "body.scr-mk.p2uni #p2Uni51Tabs{display:flex;flex-direction:column;gap:6px;position:absolute;right:2px;top:6px;z-index:65}",
+      "#p2Uni51Tabs .p2u51-tab{width:28px;padding:11px 0;border:0;border-radius:0 9px 9px 0;writing-mode:vertical-rl;font-size:12px;font-weight:900;letter-spacing:.14em;box-shadow:2px 3px 8px rgba(0,0,0,.45);cursor:pointer;font-family:inherit;touch-action:none}",
+      "#p2Uni51Tabs .p2u51-tab-ctrl{background:#ff7ab8;color:#2a0c1c}",
+      "#p2Uni51Tabs .p2u51-tab-list{background:#ffd23f;color:#2a2410}",
+      "#p2Uni51Tabs .p2u51-tab-tl{background:#4dc9ff;color:#0b2233;font-size:11px;letter-spacing:.1em;padding:8px 0}",
+      "#p2Uni51Tabs .p2u51-tab-hot{filter:brightness(1.22);box-shadow:0 0 0 2px #fff,2px 3px 10px rgba(0,0,0,.55)}",
+      /* --- 6: ゾーンのボタンは指で押しやすい広さにする --- */
+      "#mkList .p2uni-zone{padding-top:8px;padding-bottom:8px}",
+      /* --- 2: 内容パネル内のプリセット --- */
+      ".p2u51-cp-presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}",
+      ".p2u51-cp-presets:empty{display:none}",
+      ".p2u51-cp-plab{width:100%;font-size:11px;font-weight:700;color:#9aa3c7}",
+      "#mkContentPanel .p2u51-cp-chip{min-height:36px;padding:6px 10px;font-size:12px;border-radius:999px}"
+    ].join("\n");
+    document.head.appendChild(st);
+
+    var mkSec = document.getElementById("mk");
+    var tlBox = document.getElementById("mkTlBox");
+    var mvBox = document.getElementById("mv");
+
+    /* ---------- 2+4: 作成レイヤーの並び替え(共用部品の出し入れ) ---------- */
+    var arranged = false;
+    var homes = [];   /* {el, parent, next} 戻し先の記録 */
+    function remember(el) {
+      if (!el || !el.parentNode) return;
+      for (var i = 0; i < homes.length; i++) if (homes[i].el === el) return;
+      homes.push({el: el, parent: el.parentNode, next: el.nextSibling});
+    }
+    function arrange() {
+      if (arranged || !mkSec || !tlBox) return;
+      var stage = document.getElementById("p2LayerStage");
+      if (stage && stage.classList.contains("p2lt-active")) return;   /* ステージ解除(v43)が先。次周期でやり直す */
+      var barwrap = document.getElementById("barwrap");
+      var songTl = document.getElementById("p2SongTl");
+      var row1 = document.querySelector(".p2row1");
+      var playrow = document.querySelector(".playrow");
+      if (!barwrap || !row1 || !playrow) return;
+      [barwrap, songTl, row1, playrow].forEach(remember);
+      /* 範囲絞りバー(#p2RangeBar)は元々 #mvwrap の直下 = #mk より前にあるので動かさない。
+         ここでは #mk の中を「シークバー → 全体タイムライン → 制作タイムライン → 再生の段
+         → カード一覧 → 保存/登録」の順に組み立てる */
+      mkSec.insertBefore(barwrap, tlBox);
+      if (songTl) mkSec.insertBefore(songTl, tlBox);
+      mkSec.insertBefore(row1, tlBox.nextSibling);
+      mkSec.insertBefore(playrow, row1.nextSibling);
+      arranged = true;
+      try { if (window.__p2Range && window.__p2Range.reset) window.__p2Range.reset(); } catch (e) {}   /* 全体タイムラインの赤を現在の範囲で描き直す */
+    }
+    function restore() {
+      if (!arranged) return;
+      arranged = false;
+      for (var i = homes.length - 1; i >= 0; i--) {
+        var h = homes[i];
+        if (h.el.parentNode === mkSec) {
+          if (h.el.id === "p2SongTl" && mvBox) mvBox.appendChild(h.el);   /* 全体タイムラインの定位置は動画の中(v44) */
+          else if (h.next && h.next.parentNode === h.parent) h.parent.insertBefore(h.el, h.next);
+          else h.parent.appendChild(h.el);
+        }
+      }
+      homes = [];
+    }
+    function syncArrange() {
+      var inMk = document.body.classList.contains("scr-mk");
+      if (inMk) arrange(); else restore();
+    }
+
+    /* ---------- 1: 作成レイヤー右端の付箋帯 ---------- */
+    var pendingSheet = null, sheetTimer = null;
+    function goToSheet(which) {
+      pendingSheet = which;
+      if (document.body.classList.contains("scr-mk")) { try { exitMk(); } catch (e) {} }
+      if (sheetTimer) return;
+      var started = Date.now();
+      sheetTimer = setInterval(function () {
+        if (!pendingSheet || Date.now() - started > 3000) {
+          clearInterval(sheetTimer); sheetTimer = null; pendingSheet = null; return;
+        }
+        var stage = document.getElementById("p2LayerStage");
+        if (stage && stage.classList.contains("p2lt-active")) {
+          var btn = stage.querySelector(".p2lt-tab-" + pendingSheet);
+          if (btn) { var t = pendingSheet; pendingSheet = null; clearInterval(sheetTimer); sheetTimer = null; btn.click(); }
+        }
+      }, 40);
+    }
+    var tabsBox = null;
+    if (mkSec) {
+      tabsBox = document.createElement("div"); tabsBox.id = "p2Uni51Tabs";
+      tabsBox.setAttribute("aria-label", "再生側のレイヤーへ切り替え");
+      [["ctrl", "操作"], ["list", "一覧"], ["tl", "タイムライン"]].forEach(function (pair) {
+        var b = document.createElement("button"); b.type = "button";
+        b.className = "p2u51-tab p2u51-tab-" + pair[0]; b.textContent = pair[1]; b.dataset.sheet = pair[0];
+        b.setAttribute("aria-label", pair[1] + "を上に表示する(作りかけは残ります)");
+        tabsBox.appendChild(b);
+      });
+      mkSec.appendChild(tabsBox);
+    }
+    var stripSlide = null;
+    function stripTabAt(x, y) {
+      if (!tabsBox) return null;
+      var found = null;
+      tabsBox.querySelectorAll(".p2u51-tab").forEach(function (b) {
+        var r = b.getBoundingClientRect();
+        if (r.width > 0 && x >= r.left - 2 && x <= r.right + 2 && y >= r.top - 4 && y <= r.bottom + 4) found = b.dataset.sheet;
+      });
+      return found;
+    }
+    function paintStripHot(which) {
+      if (!tabsBox) return;
+      tabsBox.querySelectorAll(".p2u51-tab").forEach(function (b) { b.classList.toggle("p2u51-tab-hot", b.dataset.sheet === which); });
+    }
+    if (tabsBox) {
+      tabsBox.addEventListener("pointerdown", function (e) {
+        var which = stripTabAt(e.clientX, e.clientY);
+        if (!which) return;
+        e.preventDefault();
+        stripSlide = {id: e.pointerId, target: which};
+        paintStripHot(which);
+        goToSheet(which);
+      });
+      window.addEventListener("pointermove", function (e) {
+        if (!stripSlide || e.pointerId !== stripSlide.id) return;
+        var which = stripTabAt(e.clientX, e.clientY);
+        if (which && which !== stripSlide.target) { stripSlide.target = which; paintStripHot(which); goToSheet(which); }
+      });
+      var endStrip = function (e) {
+        if (!stripSlide || (e && e.pointerId !== stripSlide.id)) return;
+        stripSlide = null; paintStripHot(null);
+      };
+      window.addEventListener("pointerup", endStrip);
+      window.addEventListener("pointercancel", endStrip);
+    }
+
+    /* ---------- 2: プリセットを内容パネルの中で選べるようにする ---------- */
+    var cpBox = null, cpSig = "__none__";
+    function renderCpPresets() {
+      var step = document.getElementById("mkContentTextStep");
+      if (!step) return;
+      if (!cpBox) {
+        cpBox = document.createElement("div"); cpBox.className = "p2u51-cp-presets"; cpBox.id = "p2Uni51CpPresets";
+        step.appendChild(cpBox);
+        cpBox.addEventListener("click", function (e) {
+          var b = e.target && e.target.closest ? e.target.closest("[data-cp]") : null;
+          if (!b) return;
+          var p = PRESETS[+b.dataset.cp]; if (!p) return;
+          var inp = document.getElementById("mkContentTextInput");
+          if (inp) inp.value = p.x;
+          try { mkCpType = p.k; } catch (err) {}
+          try { paintMkContentPanel(); } catch (err) {}
+          toast("プリセット「" + p.x + "」を入れました。種類を確認して決定してください");
+        });
+      }
+      var sig = PRESETS.map(function (p) { return p.x; }).join("|");
+      if (sig === cpSig) return;
+      cpSig = sig;
+      if (!PRESETS.length) { cpBox.innerHTML = ""; return; }
+      cpBox.innerHTML = '<span class="p2u51-cp-plab">プリセットから入れる</span>' + PRESETS.map(function (p, i) {
+        return '<button type="button" class="p2u51-cp-chip" data-cp="' + i + '">' + esc(p.x) + '</button>';
+      }).join("");
+    }
+    var panel = document.getElementById("mkContentPanel");
+    if (panel) {
+      var pmo = new MutationObserver(function () {
+        if (panel.style.display === "flex") renderCpPresets();
+      });
+      pmo.observe(panel, {attributes: true, attributeFilter: ["style"]});
+    }
+    renderCpPresets();
+
+    /* ---------- 同期 ---------- */
+    var mo = new MutationObserver(syncArrange);
+    mo.observe(document.body, {attributes: true, attributeFilter: ["class"]});
+    setInterval(syncArrange, 400);
+    syncArrange();
+
+    window.__p2Uni = {version: 51};
+    window.__p2Uni51 = {arrange: arrange, restore: restore, goToSheet: goToSheet,
+      get arranged() { return arranged; }, tabsEl: tabsBox};
+  } catch (e) { try { console.warn("p2Uni51", e); } catch (err) {} }
+})();
 })().catch(e => window.__show("起動エラー: " + (e && e.message)));
