@@ -1,8 +1,24 @@
 /* =====================================================================
-   build 69: 会場モード v3（再生画面）
+   build 69: 会場モード v4（再生画面）
    v1 の概念違い（オンにすると全画面化してしまう）を v2 で修正し、
    v3 では実ブラウザ確認で判明した「映像が絵のスクリーンに収まらない」
-   不具合と、ラベル・ボタンの重なりを直した版。
+   不具合と、ラベル・ボタンの重なりを直した。
+   v4 では祐治の実機確認で出た2点を直した:
+   (1) ライブハウスのフレーム切替時のチラつき。フレームごとに絵の中の
+       スクリーン位置が微妙に違うため、フレーム別 PAINT で映像を置くと
+       切替のたびに映像がガクガク揺れていた。v4 では映像の配置を
+       4フレーム共通の代表 PAINT（各値の平均）に固定し、さらに映像を
+       代表 PAINT より約3%大きめに置いて、フレーム間のズレで絵の
+       スクリーンの縁が映像からはみ出して見えないよう余裕を持たせた。
+       背景の切替（観客のカクカク感）は従来どおり。
+   (2) 会場全画面（.vnfs）の間は、アプリの再生コントローラー
+       （.fsonly: 再生／ペンライト／湧く!／情報）を表示しない。
+       v3 までは会場全画面で .fsonly を出していたが、祐治の訂正で
+       「全画面では操作パネルが邪魔。コールカードは出ていてよい」
+       となったため。コールカード（#cards）は会場全画面でも表示の
+       まま変えない。全画面を戻せばコントローラーは通常どおり
+       （アプリ既存の全画面での表示）に戻る。会場UI（会場切替・
+       全画面を戻す・ジャイロ調整・終了）は会場全画面でも残す。
    自己完結モジュールで、app.js 本体には触らない（#modebar へトグル
    ボタンを足し、#mv の中に会場レイヤーを作る）。
 
@@ -42,9 +58,11 @@
      ようにする（v3）。会場全画面（.vnfs）のときだけドックごと枠の
      中（下部）へ移す。
    - コールカード（#cards）は従来どおり画面に対して固定表示。
-     世界と一緒に動かさない（本番の従来表示に準ずる）。
-   - 再生/ペンライト/湧く! の .fsonly ボタンは、会場全画面（.vnfs）の
-     ときだけ表示する（枠内表示のときは通常レイアウトのまま）。
+     世界と一緒に動かさない（本番の従来表示に準ずる）。会場全画面
+     （.vnfs）でも表示のままにする（v4）。
+   - 再生/ペンライト/湧く! 等の .fsonly（アプリの再生コントローラー）
+     は、会場モード中は会場全画面（.vnfs）でも表示しない（v4）。
+     アプリ既存の全画面（#mv.fs）のときだけ従来どおり表示される。
    - モードバーの「会場モード」ボタンは大きめ・目立つ色にし、オン時は
      塗りつぶし＋「ON」表記で一目で分かるようにする。
    - 作成画面・シェアポイント作成画面へ移ったら自動で会場モードを終える。
@@ -60,7 +78,7 @@
     "#mv.vn{background:#101319;perspective:1500px;touch-action:none}",
     "#mv.vnfs{position:fixed;inset:0;z-index:60;border-radius:0;aspect-ratio:auto;height:100dvh}",
     "#mv.vn #fsbtn,#mv.vn #fsExit{display:none!important}",
-    "#mv.vnfs .fsonly{display:flex}",
+    "#mv.vnfs .fsonly{display:none!important}",
     ".vn-world{position:absolute;left:0;top:0;pointer-events:none;will-change:transform;z-index:0}",
     ".vn-world img{display:block;width:100%;height:100%}",
     "#mv.vn #yt{border-radius:2px;box-shadow:0 0 0 3px rgba(8,10,14,.9),0 4px 18px rgba(0,0,0,.5);background:#000;will-change:transform}",
@@ -207,9 +225,22 @@
   var FRAME_MS = 400;
   var preloaded = false;
 
-  function curPaint(V) {
-    if (V.frames) return V.frames[frameIdx % V.frames.length].paint;
-    return V.paint;
+  // 映像の配置に使う PAINT。フレーム持ちの会場（ライブハウス）は、
+  // フレーム別 PAINT で映像を置くと切替のたびに映像が揺れてチラつく
+  // ので、全フレームの平均（代表 PAINT）に固定する（v4）。背景の絵の
+  // 切替自体は従来どおりフレームごとに行う。
+  function repPaint(V) {
+    if (!V.frames) return V.paint;
+    if (V._rep) return V._rep;
+    var n = V.frames.length, sx = 0, sy = 0, sw = 0, sh = 0;
+    for (var i = 0; i < n; i++) {
+      sx += V.frames[i].paint.x;
+      sy += V.frames[i].paint.y;
+      sw += V.frames[i].paint.w;
+      sh += V.frames[i].paint.h;
+    }
+    V._rep = { x: sx / n, y: sy / n, w: sw / n, h: sh / n };
+    return V._rep;
   }
   function curSrc(V) {
     if (V.frames) return V.frames[frameIdx % V.frames.length].src;
@@ -266,6 +297,7 @@
   var rafId = null;
   var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var SCREEN_FIT = 0.97;
+  var VIDEO_MARGIN = 1.03; // 映像を代表 PAINT より一回り大きく置く倍率（v4）
 
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function setTarget(v) { target = clamp(v, -90, 90); }
@@ -282,7 +314,7 @@
     var h = mv.clientHeight;
     if (!w || !h) return;
     var V = VENUES[venueIdx];
-    var PAINT = curPaint(V);
+    var PAINT = repPaint(V);
     var AR = V.iw / V.ih;
     var paintCx = PAINT.x + PAINT.w / 2;
     var paintCy = PAINT.y + PAINT.h / 2;
@@ -319,10 +351,17 @@
     // right/bottom は auto にして inset:0 の残りと競合させない）。
     var yEl = claimYt();
     if (yEl) {
-      yEl.style.setProperty("left", (wx + Lw * PAINT.x) + "px", "important");
-      yEl.style.setProperty("top", (wy + Lh * PAINT.y) + "px", "important");
-      yEl.style.setProperty("width", (Lw * PAINT.w) + "px", "important");
-      yEl.style.setProperty("height", (Lh * PAINT.h) + "px", "important");
+      // 映像は代表 PAINT より約3%大きめに置く（中心は PAINT と同じ）。
+      // フレームごとに絵のスクリーン位置が少し違うので、余裕を持たせて
+      // 絵のスクリーンの縁が映像の外にはみ出して見えないようにする（v4）。
+      var vw = PAINT.w * VIDEO_MARGIN;
+      var vh = PAINT.h * VIDEO_MARGIN;
+      var vx = PAINT.x - (vw - PAINT.w) / 2;
+      var vy = PAINT.y - (vh - PAINT.h) / 2;
+      yEl.style.setProperty("left", (wx + Lw * vx) + "px", "important");
+      yEl.style.setProperty("top", (wy + Lh * vy) + "px", "important");
+      yEl.style.setProperty("width", (Lw * vw) + "px", "important");
+      yEl.style.setProperty("height", (Lh * vh) + "px", "important");
       yEl.style.setProperty("right", "auto", "important");
       yEl.style.setProperty("bottom", "auto", "important");
       var ry = -current * 0.20;
