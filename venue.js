@@ -1,5 +1,32 @@
 /* =====================================================================
-   build 69: 会場モード v7（再生画面）
+   build 69: 会場モード v8（再生画面）
+   v8 では祐治の実機フィードバック2点に対応した:
+   (1) アニメーション廃止: ライブハウスの4フレーム切替は、映像の
+       配置（スクリーン位置）を固定しても、絵の他の部分がフレーム間で
+       ブレてチカチカした。生成動画でも同じになるとの判断で、全会場
+       とも静止画1枚に統一した。ライブハウスは現行フレーム1
+       （venue/livehouse-1.webp、縦長1200×1440）の1枚だけを使い、
+       フレーム切替タイマーとフレーム別処理を撤去した。映像の配置は
+       フレーム1単独の PAINT（v4〜v7 の「全フレーム平均の代表 PAINT」
+       ではない）に戻し、マージン約3%は維持する。
+   (2) 会場全画面にコンパクトな再生系ボタンを追加: 全画面（.vnfs）の
+       間だけ、ドック内に小さな操作列（.vn-ctl）を出す。中身は
+       再生／一時停止・ペンライト・湧く! の3つ。挙動は二重実装せず、
+       本体の既存ボタン（#fsplay／#penbtn／#wakubtn）を venue.js から
+       プログラム的にクリックして再利用する（本体ボタンが全画面で
+       非表示でも click() は効き、document 委譲のアクションが動く）。
+       ペンライトは本体と同じく、タップ=点灯/消灯、長押し=色バー
+       （#dots）を開く。本体の長押し判定は [data-a="pen"] への
+       pointerdown リスナーで動くため、コンパクト側の pointerdown/up を
+       本体ボタンへ転送してそのまま使う。色バーは通常 body.vn-fs の
+       一括非表示に含まれるため、開いているときだけ表示する例外を
+       足した。あわせて、全画面で隠していた #pen（ペンライト本体）も
+       v8 では隠さない（点灯が見えなければボタンが意味を持たないため）。
+       再生ボタンの表示（▶/❚❚ と文言）は #fsplay の textContent を
+       MutationObserver で監視して同期する。ペンライトの色ドットと
+       押下状態は #pen の class/style を監視して同期する。
+       枠内（非全画面）では本体のコントローラーが見えているため
+       コンパクト列は出さない。
    v7 では祐治の実機フィードバック5点に対応した:
    (1) 広角化: 正面でスクリーン幅が枠幅の約97%では会場がほとんど
        見えず「何が違うのか分からない」ため、SCREEN_FIT を 0.97 から
@@ -119,8 +146,9 @@
      会場モード中は既存の全画面ボタン（#fsbtn / #fsExit）を隠し、
      Fullscreen API は使わない。
    - 会場は小さなボタン1つで ライブハウス→スタジアム→アリーナ→山脈→
-     豪華客船 の順に切替。ライブハウスは縦長フレーム4枚を約0.4秒間隔・
-     フェードなしで切り替える立ち姿アニメ。他会場は静止画1枚。
+     豪華客船 の順に切替。絵は全会場とも静止画1枚（ライブハウスは
+     livehouse-1.webp。v7 までは4フレーム切替のアニメだったが、
+     v8 で廃止した。上の v8 (1) を参照）。
    - 会場名ラベルと会場用ボタン列・調整パネルは、枠の中ではなく
      枠の外（#mv の直下に作る .vn-dock の中）に置き、映像に重ならない
      ようにする（v3）。会場全画面（.vnfs）のときだけドックごと枠の
@@ -133,6 +161,9 @@
      は、会場モード中は会場全画面（.vnfs）でも表示しない（v4）。
      アプリ既存の全画面（#mv.fs）のときだけ従来どおり表示される。
      ※v5 では全画面中の非表示を .fsonly 以外へ全面拡大した。
+     ※v8 では、全画面の間だけドック内にコンパクト操作列（.vn-ctl:
+     再生／一時停止・ペンライト・湧く!）を出す。本体ボタンを
+     プログラム的にクリックして挙動を再利用する（上の v8 (2)）。
    - モードバーの「会場モード」ボタンは大きめ・目立つ色にし、オン時は
      塗りつぶし＋「ON」表記で一目で分かるようにする。
    - 作成画面・シェアポイント作成画面へ移ったら自動で会場モードを終える。
@@ -151,7 +182,9 @@
     "#mv.vnfs .fsonly{display:none!important}",
     // 会場全画面: #mv の中のアプリ側の重なりも隠し、会場の光景と
     // 会場UI（ドック）だけにする。#yt と .vn-world と .vn-dock は残す。
-    "#mv.vnfs #cards,#mv.vnfs #panel,#mv.vnfs #intro,#mv.vnfs #kokos,#mv.vnfs #pen,#mv.vnfs .crowd{display:none!important}",
+    // ※v8: #pen（ペンライト本体）は隠さない。全画面のコンパクト
+    // ペンライトボタンで点灯/消灯するのに、消えていたら見えないため。
+    "#mv.vnfs #cards,#mv.vnfs #panel,#mv.vnfs #intro,#mv.vnfs #kokos,#mv.vnfs .crowd{display:none!important}",
     // 会場モード中のカード位置（v7 追加分）: バブル以外の見せ方では
     // カードが枠の下部に出て、映像との間で目の移動が忙しい。会場モード中
     // だけ、カードの定位置を枠の縦中央付近まで上げる。各見せ方が持つ
@@ -170,6 +203,13 @@
     "body.vn-fs #app>*:not(#mvwrap){display:none!important}",
     "body.vn-fs #mvwrap{position:relative;z-index:80}",
     "body.vn-fs #mvwrap>*:not(#mv):not(.vn-dock){display:none!important}",
+    // v8: ペンライトの色バー（#dots）は #app 直下なので上の一括非表示に
+    // 含まれるが、全画面で長押しから色を変えられるよう、開いている
+    // ときだけ表示に戻す（詳細度で上の一括非表示に勝たせる）。さらに
+    // 全画面中は #mvwrap が z-index:80 で手前に出るため、色バーが
+    // 不透明な #mv の下に隠れないよう z-index をその上へ引き上げ、
+    // ドック（2段分）と重ならないよう少し上へずらす。
+    "body.vn-fs #app>#dots.open{display:flex!important;z-index:90;bottom:158px}",
     ".vn-world{position:absolute;left:0;top:0;pointer-events:none;will-change:transform;z-index:0}",
     ".vn-world img{display:block;width:100%;height:100%}",
     "#mv.vn #yt{border-radius:2px;box-shadow:0 0 0 3px rgba(8,10,14,.9),0 4px 18px rgba(0,0,0,.5);background:#000;will-change:transform}",
@@ -185,6 +225,20 @@
     ".vn-ui button[aria-pressed=\"true\"]{background:#e4572e;border-color:#e4572e;color:#fff}",
     ".vn-ui .vn-venue{min-width:84px}",
     ".vn-ui .vn-venue .vn-cap{font-size:.74rem;font-weight:700}",
+    // v8: 会場全画面のときだけ出すコンパクトな再生系操作列。
+    // ドックの中（会場UIの下）に置き、枠内では出さない（本体の
+    // コントローラーが見えているため）。ドックは全画面のときだけ
+    // #mv の中へ移るので、「#mv.vnfs 配下のときだけ表示」で足りる。
+    ".vn-ctl{display:none}",
+    "#mv.vnfs .vn-ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin-top:8px}",
+    ".vn-ctl button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:46px;min-height:42px;padding:4px 7px;border-radius:12px;background:rgba(10,12,16,.72);border:1px solid rgba(147,167,196,.55);color:#eef2f8;font:inherit;cursor:pointer}",
+    ".vn-ctl button svg{width:18px;height:18px;flex:none}",
+    ".vn-ctl button .vn-cap{font-size:.6rem;line-height:1.15;letter-spacing:.02em}",
+    ".vn-ctl button .vn-ico{display:flex;flex:none}",
+    // ペンライト点灯中は枠を明るくして示す（色そのものはドットで示す）
+    ".vn-ctl #vnPenBtn[aria-pressed=\"true\"]{background:rgba(255,255,255,.18);border-color:#eef2f8}",
+    // ペンライトの色ドット（現在の色に同期して JS が背景色を書く）
+    ".vn-ctl .vn-dot{width:10px;height:10px;border-radius:50%;background:#fff;box-shadow:0 0 7px 1px currentColor;flex:none}",
     // ジャイロ許可エラー等の連絡用（v7: 調整パネル廃止に伴い新設）
     ".vn-note{display:none;margin-top:6px;font-size:.78rem;color:#ffd9a8}",
     ".vn-note.show{display:block}",
@@ -236,6 +290,23 @@
     '<button type="button" id="vnCenterBtn" aria-label="正面に戻す">' + ICO_CENTER + '<span class="vn-cap">正面</span></button>' +
     '<button type="button" id="vnFsBtn" aria-pressed="false" aria-label="全画面">' + ICO_FS + '<span class="vn-cap">全画面</span></button>';
   dockRow.appendChild(ui);
+
+  // v8: 会場全画面のときだけ出すコンパクトな再生系操作列（再生／
+  // 一時停止・ペンライト・湧く!）。ドックの中に置き、CSS で
+  // #mv.vnfs のときだけ表示する。挙動は本体ボタンのプログラム的
+  // クリックで再利用する（下の「会場全画面のコンパクト操作列」参照）。
+  var ICO_PLAY = SVG_HEAD + '<path d="M8.5 5.8v12.4c0 .8.9 1.3 1.6.9l9.7-6.2c.6-.4.6-1.4 0-1.8L10.1 4.9c-.7-.4-1.6.1-1.6.9z" fill="currentColor" stroke="none"/></svg>';
+  var ICO_PAUSE = SVG_HEAD + '<path d="M8.2 5.5v13M15.8 5.5v13" stroke-width="3.4"/></svg>';
+  var ICO_PEN = SVG_HEAD + '<path d="M12 2.8v2.2M6.1 5.2l1.6 1.6M17.9 5.2l-1.6 1.6"/><rect x="10.4" y="7.4" width="3.2" height="11.8" rx="1.6" fill="currentColor" stroke="none"/></svg>';
+  var ICO_WAKU = SVG_HEAD + '<circle cx="12" cy="12" r="3.1"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>';
+  var ctl = document.createElement("div");
+  ctl.className = "vn-ctl";
+  ctl.id = "vnCtl";
+  ctl.innerHTML =
+    '<button type="button" id="vnPlayBtn" aria-label="再生"><span class="vn-ico" id="vnPlayIco">' + ICO_PLAY + '</span><span class="vn-cap" id="vnPlayCap">再生</span></button>' +
+    '<button type="button" id="vnPenBtn" aria-pressed="false" aria-label="ペンライト（タップで点灯/消灯、長押しで色変更）"><span class="vn-ico">' + ICO_PEN + '</span><span class="vn-dot" id="vnPenDot"></span><span class="vn-cap">ペン</span></button>' +
+    '<button type="button" id="vnWakuBtn" aria-label="湧く!"><span class="vn-ico">' + ICO_WAKU + '</span><span class="vn-cap">湧く!</span></button>';
+  dock.appendChild(ctl);
 
   var note = document.createElement("div");
   note.className = "vn-note";
@@ -293,13 +364,8 @@
 
   /* ---------- 会場データ（デモで実測した PAINT をそのまま使う） ---------- */
   var VENUES = [
-    { id: "livehouse", name: "ライブハウス", iw: 1200, ih: 1440,
-      frames: [
-        { src: "venue/livehouse-1.webp", paint: { x: 0.252, y: 0.379, w: 0.492, h: 0.249 } },
-        { src: "venue/livehouse-2.webp", paint: { x: 0.248, y: 0.356, w: 0.500, h: 0.258 } },
-        { src: "venue/livehouse-3.webp", paint: { x: 0.248, y: 0.355, w: 0.502, h: 0.280 } },
-        { src: "venue/livehouse-4.webp", paint: { x: 0.254, y: 0.351, w: 0.488, h: 0.253 } }
-      ] },
+    { id: "livehouse", name: "ライブハウス", src: "venue/livehouse-1.webp", iw: 1200, ih: 1440,
+      paint: { x: 0.252, y: 0.379, w: 0.492, h: 0.249 } },
     { id: "stadium", name: "スタジアム", src: "venue/stadium.webp", iw: 2352, ih: 1008,
       paint: { x: 0.334, y: 0.322, w: 0.406, h: 0.317 } },
     { id: "arena", name: "アリーナ", src: "venue/arena.webp", iw: 2352, ih: 1008,
@@ -310,65 +376,23 @@
       paint: { x: 0.344, y: 0.165, w: 0.328, h: 0.392 } }
   ];
   var venueIdx = 0;
-  var frameIdx = 0;
-  var frameTimer = null;
-  var FRAME_MS = 400;
   var preloaded = false;
 
-  // 映像の配置に使う PAINT。フレーム持ちの会場（ライブハウス）は、
-  // フレーム別 PAINT で映像を置くと切替のたびに映像が揺れてチラつく
-  // ので、全フレームの平均（代表 PAINT）に固定する（v4）。背景の絵の
-  // 切替自体は従来どおりフレームごとに行う。
-  function repPaint(V) {
-    if (!V.frames) return V.paint;
-    if (V._rep) return V._rep;
-    var n = V.frames.length, sx = 0, sy = 0, sw = 0, sh = 0;
-    for (var i = 0; i < n; i++) {
-      sx += V.frames[i].paint.x;
-      sy += V.frames[i].paint.y;
-      sw += V.frames[i].paint.w;
-      sh += V.frames[i].paint.h;
-    }
-    V._rep = { x: sx / n, y: sy / n, w: sw / n, h: sh / n };
-    return V._rep;
-  }
-  function curSrc(V) {
-    if (V.frames) return V.frames[frameIdx % V.frames.length].src;
-    return V.src;
-  }
+  // v8: 全会場とも静止画1枚。フレーム切替（タイマー・フレーム別
+  // PAINT・平均の代表 PAINT）は廃止した（上の v8 (1) を参照）。
   function preload() {
     if (preloaded) return;
     preloaded = true;
     for (var vi = 0; vi < VENUES.length; vi++) {
-      var srcs = VENUES[vi].frames
-        ? VENUES[vi].frames.map(function (f) { return f.src; })
-        : [VENUES[vi].src];
-      for (var si = 0; si < srcs.length; si++) {
-        var pre = new Image();
-        pre.src = srcs[si];
-      }
+      var pre = new Image();
+      pre.src = VENUES[vi].src;
     }
-  }
-  function stopFrames() {
-    if (frameTimer) { clearInterval(frameTimer); frameTimer = null; }
-  }
-  function startFrames() {
-    stopFrames();
-    if (!on || !VENUES[venueIdx].frames) return;
-    frameTimer = setInterval(function () {
-      frameIdx = (frameIdx + 1) % VENUES[venueIdx].frames.length;
-      img.src = curSrc(VENUES[venueIdx]);
-      apply();
-    }, FRAME_MS);
   }
   function setVenue(i) {
     venueIdx = ((i % VENUES.length) + VENUES.length) % VENUES.length;
     var V = VENUES[venueIdx];
-    frameIdx = 0;
-    var s = curSrc(V);
-    if (img.getAttribute("src") !== s) img.src = s;
+    if (img.getAttribute("src") !== V.src) img.src = V.src;
     venueName.textContent = V.name;
-    startFrames();
     apply();
   }
   venueBtn.addEventListener("click", function () { setVenue(venueIdx + 1); });
@@ -393,7 +417,7 @@
   var dragX = 0, dragP = 0;
   function viewTarget() { return clamp(target + dragX, -90, 90); }
   function viewTargetP() { return clamp(targetP + dragP, -35, 35); }
-  var VIDEO_MARGIN = 1.03; // 映像を代表 PAINT より一回り大きく置く倍率（v4）
+  var VIDEO_MARGIN = 1.03; // 映像を PAINT より一回り大きく置く倍率（v4）
 
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function setTarget(v) { target = clamp(v, -90, 90); }
@@ -410,7 +434,7 @@
     var h = mv.clientHeight;
     if (!w || !h) return;
     var V = VENUES[venueIdx];
-    var PAINT = repPaint(V);
+    var PAINT = V.paint;
     var AR = V.iw / V.ih;
     var paintCx = PAINT.x + PAINT.w / 2;
     var paintCy = PAINT.y + PAINT.h / 2;
@@ -447,9 +471,9 @@
     // right/bottom は auto にして inset:0 の残りと競合させない）。
     var yEl = claimYt();
     if (yEl) {
-      // 映像は代表 PAINT より約3%大きめに置く（中心は PAINT と同じ）。
-      // フレームごとに絵のスクリーン位置が少し違うので、余裕を持たせて
-      // 絵のスクリーンの縁が映像の外にはみ出して見えないようにする（v4）。
+      // 映像は PAINT より約3%大きめに置く（中心は PAINT と同じ）。
+      // 絵のスクリーンの縁が映像の外にはみ出して見えないよう、
+      // 余裕を持たせる（v4。v8 でもマージンは維持）。
       var vw = PAINT.w * VIDEO_MARGIN;
       var vh = PAINT.h * VIDEO_MARGIN;
       var vx = PAINT.x - (vw - PAINT.w) / 2;
@@ -656,6 +680,8 @@
     fsBtn.setAttribute("aria-pressed", "true");
     setFsIcon(true);
     gyroRecal = true;
+    syncPlayBtn(); // v8: コンパクト操作列の表示を本体の状態に合わせる
+    syncPenBtn();
     apply();
   }
   function fsExit() {
@@ -674,6 +700,96 @@
   document.addEventListener("keydown", function (e) {
     if (fsOn && (e.key === "Escape" || e.key === "Esc")) fsExit();
   });
+
+  /* ---------- 会場全画面のコンパクト操作列（v8） ----------
+     挙動は二重実装せず、本体の既存ボタンをプログラム的にクリック
+     して再利用する。本体ボタンは会場全画面で非表示（display:none）
+     になっているが、click() は表示状態によらず発火し、document へ
+     バブリングして app.js の委譲ハンドラ（data-a）が動く。 */
+  var playBtnC = document.getElementById("vnPlayBtn");
+  var playIcoC = document.getElementById("vnPlayIco");
+  var playCapC = document.getElementById("vnPlayCap");
+  var penBtnC = document.getElementById("vnPenBtn");
+  var penDotC = document.getElementById("vnPenDot");
+  var wakuBtnC = document.getElementById("vnWakuBtn");
+  function mainPlayBtn() { return document.getElementById("fsplay") || document.getElementById("play"); }
+  function mainPenBtn() { return document.getElementById("penbtn") || document.querySelector('#fspads [data-a="pen"]'); }
+  function mainWakuBtn() { return document.getElementById("wakubtn") || document.querySelector('#fspads [data-a="waku"]'); }
+
+  // 再生ボタンの表示は、本体 #fsplay の文言（再生/一時停止）に同期
+  // する。app.js の loop が再生状態に応じて毎フレーム書き換える
+  // （同じ値の代入でも監視が発火しうる）ので、状態が変わったとき
+  // だけコンパクト側を書き換える。
+  var playShown = null;
+  function syncPlayBtn() {
+    var b = mainPlayBtn();
+    if (!b || !playBtnC) return;
+    var playing = b.textContent.indexOf("一時停止") >= 0;
+    if (playing === playShown) return;
+    playShown = playing;
+    playIcoC.innerHTML = playing ? ICO_PAUSE : ICO_PLAY;
+    playCapC.textContent = playing ? "一時停止" : "再生";
+    playBtnC.setAttribute("aria-label", playing ? "一時停止" : "再生");
+  }
+  // ペンライトの押下状態と色ドットは、本体 #pen の class（on）と
+  // style.color（penColor アクションが書く）に同期する。
+  function syncPenBtn() {
+    var pen = document.getElementById("pen");
+    if (!pen || !penBtnC) return;
+    penBtnC.setAttribute("aria-pressed", pen.classList.contains("on") ? "true" : "false");
+    var col = pen.style.color;
+    if (!col) {
+      try { col = window.getComputedStyle(document.documentElement).getPropertyValue("--pc").trim(); } catch (e) {}
+    }
+    if (col) { penDotC.style.background = col; penDotC.style.color = col; }
+  }
+  var fsplayEl = document.getElementById("fsplay");
+  if (fsplayEl) {
+    new MutationObserver(syncPlayBtn).observe(fsplayEl,
+      { childList: true, characterData: true, subtree: true });
+  }
+  var penEl = document.getElementById("pen");
+  if (penEl) {
+    new MutationObserver(syncPenBtn).observe(penEl,
+      { attributes: true, attributeFilter: ["class", "style"] });
+  }
+  syncPlayBtn();
+  syncPenBtn();
+
+  if (playBtnC) playBtnC.addEventListener("click", function () {
+    var b = mainPlayBtn(); if (b) b.click();
+  });
+  if (wakuBtnC) wakuBtnC.addEventListener("click", function () {
+    var b = mainWakuBtn(); if (b) b.click();
+  });
+  // ペンライトは本体と同じ挙動を、本体ボタンへのイベント転送で
+  // 再利用する。タップ=点灯/消灯は click の転送で委譲ハンドラが
+  // 処理する。長押し=色バーは、本体ボタンに付けられた pointerdown
+  // リスナー（480ms タイマー＋抑制フラグ）が担うため、コンパクト側の
+  // pointerdown/up をそのまま本体ボタンへ転送する。長押し後に
+  // click を転送すると、本体側の click リスナーが抑制フラグを見て
+  // 伝播を止めるので、点灯/消灯は起きない（本体と同じ）。
+  function forwardPointer(type) {
+    var b = mainPenBtn();
+    if (!b) return;
+    var ev = null;
+    try { ev = new PointerEvent(type, { bubbles: true, cancelable: true }); }
+    catch (e) {
+      try { ev = new MouseEvent(type, { bubbles: true, cancelable: true }); } catch (e2) {}
+    }
+    if (ev) b.dispatchEvent(ev);
+  }
+  if (penBtnC) {
+    penBtnC.addEventListener("pointerdown", function () { forwardPointer("pointerdown"); });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(function (t) {
+      penBtnC.addEventListener(t, function () { forwardPointer(t); });
+    });
+    penBtnC.addEventListener("click", function () {
+      var b = mainPenBtn(); if (b) b.click();
+      syncPenBtn();
+    });
+    penBtnC.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  }
 
   /* ---------- 会場モードの入/切 ---------- */
   function enter() {
@@ -698,7 +814,6 @@
     on = false;
     fsExit();
     gyroOff();
-    stopFrames();
     mv.classList.remove("vn");
     toggleBtn.classList.remove("on");
     toggleBtn.setAttribute("aria-pressed", "false");
