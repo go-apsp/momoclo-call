@@ -1,5 +1,36 @@
 /* =====================================================================
-   build 69: 会場モード v6（再生画面）
+   build 69: 会場モード v7（再生画面）
+   v7 では祐治の実機フィードバック5点に対応した:
+   (1) 広角化: 正面でスクリーン幅が枠幅の約97%では会場がほとんど
+       見えず「何が違うのか分からない」ため、SCREEN_FIT を 0.97 から
+       0.70 に下げ、正面でも上下左右に会場の絵が見えるようにした。
+       見回しの移動範囲は apply() が新しいスケールで再計算する。
+   (2) ボタンの整理: ドックのボタンを VR アプリ風のアイコン主体の
+       4つだけにした（会場切替＝会場名を小さく併記／傾きで見る／
+       正面に戻す／全画面）。「ジャイロ調整」ボタンと調整パネル、
+       「会場モードを終わる」ボタンを削除した（オン/オフはモードバーの
+       トグルで足りる）。調整値は確定値（補正×2.00・感度×1.00・
+       デッドバンド×1.0）を tuneVal の固定値として内部に残す。
+       ジャイロ許可エラー等の連絡は、ドック内の小さな注記行
+       （.vn-note）に出す。
+   (3) 正面に戻すボタン（リセンター）: タップすると基準（target/
+       targetP）とドラッグオフセットを 0 に戻し、ジャイロの基準も
+       次のセンサーイベントで取り直す（gyroRecal）。視点は loop の
+       イージングでクッと中央へ戻る。
+   (4) ジャイロ中もドラッグ可: ドラッグは target を直接書き換えず
+       専用オフセット（dragX/dragP）に加算し、実際の視点は
+       target＋オフセットで決める合成方式にした。ジャイロが target を
+       更新してもオフセットは保持され、離しても残る。リセンターで消える。
+   (5) 会場モード中のカード位置（追加指示）: バブル以外の見せ方では
+       カードが枠の下部に出て映像との目の移動が忙しいため、会場モード中
+       だけカードの定位置を枠の縦中央付近へ上げる CSS を足した
+       （.p2c は bottom:calc(50% - 26px)、スタックの #cards は
+       bottom:calc(50% - 30px)）。入場トランジションは各見せ方のものを
+       そのまま使うので、下から中央へパッと上がる動きになる。
+       バブル（.p2bub）とストリームのココ好き!（.k-koko、上部表示）は
+       対象外。app.js には触っていない。
+   v6 以前の経緯:
+   v6 では実機で出た「会場全画面にすると真っ暗になる」バグを直した。
    v5 では祐治の実機確認で出た2点＋初期状態の仕様変更に対応した:
    (1) 縦の見回しが逆だった（上を見ているつもりで視点が下へ、下で
        上へ）。ジャイロの縦（pitch）の符号を反転し、ドラッグの縦も
@@ -75,11 +106,13 @@
      モードバー等）は通常表示のまま一切変えない。
    - 枠の中では、会場の背景絵が広がり、YouTube 映像（#yt）が絵の中の
      スクリーン位置に重なる。正面を向いたとき、絵の中のスクリーン幅が
-     枠の幅の約97%になり、少しだけ会場の縁が見える。
+     枠の幅の約70%になり、上下左右に会場の絵が見える（v7 で広角化。
+     v6 までは約97%で会場がほとんど見えなかった）。
    - 見回し: 横はコンパス方位（開始方位からの相対）、縦は傾き。ドラッグ
-     でも見回せる。世界は枠からはみ出さない（#mv の overflow:hidden で
-     クリップ）。手ブレ補正の標準は ×2.00。ジャイロ調整スライダー
-     （補正の強さ・感度・デッドバンド、初期値に戻す付き）を持つ。
+     でも見回せる（ジャイロ中もドラッグオフセットとして効く、v7）。
+     世界は枠からはみ出さない（#mv の overflow:hidden でクリップ）。
+     手ブレ補正などの調整値は確定値（補正×2.00・感度×1.00・
+     デッドバンド×1.0）で固定（v7 で調整パネルは廃止）。
    - 会場モード専用の「全画面」ボタンを押したときだけ、枠ごと（会場
      背景＋映像の構図のまま）全画面に広がる（.vnfs の固定表示方式）。
      アプリ既存の全画面（#mv.fs + Fullscreen API）とは競合させない:
@@ -119,6 +152,16 @@
     // 会場全画面: #mv の中のアプリ側の重なりも隠し、会場の光景と
     // 会場UI（ドック）だけにする。#yt と .vn-world と .vn-dock は残す。
     "#mv.vnfs #cards,#mv.vnfs #panel,#mv.vnfs #intro,#mv.vnfs #kokos,#mv.vnfs #pen,#mv.vnfs .crowd{display:none!important}",
+    // 会場モード中のカード位置（v7 追加分）: バブル以外の見せ方では
+    // カードが枠の下部に出て、映像との間で目の移動が忙しい。会場モード中
+    // だけ、カードの定位置を枠の縦中央付近まで上げる。各見せ方が持つ
+    // 入場トランジション（下からスライド/ポップ）はそのまま活き、
+    // 下から中央へパッと上がる動きになる。バブル（.p2bub）は現状で
+    // よいとの判断で対象外。ストリームのココ好き!（.k-koko）は
+    // もともと上部表示なので対象外。スタック見せ方（#cards）も
+    // 同様に中央付近へ上げる（会場全画面では従来どおり非表示）。
+    "#mv.vn .p2c:not(.k-koko){bottom:calc(50% - 26px)}",
+    "#mv.vn #cards{bottom:calc(50% - 30px)}",
     // 会場全画面（v6）: 非表示は補助に留め、正しい階層だけを対象にする。
     // 実DOM は body > #app > #mvwrap > #mv。v5 の
     // 「body.vn-fs>*:not(#mvwrap)」は #app 自体を消して真っ暗になるため
@@ -134,19 +177,17 @@
     "#mv.vn + .vn-dock{display:block}",
     "#mv.vnfs .vn-dock{display:block;position:absolute;left:10px;right:10px;bottom:10px;z-index:56;margin-top:0}",
     ".vn-dockrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}",
-    ".vn-badge{display:inline-flex;background:rgba(10,12,16,.55);border:1px solid rgba(147,167,196,.45);border-radius:999px;padding:3px 12px;color:#cfd9e8;font-size:.8rem;pointer-events:none}",
-    ".vn-ui{display:flex;flex-wrap:wrap;gap:6px}",
-    ".vn-ui button{min-height:34px;padding:5px 11px;font-size:.8rem;border-radius:999px;background:rgba(10,12,16,.72);border:1px solid rgba(147,167,196,.55);color:#eef2f8;font:inherit;cursor:pointer}",
-    ".vn-ui button[aria-pressed=\"true\"]{background:#e4572e;border-color:#e4572e;color:#fff;font-weight:700}",
-    ".vn-ui .vn-venue{font-weight:700}",
-    ".vn-tune{display:none;margin-top:8px;background:rgba(14,16,28,.94);border:1px solid rgba(147,167,196,.45);border-radius:12px;padding:10px 12px;color:#eef2f8;font-size:.85rem}",
-    ".vn-tune.open{display:block}",
-    ".vn-tune .vrow{display:flex;align-items:center;gap:10px;margin:7px 0}",
-    ".vn-tune label{white-space:nowrap;min-width:5.6em;font-size:.82rem}",
-    ".vn-tune input[type=range]{flex:1;min-height:32px;min-width:110px}",
-    ".vn-val{font-variant-numeric:tabular-nums;font-weight:700;min-width:3.6em;font-size:.88rem}",
-    ".vn-tune button{min-height:32px;padding:4px 12px;font-size:.8rem;border-radius:9px;background:#21243d;border:1px solid rgba(147,167,196,.55);color:#eef2f8;font:inherit;cursor:pointer}",
-    ".vn-tune .vnote{font-size:.76rem;color:#a7abb5;line-height:1.5;margin-top:6px}",
+    // v7: ドックのボタンは VR アプリ風のアイコン主体で4つだけにする
+    ".vn-ui{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}",
+    ".vn-ui button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:54px;min-height:54px;padding:6px 8px;border-radius:14px;background:rgba(10,12,16,.72);border:1px solid rgba(147,167,196,.55);color:#eef2f8;font:inherit;cursor:pointer}",
+    ".vn-ui button svg{width:22px;height:22px;flex:none}",
+    ".vn-ui button .vn-cap{font-size:.62rem;line-height:1.15;letter-spacing:.02em}",
+    ".vn-ui button[aria-pressed=\"true\"]{background:#e4572e;border-color:#e4572e;color:#fff}",
+    ".vn-ui .vn-venue{min-width:84px}",
+    ".vn-ui .vn-venue .vn-cap{font-size:.74rem;font-weight:700}",
+    // ジャイロ許可エラー等の連絡用（v7: 調整パネル廃止に伴い新設）
+    ".vn-note{display:none;margin-top:6px;font-size:.78rem;color:#ffd9a8}",
+    ".vn-note.show{display:block}",
     "#venueBtn{min-height:44px;padding:10px 20px;border-radius:999px;font-size:1rem;font-weight:900;letter-spacing:.03em;border:2px solid #ff7ab8;color:#ff7ab8;background:rgba(255,122,184,.14)}",
     "#venueBtn.on{background:#ff7ab8;border-color:#ff7ab8;color:#14152b;box-shadow:0 0 0 3px rgba(255,122,184,.35),0 4px 14px rgba(255,122,184,.45)}"
   ].join("\n");
@@ -176,37 +217,34 @@
   dock.appendChild(dockRow);
   mv.parentNode.insertBefore(dock, mv.nextSibling);
 
-  var badge = document.createElement("div");
-  badge.className = "vn-badge";
-  badge.textContent = "ライブハウス";
-  dockRow.appendChild(badge);
-
-  var tune = document.createElement("div");
-  tune.className = "vn-tune";
-  tune.id = "vnTune";
-  tune.innerHTML =
-    '<div class="vrow"><label for="vnTuneSmooth">補正の強さ</label>' +
-    '<input type="range" id="vnTuneSmooth" min="0.5" max="4" step="0.05" value="2">' +
-    '<span class="vn-val" id="vnTuneSmoothVal">×2.00</span></div>' +
-    '<div class="vrow"><label for="vnTuneSens">感度</label>' +
-    '<input type="range" id="vnTuneSens" min="0.5" max="2" step="0.05" value="1">' +
-    '<span class="vn-val" id="vnTuneSensVal">×1.00</span></div>' +
-    '<div class="vrow"><label for="vnTuneDead">デッドバンド</label>' +
-    '<input type="range" id="vnTuneDead" min="0" max="3" step="0.1" value="1">' +
-    '<span class="vn-val" id="vnTuneDeadVal">×1.0</span></div>' +
-    '<div class="vrow"><button type="button" id="vnTuneReset">初期値に戻す</button></div>' +
-    '<div class="vnote" id="vnGyroStatus">スライダーを動かすと、その場でジャイロの効き方が変わります。標準は補正の強さ×2.00・感度×1.00・デッドバンド×1.0です。</div>';
-  dock.appendChild(tune);
+  // v7: ドックのボタンはアイコン主体の4つだけ（会場切替／傾きで見る／
+  // 正面に戻す／全画面）。会場名は会場切替ボタンの中に小さく併記する。
+  // 「ジャイロ調整」「会場モードを終わる」は廃止（オン/オフはモードバーの
+  // トグルで足りる）。ジャイロ許可エラー等の連絡は .vn-note の行に出す。
+  var SVG_HEAD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+  var ICO_VENUE = SVG_HEAD + '<path d="M4 21V11l8-6 8 6v10"/><path d="M2.5 21h19"/><path d="M10 21v-5h4v5"/></svg>';
+  var ICO_GYRO = SVG_HEAD + '<circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2.3 4.9-4.7 2.1 2.3-4.9z"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>';
+  var ICO_CENTER = SVG_HEAD + '<circle cx="12" cy="12" r="6.2"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><path d="M12 2.5v3.8M12 17.7v3.8M2.5 12h3.8M17.7 12h3.8"/></svg>';
+  var ICO_FS = SVG_HEAD + '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
+  var ICO_FSB = SVG_HEAD + '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>';
 
   var ui = document.createElement("div");
   ui.className = "vn-ui";
   ui.innerHTML =
-    '<button type="button" class="vn-venue" id="vnVenueBtn" aria-label="会場を切り替える（タップするたびに次の会場へ）">会場：ライブハウス ›</button>' +
-    '<button type="button" id="vnGyroBtn" aria-pressed="false">傾きで見る</button>' +
-    '<button type="button" id="vnTuneBtn" aria-expanded="false">ジャイロ調整</button>' +
-    '<button type="button" id="vnFsBtn" aria-pressed="false">全画面</button>' +
-    '<button type="button" id="vnExitBtn">会場モードを終わる</button>';
+    '<button type="button" class="vn-venue" id="vnVenueBtn" aria-label="会場を切り替える（タップするたびに次の会場へ）">' + ICO_VENUE + '<span class="vn-cap" id="vnVenueName">ライブハウス</span></button>' +
+    '<button type="button" id="vnGyroBtn" aria-pressed="false" aria-label="傾きで見る（ジャイロ）">' + ICO_GYRO + '<span class="vn-cap">傾き</span></button>' +
+    '<button type="button" id="vnCenterBtn" aria-label="正面に戻す">' + ICO_CENTER + '<span class="vn-cap">正面</span></button>' +
+    '<button type="button" id="vnFsBtn" aria-pressed="false" aria-label="全画面">' + ICO_FS + '<span class="vn-cap">全画面</span></button>';
   dockRow.appendChild(ui);
+
+  var note = document.createElement("div");
+  note.className = "vn-note";
+  note.id = "vnNote";
+  dock.appendChild(note);
+  function showNote(msg) {
+    note.textContent = msg || "";
+    note.classList.toggle("show", !!msg);
+  }
 
   // 再生画面のモードバーにトグルを追加（分かりやすい大きめボタンにする）
   var toggleBtn = document.createElement("button");
@@ -243,11 +281,15 @@
     savedStyle = null;
   }
   var venueBtn = document.getElementById("vnVenueBtn");
+  var venueName = document.getElementById("vnVenueName");
   var gyroBtn = document.getElementById("vnGyroBtn");
-  var tuneBtn = document.getElementById("vnTuneBtn");
+  var centerBtn = document.getElementById("vnCenterBtn");
   var fsBtn = document.getElementById("vnFsBtn");
-  var exitBtn = document.getElementById("vnExitBtn");
-  var gyroStatus = document.getElementById("vnGyroStatus");
+  function setFsIcon(back) {
+    fsBtn.innerHTML = (back ? ICO_FSB : ICO_FS) +
+      '<span class="vn-cap">' + (back ? "戻す" : "全画面") + "</span>";
+    fsBtn.setAttribute("aria-label", back ? "全画面を戻す" : "全画面");
+  }
 
   /* ---------- 会場データ（デモで実測した PAINT をそのまま使う） ---------- */
   var VENUES = [
@@ -325,8 +367,7 @@
     frameIdx = 0;
     var s = curSrc(V);
     if (img.getAttribute("src") !== s) img.src = s;
-    venueBtn.textContent = "会場：" + V.name + " ›";
-    badge.textContent = V.name;
+    venueName.textContent = V.name;
     startFrames();
     apply();
   }
@@ -341,10 +382,17 @@
   var gyroBaseH = null, gyroBaseY = null;
   var gyroSH = null, gyroSY = null;
   var gyroAngle = null, gyroRecal = false;
+  // 調整値は確定値で固定する（v7 でジャイロ調整パネルを廃止）
   var tuneVal = { smooth: 2, sens: 1, dead: 1 };
   var rafId = null;
   var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var SCREEN_FIT = 0.97;
+  var SCREEN_FIT = 0.70; // v7: 広角化（v6 までは 0.97 で会場がほぼ見えなかった）
+  // ドラッグによる視点オフセット（度、v7）。ジャイロが決める target とは
+  // 別に持ち、実際の視点は target＋オフセットで決める。ジャイロ中でも
+  // ドラッグが効き、離しても保持される。リセンターで 0 に戻る。
+  var dragX = 0, dragP = 0;
+  function viewTarget() { return clamp(target + dragX, -90, 90); }
+  function viewTargetP() { return clamp(targetP + dragP, -35, 35); }
   var VIDEO_MARGIN = 1.03; // 映像を代表 PAINT より一回り大きく置く倍率（v4）
 
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -353,8 +401,8 @@
 
   // 枠（#mv の現在の表示サイズ）の中に世界を置く。
   // 正面では絵の中のスクリーン中心が枠の中心に来て、スクリーン幅が
-  // 枠幅の約97%になる大きさにする（縦長絵でスクリーン高さが枠高さを
-  // 超える場合は、スクリーン全体が枠に収まるよう少し縮める）。
+  // 枠幅の約70%になる大きさにする（v7 の広角化。縦長絵でスクリーン
+  // 高さが枠高さを超える場合は、スクリーン全体が枠に収まるよう少し縮める）。
   // 見回しの移動量は「世界が枠を覆い続けられる範囲」に制限する。
   function apply() {
     if (!on) return;
@@ -420,12 +468,14 @@
 
   function loop() {
     if (!on) { rafId = null; return; }
+    var vt = viewTarget();   // ジャイロ等の target ＋ ドラッグオフセット
+    var vtp = viewTargetP();
     if (reduced) {
-      current = target;
-      currentP = targetP;
+      current = vt;
+      currentP = vtp;
     } else {
-      var dx = target - current;
-      var dy = targetP - currentP;
+      var dx = vt - current;
+      var dy = vtp - currentP;
       var portraitNow = mv.clientHeight > mv.clientWidth;
       var fx = ((portraitNow ? 0.026 : 0.042) + Math.min(0.14, Math.abs(dx) * 0.0045)) / tuneVal.smooth;
       var fy = (0.06 + Math.min(0.16, Math.abs(dy) * 0.006)) / tuneVal.smooth;
@@ -436,8 +486,8 @@
       current += stepX;
       currentP += dy * fy;
     }
-    if (Math.abs(target - current) < 0.02) current = target;
-    if (Math.abs(targetP - currentP) < 0.02) currentP = targetP;
+    if (Math.abs(vt - current) < 0.02) current = vt;
+    if (Math.abs(vtp - currentP) < 0.02) currentP = vtp;
     apply();
     rafId = requestAnimationFrame(loop);
   }
@@ -447,7 +497,7 @@
   mv.addEventListener("pointerdown", function (e) {
     if (!on) return;
     if (e.target && e.target.closest &&
-        e.target.closest("button, a, input, select, textarea, #panel, .vn-ui, .vn-tune, .vn-dock")) return;
+        e.target.closest("button, a, input, select, textarea, #panel, .vn-ui, .vn-dock")) return;
     dragging = true; lastX = e.clientX; lastY = e.clientY;
     try { mv.setPointerCapture(e.pointerId); } catch (err) {}
   });
@@ -456,9 +506,11 @@
     var dx = e.clientX - lastX;
     var dy = e.clientY - lastY;
     lastX = e.clientX; lastY = e.clientY;
-    setTarget(target - dx * 0.20);
-    // 縦は v5 で符号を反転しジャイロと感覚を揃えた（指を上に送れば視点も上）
-    setTargetP(targetP - dy * 0.12);
+    // v7: ジャイロの target は書き換えず、ドラッグオフセットに加算する
+    // （ジャイロ中でも効き、指を離しても保持される。リセンターで消える）。
+    // 符号は従来どおり（縦は v5 の反転済みの感覚: 指を上に送れば視点も上）。
+    dragX = clamp(dragX - dx * 0.20, -180, 180);
+    dragP = clamp(dragP - dy * 0.12, -70, 70);
   });
   function endDrag() { dragging = false; }
   mv.addEventListener("pointerup", endDrag);
@@ -548,7 +600,6 @@
     gyroSH = null; gyroSY = null;
     gyroAngle = null; gyroRecal = false;
     gyroBtn.setAttribute("aria-pressed", "false");
-    gyroBtn.textContent = "傾きで見る";
     window.removeEventListener("deviceorientation", onOrient);
   }
   gyroBtn.addEventListener("click", function () {
@@ -559,31 +610,31 @@
       gyroSH = null; gyroSY = null;
       gyroAngle = null; gyroRecal = false;
       gyroBtn.setAttribute("aria-pressed", "true");
-      gyroBtn.textContent = "傾きで見る：ON";
-      gyroStatus.textContent = "端末を向けた方向（方角）の景色が見えます（横ブレを抑える補正入り）。標準は補正の強さ×2.00・感度×1.00・デッドバンド×1.0です。";
+      showNote("");
       window.addEventListener("deviceorientation", onOrient);
     }
     if (typeof DeviceOrientationEvent !== "undefined" &&
         typeof DeviceOrientationEvent.requestPermission === "function") {
       DeviceOrientationEvent.requestPermission().then(function (res) {
         if (res === "granted") start();
-        else {
-          gyroStatus.textContent = "許可されなかったので、ドラッグで見回してください。";
-          tune.classList.add("open");
-          tuneBtn.setAttribute("aria-expanded", "true");
-        }
+        else showNote("傾きが許可されなかったので、ドラッグで見回してください。");
       }).catch(function () {
-        gyroStatus.textContent = "この端末では傾きが使えませんでした。";
-        tune.classList.add("open");
-        tuneBtn.setAttribute("aria-expanded", "true");
+        showNote("この端末では傾きが使えませんでした。");
       });
     } else if (typeof DeviceOrientationEvent !== "undefined") {
       start();
     } else {
-      gyroStatus.textContent = "この端末・ブラウザでは傾きが使えません。";
-      tune.classList.add("open");
-      tuneBtn.setAttribute("aria-expanded", "true");
+      showNote("この端末・ブラウザでは傾きが使えません。");
     }
+  });
+
+  /* 正面に戻す（リセンター、v7）: 基準とドラッグオフセットを 0 に戻し、
+     ジャイロの基準は次のセンサーイベントで取り直す。視点そのものは
+     loop のイージングでクッと中央へ戻る。 */
+  centerBtn.addEventListener("click", function () {
+    target = 0; targetP = 0;
+    dragX = 0; dragP = 0;
+    gyroRecal = true;
   });
   window.addEventListener("orientationchange", function () { gyroRecal = true; });
   if (window.screen && window.screen.orientation &&
@@ -592,49 +643,18 @@
   }
   window.addEventListener("resize", function () { if (on) apply(); });
 
-  /* ---------- ジャイロ調整パネル ---------- */
-  tuneBtn.addEventListener("click", function () {
-    var open = !tune.classList.contains("open");
-    tune.classList.toggle("open", open);
-    tuneBtn.setAttribute("aria-expanded", String(open));
-    tuneBtn.textContent = open ? "ジャイロ調整を閉じる" : "ジャイロ調整";
-  });
-  function bindTune(id, valId, key, digits) {
-    var input = document.getElementById(id);
-    var val = document.getElementById(valId);
-    function sync() {
-      var v = parseFloat(input.value);
-      tuneVal[key] = v;
-      val.textContent = "×" + v.toFixed(digits);
-    }
-    input.addEventListener("input", sync);
-    sync();
-    return input;
-  }
-  var tuneSmoothInput = bindTune("vnTuneSmooth", "vnTuneSmoothVal", "smooth", 2);
-  var tuneSensInput = bindTune("vnTuneSens", "vnTuneSensVal", "sens", 2);
-  var tuneDeadInput = bindTune("vnTuneDead", "vnTuneDeadVal", "dead", 1);
-  document.getElementById("vnTuneReset").addEventListener("click", function () {
-    tuneSmoothInput.value = "2";
-    tuneSensInput.value = "1";
-    tuneDeadInput.value = "1";
-    tuneSmoothInput.dispatchEvent(new Event("input"));
-    tuneSensInput.dispatchEvent(new Event("input"));
-    tuneDeadInput.dispatchEvent(new Event("input"));
-  });
-
   /* ---------- 会場モード専用の全画面 ----------
      押したときだけ枠ごと全画面に広げる。アプリ既存の全画面
      （#mv.fs + Fullscreen API）とは別系統で、競合させない。 */
   function fsEnter() {
     if (!on || fsOn) return;
     fsOn = true;
-    mv.appendChild(dock); // ドック（ラベル・ボタン列・調整）も枠の中へ
+    mv.appendChild(dock); // ドック（ボタン列）も枠の中へ
     mv.classList.add("vnfs");
     document.body.classList.add("vn-fs"); // v6: #app 直下（#mvwrap 以外）等を補助的に隠す
     document.body.style.overflow = "hidden";
     fsBtn.setAttribute("aria-pressed", "true");
-    fsBtn.textContent = "全画面を戻す";
+    setFsIcon(true);
     gyroRecal = true;
     apply();
   }
@@ -646,7 +666,7 @@
     document.body.classList.remove("vn-fs");
     document.body.style.overflow = "";
     fsBtn.setAttribute("aria-pressed", "false");
-    fsBtn.textContent = "全画面";
+    setFsIcon(false);
     gyroRecal = true;
     apply();
   }
@@ -668,6 +688,7 @@
     toggleBtn.setAttribute("aria-pressed", "true");
     toggleBtn.textContent = "会場モード ON";
     target = 0; current = 0; targetP = 0; currentP = 0;
+    dragX = 0; dragP = 0;
     setVenue(venueIdx);
     apply();
     if (rafId === null) rafId = requestAnimationFrame(loop);
@@ -682,14 +703,11 @@
     toggleBtn.classList.remove("on");
     toggleBtn.setAttribute("aria-pressed", "false");
     toggleBtn.textContent = "会場モード";
-    tune.classList.remove("open");
-    tuneBtn.setAttribute("aria-expanded", "false");
-    tuneBtn.textContent = "ジャイロ調整";
+    showNote("");
     restoreYt();
     world.style.transform = "";
   }
   toggleBtn.addEventListener("click", function () { if (on) exit(); else enter(); });
-  exitBtn.addEventListener("click", exit);
 
   // 作成画面・シェアポイント作成画面へ移ったら自動で終える。
   // 逆に再生画面へ入ったら会場モードONで始める（v5 の初期状態仕様）。
