@@ -398,7 +398,7 @@
   <body>
     <main>
       <h1>会場モード デモ</h1>
-      <p class="lead">再生画面をライブハウスの備え付けスクリーンにしたら、どんな感じになるかを見るための試作です。背景は実写風のパノラマ画像で、視点は横180°に加えて上下にも見回せます。スクリーンはステージの床から天井まで届く大きさのままで、手前（下側）には正面を含む観客の頭と肩のシルエットが何人かはっきり入り、ペンライトを持つ人もいて、ライブハウスらしい臨場感を出しています。中央のスクリーンには、ももクロコールアプリで「走れ!」に登録されている本物の YouTube 動画を、絵の中のスクリーンの位置にぴったり重ねて埋め込んでいます。見回すとスクリーンごと視界の中を動いて端へずれていきます。全画面表示にも対応し、縦向きでは見える窓が縦長になる形に切り替わります。</p>
+      <p class="lead">再生画面をライブハウスの備え付けスクリーンにしたら、どんな感じになるかを見るための試作です。背景は実写風のパノラマ画像で、視点は横180°に加えて上下にも見回せます。スクリーンの幅は、縦向きで正面を向いたときにスマホの横幅へちょうど収まる大きさにし、下端の位置（床からの高さ）は今までどおりに保っています。手前（下側）には正面を含む観客の頭と肩のシルエットが何人かはっきり入り、ペンライトを持つ人もいて、ライブハウスらしい臨場感を出しています。中央のスクリーンには、ももクロコールアプリで「走れ!」に登録されている本物の YouTube 動画を、絵の中のスクリーンの位置にぴったり重ねて埋め込んでいます。見回すとスクリーンごと視界の中を動いて端へずれていきます。全画面表示にも対応し、縦向きでは見える窓が縦長になる形に切り替わります。</p>
 
       <section class="stage" id="stage" aria-label="会場モードのプレビュー。ドラッグで上下左右を見回せます">
         <!-- 背景：実写風パノラマ写真（ライブハウス・横に長い1枚絵） -->
@@ -411,7 +411,7 @@
           <div class="screen-bob">
             <div class="screen-tilt" id="screenTilt">
               <div class="screen" id="screenBox">
-                <iframe id="ytPlayer" src="https://www.youtube.com/embed/tCD81ACqUYk?rel=0&amp;playsinline=1" title="ももいろクローバーZ「走れ!」 YouTube動画" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                <iframe id="ytPlayer" src="https://www.youtube.com/embed/tCD81ACqUYk?rel=0&amp;playsinline=1&amp;enablejsapi=1" title="ももいろクローバーZ「走れ!」 YouTube動画" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
               </div>
             </div>
           </div>
@@ -434,6 +434,7 @@
       <section class="controls" aria-label="操作">
         <div class="row">
           <button type="button" class="primary" id="playBtn">▶ コールを出す</button>
+          <button type="button" id="ytPlayBtn" aria-pressed="false">▶ YouTube動画を再生</button>
           <button type="button" id="venueBtn" aria-pressed="true">会場モード：ON</button>
           <button type="button" id="gyroBtn" aria-pressed="false">端末の傾きで見る</button>
           <span class="gyro-status" id="gyroStatus"></span>
@@ -462,10 +463,11 @@
           <button type="button" data-pitch="0">正面の高さに戻す</button>
           <button type="button" data-pitch="-35">下を見る（客席）</button>
         </div>
-        <p class="hint">動画の再生は、スクリーンの中の YouTube プレイヤーを直接タップ／クリックしてください。会場の上をドラッグしても見回せます（上下も）。動画は絵の中の会場スクリーンに重ねて固定されているので、横や上を向くとスクリーンごと視界の端へずれ、向きを戻すとまた見えます。「コールを出す」を押すと、従来のデモのタイミングでコールのカードが画面のまわりに湧いて出ます（動画の再生位置とは連動しません）。横の見回しは端末の「傾け」ではなく「方角（向き）」で動きます。正面から端末を90度左へ向ければ左の景色が見え、右へ向ければ右の景色が見える、という向きの合わせ方で、開始したときの向きを正面として、そこからの方角の変化で見回します。上下の見回しは従来どおり傾けで動きます。方角で見回すので、全画面で横向きになっても途中で反応が止まることはありません（iPhoneではボタンを押したあと許可が必要です）。方角センサーは細かく震えるので、横方向の平滑化を強めてあります。センサーの細かい震えは広めに捨て、目標の小さな揺れは視点に伝えず、視点の横移動にも上限を付けているので、横にグラグラしにくくなっています（大きく向けたときの見回しはそのままです）。「全画面で見る」ボタンで会場だけを画面いっぱいにできます。本物の全画面が使えない環境（アプリ内の枠で開いている場合など）では、自動で疑似全画面（表示領域いっぱいに広げる方式）に切り替わり、その旨がステージの上に表示されます。疑似全画面はステージ右下のボタンか Esc キーで終わります。背景と画面は一体で動くので、見回してもゆったり落ち着いて感じられます。スクリーンで再生できない場合は、<a href="https://www.youtube.com/watch?v=tCD81ACqUYk" target="_blank" rel="noopener">YouTubeで「走れ!」を開く</a>からも見られます。</p>
+        <p class="hint">動画の再生・一時停止は、操作エリアの「YouTube動画を再生」ボタンでも、スクリーンの中の YouTube プレイヤーを直接タップ／クリックしてもできます。会場の上をドラッグしても見回せます（上下も）。動画は絵の中の会場スクリーンに重ねて固定されているので、横や上を向くとスクリーンごと視界の端へずれ、向きを戻すとまた見えます。「コールを出す」を押すと、従来のデモのタイミングでコールのカードが画面のまわりに湧いて出ます（動画の再生位置とは連動しません）。横の見回しは端末の「傾け」ではなく「方角（向き）」で動きます。正面から端末を90度左へ向ければ左の景色が見え、右へ向ければ右の景色が見える、という向きの合わせ方で、開始したときの向きを正面として、そこからの方角の変化で見回します。上下の見回しは従来どおり傾けで動きます。方角で見回すので、全画面で横向きになっても途中で反応が止まることはありません（iPhoneではボタンを押したあと許可が必要です）。方角センサーは細かく震えるので、横方向には平滑化の補正を入れてあります。補正は以前より緩めてあり、向けた方向へ素直に追従しながら、センサーの細かい震えはデッドバンドで捨て、視点の横移動にも上限を付けて抑えます。「全画面で見る」ボタンで会場だけを画面いっぱいにできます。本物の全画面が使えない環境（アプリ内の枠で開いている場合など）では、自動で疑似全画面（表示領域いっぱいに広げる方式）に切り替わり、その旨がステージの上に表示されます。疑似全画面はステージ右下のボタンか Esc キーで終わります。背景と画面は一体で動くので、見回してもゆったり落ち着いて感じられます。スクリーンで再生できない場合は、<a href="https://www.youtube.com/watch?v=tCD81ACqUYk" target="_blank" rel="noopener">YouTubeで「走れ!」を開く</a>からも見られます。</p>
       </section>
     </main>
 
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
       (function () {
         var stage = document.getElementById('stage');
@@ -477,6 +479,7 @@
         var range = document.getElementById('angleRange');
         var pitchRange = document.getElementById('pitchRange');
         var playBtn = document.getElementById('playBtn');
+        var ytPlayBtn = document.getElementById('ytPlayBtn');
         var venueBtn = document.getElementById('venueBtn');
         var gyroBtn = document.getElementById('gyroBtn');
         var gyroStatus = document.getElementById('gyroStatus');
@@ -506,27 +509,53 @@
         function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
         // 絵の中の無地スクリーンの位置（写真全体に対する割合）
-        // 新しい絵 v3（床から天井までの大型スクリーン＋手前に正面を含む観客の頭と肩、
-        // ペンライトを持つ人もいる）で visual grounding 実測：
-        // bbox x 258–808 / y 152–849（0–1000正規化）→ 割合に換算
-        var PAINT = { x: 0.258, y: 0.152, w: 0.550, h: 0.697 };
+        // visual grounding の実測2回（x 258–808 / y 152–849 と x 266–808 / y 139–839、
+        // いずれも0–1000正規化）の平均 → 割合に換算
+        var PAINT = { x: 0.262, y: 0.145, w: 0.546, h: 0.695 };
+
+        // スクリーン幅の目安：正面を向いたとき、ステージ幅の 97% に収める
+        // （枠の影の分も含めて、スマホの横幅へギリギリ入る程度）
+        var SCREEN_FIT = 0.97;
 
         function apply() {
           var w = stage.clientWidth;
           var h = stage.clientHeight;
-          // 写真レイヤーはステージより大きく、中央合わせを基準にパンする。
-          // パン範囲は写真のはみ出し分いっぱい（＝写真のアスペクトに合わせた範囲）
-          // 大きさは向きで変える：横向きは高さ基準（従来の没入表示）、縦向きは幅基準に
-          // して、縦長の窓でもスクリーンが収まり、横パンの幅（＝横ブレの見え方）も抑える
-          var Lw, Lh;
-          if (h > w) { Lw = w * 3.35; Lh = Lw * 3 / 7; }
-          else { Lh = h * 1.5; Lw = Lh * 7 / 3; }
+          // 写真レイヤーの大きさと置き方：
+          // ・縦向き：写真の幅は「絵のスクリーンがステージ幅にちょうど収まる」大きさにし、
+          //   横はスクリーンが中央に来るよう、下端は従来レイアウト（幅3.35倍・中央寄せ）
+          //   でのスクリーン下端の位置に合わせて置く（床からの高さは従来どおり）。
+          //   写真の高さは縦横比（7:3）から決まる
+          // ・横向き：従来どおり高さ基準。ただしスクリーンがステージ幅を超える場合は
+          //   縦向きと同じ幅に抑えてスクリーン中央寄せにする（今より小さく見えてよい）
+          var paintCx = PAINT.x + PAINT.w / 2;
+          var Lw, Lh, baseX, baseY, maxX, maxY;
+          if (h > w) {
+            Lw = w * SCREEN_FIT / PAINT.w;
+            Lh = Lw * 3 / 7;
+            var oldLh = w * 3.35 * 3 / 7;
+            var oldScreenBottom = (h - oldLh) / 2 + oldLh * (PAINT.y + PAINT.h);
+            baseX = w / 2 - Lw * paintCx;
+            baseY = oldScreenBottom - Lh * (PAINT.y + PAINT.h);
+            maxX = Math.max(0, (Lw - w) / 2 - Lw * (paintCx - 0.5));
+            maxY = Math.max(0, (h - Lh) / 2);
+          } else {
+            Lh = h * 1.5;
+            Lw = Lh * 7 / 3;
+            var fitLw = w * SCREEN_FIT / PAINT.w;
+            if (Lw > fitLw) {
+              Lw = fitLw;
+              Lh = Lw * 3 / 7;
+              baseX = w / 2 - Lw * paintCx;
+              maxX = Math.max(0, (Lw - w) / 2 - Lw * (paintCx - 0.5));
+            } else {
+              baseX = (w - Lw) / 2;
+              maxX = Math.max(0, (Lw - w) / 2);
+            }
+            baseY = (h - Lh) / 2;
+            maxY = Math.abs(Lh - h) / 2;
+          }
           layerBack.style.width = Lw + 'px';
           layerBack.style.height = Lh + 'px';
-          var baseX = (w - Lw) / 2;
-          var baseY = (h - Lh) / 2;
-          var maxX = Math.max(0, (Lw - w) / 2);
-          var maxY = Math.max(0, (Lh - h) / 2);
           var shiftX = (current / 90) * maxX;
           var shiftY = (currentP / 35) * maxY;
           layerBack.style.transform =
@@ -571,16 +600,16 @@
             currentP = targetP;
           } else {
             // 手ブレ補正：大きく動かしたときは速く、小さな震えにはゆっくり追従する
-            // 横方向はブレが目立つので、縦より平滑化を強めて鈍く落ち着かせる。
-            // 縦向きではさらに鈍くし、1フレームの横移動に上限を付けて、
+            // 横方向はブレが目立つので縦より平滑化を効かせるが、以前より緩めて
+            // 追従を素直にした。1フレームの横移動には上限を付け、
             // センサーの一瞬の跳ねが視点の跳ねにならないようにする
             var dx = target - current;
             var dy = targetP - currentP;
             var portraitNow = stage.clientHeight > stage.clientWidth;
-            var fx = (portraitNow ? 0.016 : 0.028) + Math.min(0.10, Math.abs(dx) * 0.0032);
-            var fy = 0.045 + Math.min(0.13, Math.abs(dy) * 0.005);
+            var fx = (portraitNow ? 0.026 : 0.042) + Math.min(0.14, Math.abs(dx) * 0.0045);
+            var fy = 0.06 + Math.min(0.16, Math.abs(dy) * 0.006);
             var stepX = dx * fx;
-            var capX = portraitNow ? 0.9 : 1.5;
+            var capX = portraitNow ? 1.3 : 2.2;
             if (stepX > capX) stepX = capX;
             if (stepX < -capX) stepX = -capX;
             current += stepX;
@@ -717,7 +746,7 @@
            コンパス方位（北=0・時計回り）へ直して使い、iOS では
            webkitCompassHeading（そのままコンパス方位）を優先する。
            開始時点の方位を基準に、そこからの相対変化で横パンを決める。
-           alpha はノイズが多いので、横チャンネルは平滑化を強め、
+           alpha はノイズが多いので、横チャンネルには平滑化をかけ、
            360度境界は最短方向でつなぐ（ラップアラウンド処理）。
            縦の見回しは従来どおり傾き（pitch）系：beta/gamma は端末座標
            なので、画面の向きに合わせて画面座標へ直してから使う。
@@ -750,22 +779,22 @@
         function smoothSensor(prev, raw) {
           if (prev === null) return raw;
           var d = raw - prev;
-          if (Math.abs(d) < 0.12) return prev; // デッドバンド：センサーの細かい震えは捨てる
+          if (Math.abs(d) < 0.08) return prev; // デッドバンド：センサーの細かい震えは捨てる
           // 大きく傾けたら速く、小さな揺れはなめらかに（ローパス）
-          var a = 0.10 + Math.min(0.35, Math.abs(d) * 0.05);
+          var a = 0.14 + Math.min(0.40, Math.abs(d) * 0.06);
           return prev + d * a;
         }
-        // 方位（横チャンネル）専用の平滑化：alpha はノイズが多いので、
-        // デッドバンドを広く取り、追従係数も小さくして横揺れを強く抑える。
+        // 方位（横チャンネル）専用の平滑化：alpha はノイズが多いので
+        // デッドバンドと追従係数で横揺れを抑える（以前より緩めて追従を素直にした）。
         // 差分は wrap180 で取り、360度境界をまたいでも最短方向へ寄せる
         function smoothHeading(prev, raw, portrait) {
           if (prev === null) return raw;
           var d = wrap180(raw - prev);
-          var dead = portrait ? 1.6 : 1.0;
+          var dead = portrait ? 1.1 : 0.7;
           if (Math.abs(d) < dead) return prev; // 方位の細かい震えは捨てる
           var a = portrait
-            ? 0.045 + Math.min(0.12, Math.abs(d) * 0.010)
-            : 0.060 + Math.min(0.16, Math.abs(d) * 0.014);
+            ? 0.075 + Math.min(0.18, Math.abs(d) * 0.016)
+            : 0.095 + Math.min(0.24, Math.abs(d) * 0.020);
           return prev + d * a;
         }
         function onOrient(e) {
@@ -805,9 +834,9 @@
             // 右へ向ければ増えて視点は右へ。向けた方向の景色が見える対応
             var desired = clamp(wrap180(gyroSH - gyroBaseH), -90, 90);
             // 目標のデッドバンド：小さな揺れは視点に伝えず、動かすときも差の一部だけ寄せる
-            var deadT = portrait ? 2.4 : 1.4;
+            var deadT = portrait ? 1.6 : 0.9;
             if (Math.abs(desired - target) >= deadT) {
-              setTarget(target + (desired - target) * (portrait ? 0.35 : 0.5));
+              setTarget(target + (desired - target) * (portrait ? 0.5 : 0.65));
             }
           }
         }
@@ -834,7 +863,7 @@
             gyroAngle = null;
             gyroRecal = false;
             gyroBtn.setAttribute('aria-pressed', 'true');
-            gyroStatus.textContent = '端末を向けた方向（方角）の景色が見えます（横ブレ抑制を強めています）';
+            gyroStatus.textContent = '端末を向けた方向（方角）の景色が見えます（横ブレを抑える補正入り）';
             window.addEventListener('deviceorientation', onOrient);
           }
           if (typeof DeviceOrientationEvent !== 'undefined' &&
@@ -862,6 +891,32 @@
         }
         document.addEventListener('fullscreenchange', function () { gyroRecal = true; });
         document.addEventListener('webkitfullscreenchange', function () { gyroRecal = true; });
+
+        /* YouTubeプレイヤー：枠外の再生／一時停止ボタン
+           IFrame APIで制御し、再生状態に合わせてボタンの表示を切り替える。
+           APIが読み込めない環境ではボタンは無反応のままになる */
+        var ytApi = null;
+        var ytState = -1;
+        function syncYtBtn() {
+          var playingNow = ytState === 1; // YT.PlayerState.PLAYING
+          ytPlayBtn.textContent = playingNow ? '⏸ YouTube動画を一時停止' : '▶ YouTube動画を再生';
+          ytPlayBtn.setAttribute('aria-pressed', String(playingNow));
+        }
+        window.onYouTubeIframeAPIReady = function () {
+          ytApi = new YT.Player('ytPlayer', {
+            events: {
+              onStateChange: function (ev) {
+                ytState = ev.data;
+                syncYtBtn();
+              }
+            }
+          });
+        };
+        ytPlayBtn.addEventListener('click', function () {
+          if (!ytApi || typeof ytApi.getPlayerState !== 'function') return;
+          if (ytApi.getPlayerState() === 1) ytApi.pauseVideo();
+          else ytApi.playVideo();
+        });
 
         /* なんちゃって再生 */
         var DURATION = 204; // 3:24
