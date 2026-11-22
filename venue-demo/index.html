@@ -462,7 +462,7 @@
           <button type="button" data-pitch="0">正面の高さに戻す</button>
           <button type="button" data-pitch="-35">下を見る（客席）</button>
         </div>
-        <p class="hint">動画の再生は、スクリーンの中の YouTube プレイヤーを直接タップ／クリックしてください。会場の上をドラッグしても見回せます（上下も）。動画は絵の中の会場スクリーンに重ねて固定されているので、横や上を向くとスクリーンごと視界の端へずれ、向きを戻すとまた見えます。「コールを出す」を押すと、従来のデモのタイミングでコールのカードが画面のまわりに湧いて出ます（動画の再生位置とは連動しません）。端末の傾きは、スマホを向けた方向の景色が見える向きに合わせています（左へ向ければ左の景色、右へ向ければ右の景色）。全画面で横向きになっても、画面の向きに合わせて傾きの軸を自動で切り替えるので、途中で反応が止まることはありません（iPhoneではボタンを押したあと許可が必要です）。横方向のブレ対策を強めてあります。センサーの細かい震えは広めに捨て、目標の小さな揺れは視点に伝えず、視点の横移動にも上限を付けているので、特に縦画面で横にグラグラしにくくなっています（大きく傾けたときの見回しはそのままです）。「全画面で見る」ボタンで会場だけを画面いっぱいにできます。本物の全画面が使えない環境（アプリ内の枠で開いている場合など）では、自動で疑似全画面（表示領域いっぱいに広げる方式）に切り替わり、その旨がステージの上に表示されます。疑似全画面はステージ右下のボタンか Esc キーで終わります。背景と画面は一体で動くので、見回してもゆったり落ち着いて感じられます。スクリーンで再生できない場合は、<a href="https://www.youtube.com/watch?v=tCD81ACqUYk" target="_blank" rel="noopener">YouTubeで「走れ!」を開く</a>からも見られます。</p>
+        <p class="hint">動画の再生は、スクリーンの中の YouTube プレイヤーを直接タップ／クリックしてください。会場の上をドラッグしても見回せます（上下も）。動画は絵の中の会場スクリーンに重ねて固定されているので、横や上を向くとスクリーンごと視界の端へずれ、向きを戻すとまた見えます。「コールを出す」を押すと、従来のデモのタイミングでコールのカードが画面のまわりに湧いて出ます（動画の再生位置とは連動しません）。横の見回しは端末の「傾け」ではなく「方角（向き）」で動きます。正面から端末を90度左へ向ければ左の景色が見え、右へ向ければ右の景色が見える、という向きの合わせ方で、開始したときの向きを正面として、そこからの方角の変化で見回します。上下の見回しは従来どおり傾けで動きます。方角で見回すので、全画面で横向きになっても途中で反応が止まることはありません（iPhoneではボタンを押したあと許可が必要です）。方角センサーは細かく震えるので、横方向の平滑化を強めてあります。センサーの細かい震えは広めに捨て、目標の小さな揺れは視点に伝えず、視点の横移動にも上限を付けているので、横にグラグラしにくくなっています（大きく向けたときの見回しはそのままです）。「全画面で見る」ボタンで会場だけを画面いっぱいにできます。本物の全画面が使えない環境（アプリ内の枠で開いている場合など）では、自動で疑似全画面（表示領域いっぱいに広げる方式）に切り替わり、その旨がステージの上に表示されます。疑似全画面はステージ右下のボタンか Esc キーで終わります。背景と画面は一体で動くので、見回してもゆったり落ち着いて感じられます。スクリーンで再生できない場合は、<a href="https://www.youtube.com/watch?v=tCD81ACqUYk" target="_blank" rel="noopener">YouTubeで「走れ!」を開く</a>からも見られます。</p>
       </section>
     </main>
 
@@ -496,9 +496,9 @@
         var screenSY = 0;
         var venue = true;
         var gyroOn = false;
-        var gyroBaseX = null;   // 画面座標に直した横傾きの基準
+        var gyroBaseH = null;   // 開始時点の方位（heading）の基準
         var gyroBaseY = null;   // 画面座標に直した縦傾きの基準
-        var gyroSX = null;      // 平滑化した横傾き（画面座標）
+        var gyroSH = null;      // 平滑化した方位（heading）
         var gyroSY = null;      // 平滑化した縦傾き（画面座標）
         var gyroAngle = null;   // 前回処理した画面の向き（0/90/180/270）
         var gyroRecal = false;  // 向きが変わったら次のセンサー値で基準を取り直す合図
@@ -711,13 +711,32 @@
         });
 
         /* ジャイロ（軽い手ブレ補正つき）
-           deviceorientation の beta/gamma は「端末座標」での傾きなので、
-           画面が横向き（全画面など）になると軸の意味が入れ替わる。
-           そのまま使うと横向きでは左右に向けても gamma がほとんど動かず、
-           傾きへの反応が止まったように見える。そこで毎回、いまの画面の向き
-           （screen.orientation.angle）で画面座標の傾き（横・縦）に直して使う。
+           横の見回しは「傾け」ではなく端末の「方角（向き）」で駆動する：
+           正面から端末を90度左へ向ければ左の景色が見える、という見回し。
+           方角は deviceorientation の alpha（方位。反時計回りで増える）から
+           コンパス方位（北=0・時計回り）へ直して使い、iOS では
+           webkitCompassHeading（そのままコンパス方位）を優先する。
+           開始時点の方位を基準に、そこからの相対変化で横パンを決める。
+           alpha はノイズが多いので、横チャンネルは平滑化を強め、
+           360度境界は最短方向でつなぐ（ラップアラウンド処理）。
+           縦の見回しは従来どおり傾き（pitch）系：beta/gamma は端末座標
+           なので、画面の向きに合わせて画面座標へ直してから使う。
            向きが変わったときは基準を捨てず、いま見ている視点を保ったまま
            基準を取り直すので、回転の途中で視点が飛んだり止まったりしない */
+        function wrap180(d) {
+          d = ((d % 360) + 360) % 360;
+          return d > 180 ? d - 360 : d;
+        }
+        function headingOf(e) {
+          if (typeof e.webkitCompassHeading === 'number' &&
+              !isNaN(e.webkitCompassHeading)) {
+            return e.webkitCompassHeading; // iOS：北=0、時計回りの方位
+          }
+          if (e.alpha !== null && e.alpha !== undefined) {
+            return (360 - e.alpha) % 360; // alpha は反時計回り → 方位へ変換
+          }
+          return null;
+        }
         function screenAngle() {
           if (window.screen && window.screen.orientation &&
               typeof window.screen.orientation.angle === 'number') {
@@ -736,67 +755,68 @@
           var a = 0.10 + Math.min(0.35, Math.abs(d) * 0.05);
           return prev + d * a;
         }
-        // 横方向（gamma）専用：デッドバンドを広げ、追従を鈍くして横ブレを抑える。
-        // 縦向きでは gamma の小さな震えが視点の大きな横移動に見えるので、さらに強く抑える
-        function smoothSensorX(prev, raw, portrait) {
+        // 方位（横チャンネル）専用の平滑化：alpha はノイズが多いので、
+        // デッドバンドを広く取り、追従係数も小さくして横揺れを強く抑える。
+        // 差分は wrap180 で取り、360度境界をまたいでも最短方向へ寄せる
+        function smoothHeading(prev, raw, portrait) {
           if (prev === null) return raw;
-          var d = raw - prev;
-          var dead = portrait ? 1.15 : 0.55;
-          if (Math.abs(d) < dead) return prev; // 横の細かい震えは広めに捨てる
+          var d = wrap180(raw - prev);
+          var dead = portrait ? 1.6 : 1.0;
+          if (Math.abs(d) < dead) return prev; // 方位の細かい震えは捨てる
           var a = portrait
-            ? 0.030 + Math.min(0.10, Math.abs(d) * 0.012)
-            : 0.050 + Math.min(0.16, Math.abs(d) * 0.022);
+            ? 0.045 + Math.min(0.12, Math.abs(d) * 0.010)
+            : 0.060 + Math.min(0.16, Math.abs(d) * 0.014);
           return prev + d * a;
         }
         function onOrient(e) {
           if (!gyroOn) return;
           if (e.beta === null || e.beta === undefined ||
               e.gamma === null || e.gamma === undefined) return;
-          // 端末座標の傾きを、いまの画面の向きに合わせた画面座標へ直す
           var angle = screenAngle();
-          var rawX, rawY;
-          if (angle === 90)       { rawX = e.beta;   rawY = -e.gamma; }
-          else if (angle === 180) { rawX = -e.gamma; rawY = -e.beta; }
-          else if (angle === 270) { rawX = -e.beta;  rawY = e.gamma; }
-          else                    { rawX = e.gamma;  rawY = e.beta; }
+          // 縦（pitch）は端末座標の傾きを画面座標へ直して使う（従来どおり）
+          var rawY;
+          if (angle === 90)       { rawY = -e.gamma; }
+          else if (angle === 180) { rawY = -e.beta; }
+          else if (angle === 270) { rawY = e.gamma; }
+          else                    { rawY = e.beta; }
+          // 横は方角（方位）で決める：画面の向きに依存しないので、
+          // 全画面で横向きになっても軸が入れ替わって止まることはない
+          var hdg = headingOf(e);
           var portrait = stage.clientHeight > stage.clientWidth;
-          var gainX = portrait ? 1.15 : 1.45;
           if (gyroAngle === null || gyroAngle !== angle || gyroRecal) {
             // 開始直後、または画面の向きが変わった：平滑化をリセットし、
-            // 基準を取り直す。開始直後は正面を基準にし、向きの変化では
-            // 「いまの視点のまま」になる基準にして、視点が飛ばないようにする
-            gyroSX = rawX;
+            // 「いま見ている視点のまま」になるよう基準を取り直す
             gyroSY = rawY;
-            if (gyroAngle === null && !gyroRecal) {
-              gyroBaseX = rawX;
-              gyroBaseY = rawY;
-            } else {
-              gyroBaseX = rawX + target / gainX;
-              gyroBaseY = rawY + targetP / 0.9;
+            gyroBaseY = rawY + targetP / 0.9;
+            if (hdg !== null) {
+              gyroSH = hdg;
+              gyroBaseH = hdg - target;
             }
             gyroAngle = angle;
             gyroRecal = false;
             return;
           }
-          gyroSX = smoothSensorX(gyroSX, rawX, portrait);
           gyroSY = smoothSensor(gyroSY, rawY);
-          // 端末を向けた方向の景色が見える向きにする：左へ向ければ左の景色、
-          // 右へ向ければ右の景色（横の符号は従来と逆だったので基準−現在で取る）
-          var desired = clamp((gyroBaseX - gyroSX) * gainX, -90, 90);
-          // 目標のデッドバンド：小さな揺れは視点に伝えず、動かすときも差の一部だけ寄せる
-          var deadT = portrait ? 2.4 : 1.4;
-          if (Math.abs(desired - target) >= deadT) {
-            setTarget(target + (desired - target) * (portrait ? 0.35 : 0.5));
-          }
           // 端末を上に向けると見上げ、下に向けると見下ろす（開始時の傾きを正面とする）
           setTargetP((gyroBaseY - gyroSY) * 0.9);
+          if (hdg !== null && gyroBaseH !== null) {
+            gyroSH = smoothHeading(gyroSH, hdg, portrait);
+            // 方位は時計回りで増える：左へ向ければ方位が減り視点は左（マイナス）へ、
+            // 右へ向ければ増えて視点は右へ。向けた方向の景色が見える対応
+            var desired = clamp(wrap180(gyroSH - gyroBaseH), -90, 90);
+            // 目標のデッドバンド：小さな揺れは視点に伝えず、動かすときも差の一部だけ寄せる
+            var deadT = portrait ? 2.4 : 1.4;
+            if (Math.abs(desired - target) >= deadT) {
+              setTarget(target + (desired - target) * (portrait ? 0.35 : 0.5));
+            }
+          }
         }
         gyroBtn.addEventListener('click', function () {
           if (gyroOn) {
             gyroOn = false;
-            gyroBaseX = null;
+            gyroBaseH = null;
             gyroBaseY = null;
-            gyroSX = null;
+            gyroSH = null;
             gyroSY = null;
             gyroAngle = null;
             gyroRecal = false;
@@ -807,14 +827,14 @@
           }
           function start() {
             gyroOn = true;
-            gyroBaseX = null;
+            gyroBaseH = null;
             gyroBaseY = null;
-            gyroSX = null;
+            gyroSH = null;
             gyroSY = null;
             gyroAngle = null;
             gyroRecal = false;
             gyroBtn.setAttribute('aria-pressed', 'true');
-            gyroStatus.textContent = '端末を向けた方向の景色が見えます（横ブレ抑制を強めています）';
+            gyroStatus.textContent = '端末を向けた方向（方角）の景色が見えます（横ブレ抑制を強めています）';
             window.addEventListener('deviceorientation', onOrient);
           }
           if (typeof DeviceOrientationEvent !== 'undefined' &&
