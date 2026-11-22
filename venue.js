@@ -1,5 +1,26 @@
 /* =====================================================================
-   build 69: 会場モード v4（再生画面）
+   build 69: 会場モード v5（再生画面）
+   v5 では祐治の実機確認で出た2点＋初期状態の仕様変更に対応した:
+   (1) 縦の見回しが逆だった（上を見ているつもりで視点が下へ、下で
+       上へ）。ジャイロの縦（pitch）の符号を反転し、ドラッグの縦も
+       同じ感覚（指を上に送れば視点も上）に揃えた。横は良好との
+       ことで変更なし。
+   (2) 会場全画面（.vnfs）でまだ再生コントロールやボタン類・カードが
+       出て邪魔だった。v4 の .fsonly 非表示だけでは実機で不十分
+       だったため、全画面中は body に .vn-fs を付け、#mvwrap 以外の
+       body 直下要素をすべて隠す（ヘッダー・モードバー・再生
+       コントローラー・シークバー・カード一覧など）。さらに #mv の
+       中のアプリ側の重なり（#cards・#panel・#intro・#kokos・#pen・
+       .crowd）も全画面中は隠す。全画面を戻せばクラスを外すだけで
+       完全に復元される（inline style は触らない）。枠内（非全画面）
+       の会場モードでは従来どおり全部表示のまま。
+   (3) 初期状態は会場モードONから始まる（祐治の言い直しで確定した
+       仕様。「初期は解除（オフ）」という指示は取り消し）。ページを
+       開いた／再生画面に入った時点で自動で enter() し、枠内に会場が
+       再現されている状態にする。作成・シェア画面から再生画面へ
+       戻ったときもONで始める。オフへの切替は従来のトグルで可能で、
+       再生画面に留まったまま手動でオフにした場合は、無関係な body
+       クラスの変化では再びオンにしない（画面遷移のときだけ自動で入る）。
    v1 の概念違い（オンにすると全画面化してしまう）を v2 で修正し、
    v3 では実ブラウザ確認で判明した「映像が絵のスクリーンに収まらない」
    不具合と、ラベル・ボタンの重なりを直した。
@@ -34,7 +55,8 @@
    終了時は、掴んだ要素の style 属性を丸ごと元に戻す。
 
    仕様（v2）:
-   - 既定オフ。オンにしても全画面化しない。再生画面にある もともとの
+   - オンにしても全画面化しない（初期状態は v5 で「再生画面に入ると
+     自動でオン」に変更。上の v5 (3) を参照）。再生画面にある もともとの
      YouTube 枠（#mv の通常表示サイズ・位置そのまま）の中に会場の
      光景を再現する。枠の外のレイアウト（コールカード・操作ボタン・
      モードバー等）は通常表示のまま一切変えない。
@@ -59,10 +81,12 @@
      中（下部）へ移す。
    - コールカード（#cards）は従来どおり画面に対して固定表示。
      世界と一緒に動かさない（本番の従来表示に準ずる）。会場全画面
-     （.vnfs）でも表示のままにする（v4）。
+     （.vnfs）でも表示のままにする（v4）。※v5 で変更: 会場全画面中は
+     #cards も隠す（上の v5 (2) を参照）。枠内では従来どおり表示。
    - 再生/ペンライト/湧く! 等の .fsonly（アプリの再生コントローラー）
      は、会場モード中は会場全画面（.vnfs）でも表示しない（v4）。
      アプリ既存の全画面（#mv.fs）のときだけ従来どおり表示される。
+     ※v5 では全画面中の非表示を .fsonly 以外へ全面拡大した。
    - モードバーの「会場モード」ボタンは大きめ・目立つ色にし、オン時は
      塗りつぶし＋「ON」表記で一目で分かるようにする。
    - 作成画面・シェアポイント作成画面へ移ったら自動で会場モードを終える。
@@ -79,6 +103,13 @@
     "#mv.vnfs{position:fixed;inset:0;z-index:60;border-radius:0;aspect-ratio:auto;height:100dvh}",
     "#mv.vn #fsbtn,#mv.vn #fsExit{display:none!important}",
     "#mv.vnfs .fsonly{display:none!important}",
+    // 会場全画面（v5）: #mv の中のアプリ側の重なりも隠し、会場の光景と
+    // 会場UI（ドック）だけにする。#yt と .vn-world と .vn-dock は残す。
+    "#mv.vnfs #cards,#mv.vnfs #panel,#mv.vnfs #intro,#mv.vnfs #kokos,#mv.vnfs #pen,#mv.vnfs .crowd{display:none!important}",
+    // 会場全画面（v5）: #mvwrap の外は body 直下を丸ごと隠す。
+    // #mvwrap の中でも #mv とドック以外の兄弟（#nexts・#impact）を隠す。
+    "body.vn-fs>*:not(#mvwrap){display:none!important}",
+    "body.vn-fs #mvwrap>*:not(#mv):not(.vn-dock){display:none!important}",
     ".vn-world{position:absolute;left:0;top:0;pointer-events:none;will-change:transform;z-index:0}",
     ".vn-world img{display:block;width:100%;height:100%}",
     "#mv.vn #yt{border-radius:2px;box-shadow:0 0 0 3px rgba(8,10,14,.9),0 4px 18px rgba(0,0,0,.5);background:#000;will-change:transform}",
@@ -409,7 +440,8 @@
     var dy = e.clientY - lastY;
     lastX = e.clientX; lastY = e.clientY;
     setTarget(target - dx * 0.20);
-    setTargetP(targetP + dy * 0.12);
+    // 縦は v5 で符号を反転しジャイロと感覚を揃えた（指を上に送れば視点も上）
+    setTargetP(targetP - dy * 0.12);
   });
   function endDrag() { dragging = false; }
   mv.addEventListener("pointerup", endDrag);
@@ -470,7 +502,7 @@
     var portrait = mv.clientHeight > mv.clientWidth;
     if (gyroAngle === null || gyroAngle !== angle || gyroRecal) {
       gyroSY = rawY;
-      gyroBaseY = rawY + targetP / (0.9 * tuneVal.sens);
+      gyroBaseY = rawY - targetP / (0.9 * tuneVal.sens);
       if (hdg !== null) {
         gyroSH = hdg;
         gyroBaseH = hdg - target / tuneVal.sens;
@@ -480,7 +512,8 @@
       return;
     }
     gyroSY = smoothSensor(gyroSY, rawY);
-    setTargetP((gyroBaseY - gyroSY) * 0.9 * tuneVal.sens);
+    // 縦は v5 で符号を反転（上を向ければ視点も上へ。v4 までは逆だった）
+    setTargetP((gyroSY - gyroBaseY) * 0.9 * tuneVal.sens);
     if (hdg !== null && gyroBaseH !== null) {
       gyroSH = smoothHeading(gyroSH, hdg, portrait);
       var desired = clamp(wrap180(gyroSH - gyroBaseH) * tuneVal.sens, -90, 90);
@@ -581,6 +614,7 @@
     fsOn = true;
     mv.appendChild(dock); // ドック（ラベル・ボタン列・調整）も枠の中へ
     mv.classList.add("vnfs");
+    document.body.classList.add("vn-fs"); // v5: #mvwrap の外を全部隠す
     document.body.style.overflow = "hidden";
     fsBtn.setAttribute("aria-pressed", "true");
     fsBtn.textContent = "全画面を戻す";
@@ -592,6 +626,7 @@
     fsOn = false;
     mv.parentNode.insertBefore(dock, mv.nextSibling); // ドックを枠の外へ戻す
     mv.classList.remove("vnfs");
+    document.body.classList.remove("vn-fs");
     document.body.style.overflow = "";
     fsBtn.setAttribute("aria-pressed", "false");
     fsBtn.textContent = "全画面";
@@ -639,10 +674,19 @@
   toggleBtn.addEventListener("click", function () { if (on) exit(); else enter(); });
   exitBtn.addEventListener("click", exit);
 
-  // 作成画面・シェアポイント作成画面へ移ったら自動で終える
+  // 作成画面・シェアポイント作成画面へ移ったら自動で終える。
+  // 逆に再生画面へ入ったら会場モードONで始める（v5 の初期状態仕様）。
+  // 再生画面に留まったままの無関係なクラス変化（メニュー開閉など）では
+  // 入り直さないよう、「別画面だった→再生画面になった」遷移でのみ入る。
+  var wasAlt = document.body.classList.contains("scr-mk") ||
+               document.body.classList.contains("scr-sp");
   var mo = new MutationObserver(function () {
-    if (on && (document.body.classList.contains("scr-mk") ||
-               document.body.classList.contains("scr-sp"))) exit();
+    var alt = document.body.classList.contains("scr-mk") ||
+              document.body.classList.contains("scr-sp");
+    if (alt) { if (on) exit(); }
+    else if (wasAlt) enter();
+    wasAlt = alt;
   });
   mo.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  if (!wasAlt) enter(); // ページを開いた時点で再生画面なら、最初からON
 })();
