@@ -1,8 +1,21 @@
 /* =====================================================================
-   build 69: 会場モード v2（再生画面）
-   v1 の概念違い（オンにすると全画面化してしまう）を修正した版。
+   build 69: 会場モード v3（再生画面）
+   v1 の概念違い（オンにすると全画面化してしまう）を v2 で修正し、
+   v3 では実ブラウザ確認で判明した「映像が絵のスクリーンに収まらない」
+   不具合と、ラベル・ボタンの重なりを直した版。
    自己完結モジュールで、app.js 本体には触らない（#modebar へトグル
    ボタンを足し、#mv の中に会場レイヤーを作る）。
+
+   v3 の要点（#yt の競合対策）:
+   app.js は YouTube IFrame API で new YT.Player("yt", ...) を作る。
+   このとき API はプレースホルダの <div id="yt"> を新しい
+   <iframe id="yt"> に差し替える。v2 は読み込み時点の #yt（まだ div）
+   を掴んでいたため、差し替え後の本物の iframe にはスタイルが一切
+   届かず、style.css の #yt{inset:0;width:100%;height:100%} のまま
+   枠いっぱいに表示されていた。v3 では #yt を毎回引き直し、要素が
+   差し替わっていたら掴み直す。さらに配置は inline style の
+   !important で書き、style.css の #yt 規則に確実に勝つ。会場モード
+   終了時は、掴んだ要素の style 属性を丸ごと元に戻す。
 
    仕様（v2）:
    - 既定オフ。オンにしても全画面化しない。再生画面にある もともとの
@@ -24,6 +37,10 @@
    - 会場は小さなボタン1つで ライブハウス→スタジアム→アリーナ→山脈→
      豪華客船 の順に切替。ライブハウスは縦長フレーム4枚を約0.4秒間隔・
      フェードなしで切り替える立ち姿アニメ。他会場は静止画1枚。
+   - 会場名ラベルと会場用ボタン列・調整パネルは、枠の中ではなく
+     枠の外（#mv の直下に作る .vn-dock の中）に置き、映像に重ならない
+     ようにする（v3）。会場全画面（.vnfs）のときだけドックごと枠の
+     中（下部）へ移す。
    - コールカード（#cards）は従来どおり画面に対して固定表示。
      世界と一緒に動かさない（本番の従来表示に準ずる）。
    - 再生/ペンライト/湧く! の .fsonly ボタンは、会場全画面（.vnfs）の
@@ -47,14 +64,16 @@
     ".vn-world{position:absolute;left:0;top:0;pointer-events:none;will-change:transform;z-index:0}",
     ".vn-world img{display:block;width:100%;height:100%}",
     "#mv.vn #yt{border-radius:2px;box-shadow:0 0 0 3px rgba(8,10,14,.9),0 4px 18px rgba(0,0,0,.5);background:#000;will-change:transform}",
-    ".vn-badge{position:absolute;top:10px;left:12px;z-index:50;display:none;background:rgba(10,12,16,.55);border:1px solid rgba(147,167,196,.45);border-radius:999px;padding:3px 12px;color:#cfd9e8;font-size:.8rem;pointer-events:none}",
-    "#mv.vn .vn-badge{display:block}",
-    ".vn-ui{position:absolute;left:10px;bottom:10px;z-index:50;display:none;flex-wrap:wrap;gap:6px;max-width:calc(100% - 20px)}",
-    "#mv.vn .vn-ui{display:flex}",
+    ".vn-dock{display:none;margin-top:8px}",
+    "#mv.vn + .vn-dock{display:block}",
+    "#mv.vnfs .vn-dock{display:block;position:absolute;left:10px;right:10px;bottom:10px;z-index:56;margin-top:0}",
+    ".vn-dockrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}",
+    ".vn-badge{display:inline-flex;background:rgba(10,12,16,.55);border:1px solid rgba(147,167,196,.45);border-radius:999px;padding:3px 12px;color:#cfd9e8;font-size:.8rem;pointer-events:none}",
+    ".vn-ui{display:flex;flex-wrap:wrap;gap:6px}",
     ".vn-ui button{min-height:34px;padding:5px 11px;font-size:.8rem;border-radius:999px;background:rgba(10,12,16,.72);border:1px solid rgba(147,167,196,.55);color:#eef2f8;font:inherit;cursor:pointer}",
     ".vn-ui button[aria-pressed=\"true\"]{background:#e4572e;border-color:#e4572e;color:#fff;font-weight:700}",
     ".vn-ui .vn-venue{font-weight:700}",
-    ".vn-tune{position:absolute;left:10px;bottom:58px;z-index:51;display:none;background:rgba(14,16,28,.94);border:1px solid rgba(147,167,196,.45);border-radius:12px;padding:10px 12px;color:#eef2f8;max-width:calc(100% - 20px);font-size:.85rem}",
+    ".vn-tune{display:none;margin-top:8px;background:rgba(14,16,28,.94);border:1px solid rgba(147,167,196,.45);border-radius:12px;padding:10px 12px;color:#eef2f8;font-size:.85rem}",
     ".vn-tune.open{display:block}",
     ".vn-tune .vrow{display:flex;align-items:center;gap:10px;margin:7px 0}",
     ".vn-tune label{white-space:nowrap;min-width:5.6em;font-size:.82rem}",
@@ -81,10 +100,20 @@
   world.appendChild(img);
   mv.insertBefore(world, mv.firstChild);
 
+  // 会場名ラベル・ボタン列・調整パネルは、映像に重ねず枠の外に出すため、
+  // #mv の直後（弟要素）にドックを作ってそこへ入れる。会場全画面
+  // （.vnfs）のときだけ、fsEnter/fsExit がドックごと枠の中へ出し入れする。
+  var dock = document.createElement("div");
+  dock.className = "vn-dock";
+  var dockRow = document.createElement("div");
+  dockRow.className = "vn-dockrow";
+  dock.appendChild(dockRow);
+  mv.parentNode.insertBefore(dock, mv.nextSibling);
+
   var badge = document.createElement("div");
   badge.className = "vn-badge";
   badge.textContent = "ライブハウス";
-  mv.appendChild(badge);
+  dockRow.appendChild(badge);
 
   var tune = document.createElement("div");
   tune.className = "vn-tune";
@@ -101,7 +130,7 @@
     '<span class="vn-val" id="vnTuneDeadVal">×1.0</span></div>' +
     '<div class="vrow"><button type="button" id="vnTuneReset">初期値に戻す</button></div>' +
     '<div class="vnote" id="vnGyroStatus">スライダーを動かすと、その場でジャイロの効き方が変わります。標準は補正の強さ×2.00・感度×1.00・デッドバンド×1.0です。</div>';
-  mv.appendChild(tune);
+  dock.appendChild(tune);
 
   var ui = document.createElement("div");
   ui.className = "vn-ui";
@@ -111,7 +140,7 @@
     '<button type="button" id="vnTuneBtn" aria-expanded="false">ジャイロ調整</button>' +
     '<button type="button" id="vnFsBtn" aria-pressed="false">全画面</button>' +
     '<button type="button" id="vnExitBtn">会場モードを終わる</button>';
-  mv.appendChild(ui);
+  dockRow.appendChild(ui);
 
   // 再生画面のモードバーにトグルを追加（分かりやすい大きめボタンにする）
   var toggleBtn = document.createElement("button");
@@ -122,7 +151,31 @@
   toggleBtn.setAttribute("aria-pressed", "false");
   modebar.appendChild(toggleBtn);
 
-  var yt = document.getElementById("yt");
+  /* #yt は掴みっぱなしにしない。app.js が YouTube IFrame API で
+     プレーヤーを作ると、<div id="yt"> が <iframe id="yt"> に差し替わる
+     （app.js の new YT.Player("yt", ...)）。差し替え前の要素へ書き続けても
+     画面には届かないので、使うたびに引き直し、要素が変わっていたら
+     その要素の元の style 属性を保存し直す。終了時は保存した style 属性を
+     丸ごと戻し、#yt を完全に元の状態へ復元する。 */
+  var styledEl = null;   // いま venue がスタイルを書いている #yt 要素
+  var savedStyle = null; // その要素の元の style 属性（文字列。無ければ null）
+  function claimYt() {
+    var el = document.getElementById("yt");
+    if (!el) return null;
+    if (el !== styledEl) {
+      styledEl = el;
+      savedStyle = el.getAttribute("style");
+    }
+    return el;
+  }
+  function restoreYt() {
+    if (!styledEl) return;
+    var el = styledEl;
+    styledEl = null;
+    if (savedStyle === null) el.removeAttribute("style");
+    else el.setAttribute("style", savedStyle);
+    savedStyle = null;
+  }
   var venueBtn = document.getElementById("vnVenueBtn");
   var gyroBtn = document.getElementById("vnGyroBtn");
   var tuneBtn = document.getElementById("vnTuneBtn");
@@ -261,14 +314,20 @@
     world.style.transform = "translate(" + wx + "px," + wy + "px)";
     // 動画（#yt）は写真と同じ座標系で、絵のスクリーンの位置・大きさに重ねる。
     // コールカード等は #mv 直下のままなので画面に対して固定される。
-    if (yt) {
-      yt.style.left = (wx + Lw * PAINT.x) + "px";
-      yt.style.top = (wy + Lh * PAINT.y) + "px";
-      yt.style.width = (Lw * PAINT.w) + "px";
-      yt.style.height = (Lh * PAINT.h) + "px";
+    // 配置は毎回 #yt を引き直して inline style の !important で書く
+    // （style.css の #yt{inset:0;width:100%;height:100%} に確実に勝つため。
+    // right/bottom は auto にして inset:0 の残りと競合させない）。
+    var yEl = claimYt();
+    if (yEl) {
+      yEl.style.setProperty("left", (wx + Lw * PAINT.x) + "px", "important");
+      yEl.style.setProperty("top", (wy + Lh * PAINT.y) + "px", "important");
+      yEl.style.setProperty("width", (Lw * PAINT.w) + "px", "important");
+      yEl.style.setProperty("height", (Lh * PAINT.h) + "px", "important");
+      yEl.style.setProperty("right", "auto", "important");
+      yEl.style.setProperty("bottom", "auto", "important");
       var ry = -current * 0.20;
       var rx = currentP * 0.18;
-      yt.style.transform = "rotateY(" + ry + "deg) rotateX(" + rx + "deg)";
+      yEl.style.transform = "rotateY(" + ry + "deg) rotateX(" + rx + "deg)";
     }
   }
 
@@ -301,7 +360,7 @@
   mv.addEventListener("pointerdown", function (e) {
     if (!on) return;
     if (e.target && e.target.closest &&
-        e.target.closest("button, a, input, select, textarea, #panel, .vn-ui, .vn-tune")) return;
+        e.target.closest("button, a, input, select, textarea, #panel, .vn-ui, .vn-tune, .vn-dock")) return;
     dragging = true; lastX = e.clientX; lastY = e.clientY;
     try { mv.setPointerCapture(e.pointerId); } catch (err) {}
   });
@@ -481,6 +540,7 @@
   function fsEnter() {
     if (!on || fsOn) return;
     fsOn = true;
+    mv.appendChild(dock); // ドック（ラベル・ボタン列・調整）も枠の中へ
     mv.classList.add("vnfs");
     document.body.style.overflow = "hidden";
     fsBtn.setAttribute("aria-pressed", "true");
@@ -491,6 +551,7 @@
   function fsExit() {
     if (!fsOn) return;
     fsOn = false;
+    mv.parentNode.insertBefore(dock, mv.nextSibling); // ドックを枠の外へ戻す
     mv.classList.remove("vnfs");
     document.body.style.overflow = "";
     fsBtn.setAttribute("aria-pressed", "false");
@@ -533,11 +594,7 @@
     tune.classList.remove("open");
     tuneBtn.setAttribute("aria-expanded", "false");
     tuneBtn.textContent = "ジャイロ調整";
-    if (yt) {
-      yt.style.left = ""; yt.style.top = "";
-      yt.style.width = ""; yt.style.height = "";
-      yt.style.transform = "";
-    }
+    restoreYt();
     world.style.transform = "";
   }
   toggleBtn.addEventListener("click", function () { if (on) exit(); else enter(); });
