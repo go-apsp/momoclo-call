@@ -1,5 +1,5 @@
 /* =====================================================================
-   build 69: 会場モード v5（再生画面）
+   build 69: 会場モード v6（再生画面）
    v5 では祐治の実機確認で出た2点＋初期状態の仕様変更に対応した:
    (1) 縦の見回しが逆だった（上を見ているつもりで視点が下へ、下で
        上へ）。ジャイロの縦（pitch）の符号を反転し、ドラッグの縦も
@@ -21,6 +21,19 @@
        戻ったときもONで始める。オフへの切替は従来のトグルで可能で、
        再生画面に留まったまま手動でオフにした場合は、無関係な body
        クラスの変化では再びオンにしない（画面遷移のときだけ自動で入る）。
+   v6 では実機で出た「会場全画面にすると真っ暗になる」バグを直した。
+   原因は v5 の一括非表示ルール「body.vn-fs>*:not(#mvwrap)」。実際の
+   DOM は body > #app > #mvwrap > #mv で、#mvwrap は body の直下では
+   ないため、このルールは body 直下の #app 自体に一致し、アプリ全体
+   （#mv を含む）を display:none にして画面が真っ暗になっていた
+   （position:fixed の子も、祖先の display:none からは逃げられない）。
+   v6 では非表示の対象を正しい階層（#app 直下の #mvwrap 以外と、
+   #mvwrap 直下の #mv・ドック以外）に改め、全画面の成立は隠すことに
+   頼らず #mv.vnfs（position:fixed;inset:0）自身が画面いっぱいに
+   表示されることを基本にした。あわせて全画面中は #mvwrap の
+   z-index を 80 に引き上げ、body 直下の固定オーバーレイより手前に
+   出す。v5 の仕様（縦見回し反転・初期は会場モードON・枠内は全部
+   表示・終了時の完全復元）はそのまま維持する。
    v1 の概念違い（オンにすると全画面化してしまう）を v2 で修正し、
    v3 では実ブラウザ確認で判明した「映像が絵のスクリーンに収まらない」
    不具合と、ラベル・ボタンの重なりを直した。
@@ -103,12 +116,16 @@
     "#mv.vnfs{position:fixed;inset:0;z-index:60;border-radius:0;aspect-ratio:auto;height:100dvh}",
     "#mv.vn #fsbtn,#mv.vn #fsExit{display:none!important}",
     "#mv.vnfs .fsonly{display:none!important}",
-    // 会場全画面（v5）: #mv の中のアプリ側の重なりも隠し、会場の光景と
+    // 会場全画面: #mv の中のアプリ側の重なりも隠し、会場の光景と
     // 会場UI（ドック）だけにする。#yt と .vn-world と .vn-dock は残す。
     "#mv.vnfs #cards,#mv.vnfs #panel,#mv.vnfs #intro,#mv.vnfs #kokos,#mv.vnfs #pen,#mv.vnfs .crowd{display:none!important}",
-    // 会場全画面（v5）: #mvwrap の外は body 直下を丸ごと隠す。
-    // #mvwrap の中でも #mv とドック以外の兄弟（#nexts・#impact）を隠す。
-    "body.vn-fs>*:not(#mvwrap){display:none!important}",
+    // 会場全画面（v6）: 非表示は補助に留め、正しい階層だけを対象にする。
+    // 実DOM は body > #app > #mvwrap > #mv。v5 の
+    // 「body.vn-fs>*:not(#mvwrap)」は #app 自体を消して真っ暗になるため
+    // 廃止し、#app 直下（#mvwrap 以外）と #mvwrap 直下（#mv・ドック以外）
+    // だけを隠す。全画面の成立は #mv.vnfs 自身の fixed 表示が基本。
+    "body.vn-fs #app>*:not(#mvwrap){display:none!important}",
+    "body.vn-fs #mvwrap{position:relative;z-index:80}",
     "body.vn-fs #mvwrap>*:not(#mv):not(.vn-dock){display:none!important}",
     ".vn-world{position:absolute;left:0;top:0;pointer-events:none;will-change:transform;z-index:0}",
     ".vn-world img{display:block;width:100%;height:100%}",
@@ -614,7 +631,7 @@
     fsOn = true;
     mv.appendChild(dock); // ドック（ラベル・ボタン列・調整）も枠の中へ
     mv.classList.add("vnfs");
-    document.body.classList.add("vn-fs"); // v5: #mvwrap の外を全部隠す
+    document.body.classList.add("vn-fs"); // v6: #app 直下（#mvwrap 以外）等を補助的に隠す
     document.body.style.overflow = "hidden";
     fsBtn.setAttribute("aria-pressed", "true");
     fsBtn.textContent = "全画面を戻す";
