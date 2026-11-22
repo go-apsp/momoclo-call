@@ -342,6 +342,39 @@
       .stage:fullscreen .fs-overlay { display: inline-flex; }
       .stage:-webkit-full-screen .fs-overlay { display: inline-flex; }
 
+      /* 疑似全画面：本物の全画面が使えない環境では、ステージを表示領域いっぱいに固定表示する */
+      .stage.pseudo-fs {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100dvh;
+        max-height: none;
+        aspect-ratio: auto;
+        border-radius: 0;
+        z-index: 60;
+      }
+      .stage.pseudo-fs .fs-overlay { display: inline-flex; }
+      body.pseudo-lock { overflow: hidden; }
+
+      /* 疑似全画面に切り替わったことを知らせる案内（ステージ上に目立つ形で出す） */
+      .fs-notice {
+        display: none;
+        position: absolute;
+        top: 48px; left: 50%;
+        transform: translateX(-50%);
+        z-index: 9;
+        background: rgba(10, 12, 16, 0.85);
+        border: 1px solid rgba(255, 217, 138, 0.75);
+        color: #ffe9bd;
+        border-radius: 999px;
+        padding: 6px 16px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+      .stage.pseudo-fs .fs-notice { display: block; }
+
       @media (max-width: 560px) {
         main { padding: 14px 10px 32px; }
         h1 { font-size: 1.25rem; }
@@ -391,6 +424,8 @@
           <span class="badge deg" id="degLabel">視点 0°</span>
         </div>
 
+        <div class="fs-notice" id="fsNotice" role="status">この環境では疑似全画面で表示しています</div>
+
         <button type="button" class="fs-overlay" id="fsBtnStage">✕ 全画面を終わる</button>
 
         <div id="chipLayer" aria-hidden="true"></div>
@@ -427,7 +462,7 @@
           <button type="button" data-pitch="0">正面の高さに戻す</button>
           <button type="button" data-pitch="-35">下を見る（客席）</button>
         </div>
-        <p class="hint">動画の再生は、スクリーンの中の YouTube プレイヤーを直接タップ／クリックしてください。会場の上をドラッグしても見回せます（上下も）。動画は絵の中の会場スクリーンに重ねて固定されているので、横や上を向くとスクリーンごと視界の端へずれ、向きを戻すとまた見えます。「コールを出す」を押すと、従来のデモのタイミングでコールのカードが画面のまわりに湧いて出ます（動画の再生位置とは連動しません）。端末の傾きは、スマホを傾けると視点が上下左右に動きます（iPhoneではボタンを押したあと許可が必要です）。横方向のブレ対策を強めてあります。センサーの細かい震えは広めに捨て、目標の小さな揺れは視点に伝えず、視点の横移動にも上限を付けているので、特に縦画面で横にグラグラしにくくなっています（大きく傾けたときの見回しはそのままです）。「全画面で見る」ボタンで会場だけを画面いっぱいにできます。この環境で全画面が使えない場合は、その旨の案内が出ます。背景と画面は一体で動くので、見回してもゆったり落ち着いて感じられます。スクリーンで再生できない場合は、<a href="https://www.youtube.com/watch?v=tCD81ACqUYk" target="_blank" rel="noopener">YouTubeで「走れ!」を開く</a>からも見られます。</p>
+        <p class="hint">動画の再生は、スクリーンの中の YouTube プレイヤーを直接タップ／クリックしてください。会場の上をドラッグしても見回せます（上下も）。動画は絵の中の会場スクリーンに重ねて固定されているので、横や上を向くとスクリーンごと視界の端へずれ、向きを戻すとまた見えます。「コールを出す」を押すと、従来のデモのタイミングでコールのカードが画面のまわりに湧いて出ます（動画の再生位置とは連動しません）。端末の傾きは、スマホを傾けると視点が上下左右に動きます（iPhoneではボタンを押したあと許可が必要です）。横方向のブレ対策を強めてあります。センサーの細かい震えは広めに捨て、目標の小さな揺れは視点に伝えず、視点の横移動にも上限を付けているので、特に縦画面で横にグラグラしにくくなっています（大きく傾けたときの見回しはそのままです）。「全画面で見る」ボタンで会場だけを画面いっぱいにできます。本物の全画面が使えない環境（アプリ内の枠で開いている場合など）では、自動で疑似全画面（表示領域いっぱいに広げる方式）に切り替わり、その旨がステージの上に表示されます。疑似全画面はステージ右下のボタンか Esc キーで終わります。背景と画面は一体で動くので、見回してもゆったり落ち着いて感じられます。スクリーンで再生できない場合は、<a href="https://www.youtube.com/watch?v=tCD81ACqUYk" target="_blank" rel="noopener">YouTubeで「走れ!」を開く</a>からも見られます。</p>
       </section>
     </main>
 
@@ -604,46 +639,71 @@
           if (!venue) { screenTilt.style.transform = 'none'; }
         });
 
-        /* 全画面（使えない環境では失敗させず案内を出す） */
+        /* 全画面：まず本物を試し、使えない環境だと判断したら自動で疑似全画面に切り替える */
         var fsBtn = document.getElementById('fsBtn');
         var fsBtnStage = document.getElementById('fsBtnStage');
         var fsStatus = document.getElementById('fsStatus');
-        function fsIsOn() {
+        var pseudoFs = false;
+        function fsRealOn() {
           return !!(document.fullscreenElement || document.webkitFullscreenElement);
+        }
+        function fsIsOn() {
+          return pseudoFs || fsRealOn();
         }
         function syncFs() {
           var on = fsIsOn();
           fsBtn.textContent = on ? '全画面を終わる' : '全画面で見る';
           fsBtn.setAttribute('aria-pressed', String(on));
-          if (on) fsStatus.textContent = '';
+          if (on) fsStatus.textContent = pseudoFs ? '疑似全画面で表示しています' : '';
           apply();
         }
+        function enterPseudo() {
+          if (pseudoFs) return;
+          pseudoFs = true;
+          stage.classList.add('pseudo-fs');
+          document.body.classList.add('pseudo-lock');
+          syncFs();
+        }
+        function exitPseudo() {
+          if (!pseudoFs) return;
+          pseudoFs = false;
+          stage.classList.remove('pseudo-fs');
+          document.body.classList.remove('pseudo-lock');
+          fsStatus.textContent = '';
+          syncFs();
+        }
         function toggleFullscreen() {
-          if (fsIsOn()) {
+          if (pseudoFs) { exitPseudo(); return; }
+          if (fsRealOn()) {
             if (document.exitFullscreen) document.exitFullscreen();
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
             return;
           }
           var req = stage.requestFullscreen || stage.webkitRequestFullscreen;
-          if (!req) {
-            fsStatus.textContent = 'この環境では全画面にできません';
-            return;
-          }
+          if (!req) { enterPseudo(); return; }
           try {
             var p = req.call(stage);
             if (p && typeof p.catch === 'function') {
-              p.catch(function () {
-                fsStatus.textContent = 'この環境では全画面にできません';
-              });
+              // 枠（iframe）の許可不足などで拒否されたら、疑似全画面へ自動で切り替える
+              p.catch(function () { enterPseudo(); });
+            } else {
+              // Promiseを返さない実装（旧Safari等）：少し待って入っていなければ疑似へ
+              setTimeout(function () {
+                if (!fsRealOn() && !pseudoFs) enterPseudo();
+              }, 600);
             }
           } catch (err) {
-            fsStatus.textContent = 'この環境では全画面にできません';
+            enterPseudo();
           }
         }
         fsBtn.addEventListener('click', toggleFullscreen);
         fsBtnStage.addEventListener('click', toggleFullscreen);
         document.addEventListener('fullscreenchange', syncFs);
         document.addEventListener('webkitfullscreenchange', syncFs);
+        // 疑似全画面は Esc でも戻れるようにする（本物はブラウザが標準で処理する）
+        document.addEventListener('keydown', function (e) {
+          if ((e.key === 'Escape' || e.key === 'Esc') && pseudoFs) exitPseudo();
+        });
 
         /* ジャイロ（軽い手ブレ補正つき） */
         function smoothSensor(prev, raw) {
