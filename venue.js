@@ -1,0 +1,517 @@
+/* =====================================================================
+   build 69: 会場モード v1（再生画面）
+   デモ（venue-demo）で検証した見回し・PAINT・フレーム切替・ジャイロ調整を
+   本番の再生画面へ移植したもの。自己完結モジュールで、app.js 本体には
+   触らない（#modebar へトグルボタンを足し、#mv の中に会場レイヤーを作る）。
+
+   仕様（v1）:
+   - 既定オフ。オンにすると #mv が画面いっぱいのステージ（position:fixed）
+     になり、背景に会場の絵が広がって、YouTube 映像（#yt）が絵の中の
+     スクリーン位置に重なる。
+   - 見回し: 横はコンパス方位（開始方位からの相対）、縦は傾き。ドラッグでも
+     見回せる。手ブレ補正の標準は ×2.00。ジャイロ調整スライダー
+     （補正の強さ・感度・デッドバンド、初期値に戻す付き）を持つ。
+   - 会場は小さなボタン1つで ライブハウス→スタジアム→アリーナ→山脈→
+     豪華客船 の順に切替。ライブハウスは縦長フレーム4枚を約0.4秒間隔・
+     フェードなしで切り替える立ち姿アニメ。他会場は静止画1枚。
+   - コールカード（#cards）は #mv の子要素のまま＝画面に対して固定表示。
+     世界と一緒に動かさない（本番の従来表示に準ずる）。
+   - 操作ボタン類は画面固定レイヤー（.vn-ui）。再生/一時停止・ペンライト・
+     湧く! は全画面時と同じ .fsonly ボタンを会場モードでも表示して使う。
+   - 全画面は v1 では固定表示（疑似全画面）方式。アプリ既存の全画面処理
+     （#mv.fs + documentElement の Fullscreen API）と競合させないため、
+     Fullscreen API は使わない。
+   - 作成画面・シェアポイント作成画面へ移ったら自動で会場モードを終える。
+   ===================================================================== */
+(function () {
+  "use strict";
+  var mv = document.getElementById("mv");
+  var modebar = document.getElementById("modebar");
+  if (!mv || !modebar) return;
+
+  /* ---------- スタイル ---------- */
+  var css = [
+    "#mv.vn{position:fixed;inset:0;z-index:60;border-radius:0;aspect-ratio:auto;height:100dvh;background:#101319;perspective:1500px;touch-action:none}",
+    "#mv.vn #fsbtn,#mv.vn #fsExit{display:none!important}",
+    "#mv.vn .fsonly{display:flex}",
+    ".vn-world{position:absolute;left:0;top:0;pointer-events:none;will-change:transform;z-index:0}",
+    ".vn-world img{display:block;width:100%;height:100%}",
+    "#mv.vn #yt{border-radius:2px;box-shadow:0 0 0 3px rgba(8,10,14,.9),0 4px 18px rgba(0,0,0,.5);background:#000;will-change:transform}",
+    ".vn-badge{position:absolute;top:10px;left:12px;z-index:50;display:none;background:rgba(10,12,16,.55);border:1px solid rgba(147,167,196,.45);border-radius:999px;padding:3px 12px;color:#cfd9e8;font-size:.8rem;pointer-events:none}",
+    "#mv.vn .vn-badge{display:block}",
+    ".vn-ui{position:absolute;left:10px;bottom:10px;z-index:50;display:none;flex-wrap:wrap;gap:6px;max-width:calc(100% - 20px)}",
+    "#mv.vn .vn-ui{display:flex}",
+    ".vn-ui button{min-height:34px;padding:5px 11px;font-size:.8rem;border-radius:999px;background:rgba(10,12,16,.72);border:1px solid rgba(147,167,196,.55);color:#eef2f8;font:inherit;cursor:pointer}",
+    ".vn-ui button[aria-pressed=\"true\"]{background:#e4572e;border-color:#e4572e;color:#fff;font-weight:700}",
+    ".vn-ui .vn-venue{font-weight:700}",
+    ".vn-tune{position:absolute;left:10px;bottom:58px;z-index:51;display:none;background:rgba(14,16,28,.94);border:1px solid rgba(147,167,196,.45);border-radius:12px;padding:10px 12px;color:#eef2f8;max-width:min(92vw,430px);font-size:.85rem}",
+    ".vn-tune.open{display:block}",
+    ".vn-tune .vrow{display:flex;align-items:center;gap:10px;margin:7px 0}",
+    ".vn-tune label{white-space:nowrap;min-width:5.6em;font-size:.82rem}",
+    ".vn-tune input[type=range]{flex:1;min-height:32px;min-width:110px}",
+    ".vn-val{font-variant-numeric:tabular-nums;font-weight:700;min-width:3.6em;font-size:.88rem}",
+    ".vn-tune button{min-height:32px;padding:4px 12px;font-size:.8rem;border-radius:9px;background:#21243d;border:1px solid rgba(147,167,196,.55);color:#eef2f8;font:inherit;cursor:pointer}",
+    ".vn-tune .vnote{font-size:.76rem;color:#a7abb5;line-height:1.5;margin-top:6px}",
+    "#venueBtn.on{background:#e4572e;border-color:#e4572e;color:#fff}"
+  ].join("\n");
+  var styleEl = document.createElement("style");
+  styleEl.textContent = css;
+  document.head.appendChild(styleEl);
+
+  /* ---------- DOM ---------- */
+  // 会場の絵のレイヤー（#mv の一番後ろに入れる）
+  var world = document.createElement("div");
+  world.className = "vn-world";
+  world.setAttribute("aria-hidden", "true");
+  var img = document.createElement("img");
+  img.id = "vnImg";
+  img.alt = "";
+  world.appendChild(img);
+  mv.insertBefore(world, mv.firstChild);
+
+  var badge = document.createElement("div");
+  badge.className = "vn-badge";
+  badge.textContent = "ライブハウス";
+  mv.appendChild(badge);
+
+  var tune = document.createElement("div");
+  tune.className = "vn-tune";
+  tune.id = "vnTune";
+  tune.innerHTML =
+    '<div class="vrow"><label for="vnTuneSmooth">補正の強さ</label>' +
+    '<input type="range" id="vnTuneSmooth" min="0.5" max="4" step="0.05" value="2">' +
+    '<span class="vn-val" id="vnTuneSmoothVal">×2.00</span></div>' +
+    '<div class="vrow"><label for="vnTuneSens">感度</label>' +
+    '<input type="range" id="vnTuneSens" min="0.5" max="2" step="0.05" value="1">' +
+    '<span class="vn-val" id="vnTuneSensVal">×1.00</span></div>' +
+    '<div class="vrow"><label for="vnTuneDead">デッドバンド</label>' +
+    '<input type="range" id="vnTuneDead" min="0" max="3" step="0.1" value="1">' +
+    '<span class="vn-val" id="vnTuneDeadVal">×1.0</span></div>' +
+    '<div class="vrow"><button type="button" id="vnTuneReset">初期値に戻す</button></div>' +
+    '<div class="vnote" id="vnGyroStatus">スライダーを動かすと、その場でジャイロの効き方が変わります。標準は補正の強さ×2.00・感度×1.00・デッドバンド×1.0です。</div>';
+  mv.appendChild(tune);
+
+  var ui = document.createElement("div");
+  ui.className = "vn-ui";
+  ui.innerHTML =
+    '<button type="button" class="vn-venue" id="vnVenueBtn" aria-label="会場を切り替える（タップするたびに次の会場へ）">会場：ライブハウス ›</button>' +
+    '<button type="button" id="vnGyroBtn" aria-pressed="false">傾きで見る</button>' +
+    '<button type="button" id="vnTuneBtn" aria-expanded="false">ジャイロ調整</button>' +
+    '<button type="button" id="vnExitBtn">会場モードを終わる</button>';
+  mv.appendChild(ui);
+
+  // 再生画面のモードバーにトグルを追加（既存ボタンと同じ .modebtn 並び）
+  var toggleBtn = document.createElement("button");
+  toggleBtn.id = "venueBtn";
+  toggleBtn.className = "modebtn";
+  toggleBtn.type = "button";
+  toggleBtn.textContent = "会場モード";
+  toggleBtn.setAttribute("aria-pressed", "false");
+  modebar.appendChild(toggleBtn);
+
+  var yt = document.getElementById("yt");
+  var venueBtn = document.getElementById("vnVenueBtn");
+  var gyroBtn = document.getElementById("vnGyroBtn");
+  var tuneBtn = document.getElementById("vnTuneBtn");
+  var exitBtn = document.getElementById("vnExitBtn");
+  var gyroStatus = document.getElementById("vnGyroStatus");
+
+  /* ---------- 会場データ（デモで実測した PAINT をそのまま使う） ---------- */
+  var VENUES = [
+    { id: "livehouse", name: "ライブハウス", iw: 1200, ih: 1440,
+      frames: [
+        { src: "venue/livehouse-1.webp", paint: { x: 0.252, y: 0.379, w: 0.492, h: 0.249 } },
+        { src: "venue/livehouse-2.webp", paint: { x: 0.248, y: 0.356, w: 0.500, h: 0.258 } },
+        { src: "venue/livehouse-3.webp", paint: { x: 0.248, y: 0.355, w: 0.502, h: 0.280 } },
+        { src: "venue/livehouse-4.webp", paint: { x: 0.254, y: 0.351, w: 0.488, h: 0.253 } }
+      ] },
+    { id: "stadium", name: "スタジアム", src: "venue/stadium.webp", iw: 2352, ih: 1008,
+      paint: { x: 0.334, y: 0.322, w: 0.406, h: 0.317 } },
+    { id: "arena", name: "アリーナ", src: "venue/arena.webp", iw: 2352, ih: 1008,
+      paint: { x: 0.264, y: 0.380, w: 0.499, h: 0.415 } },
+    { id: "mountains", name: "山脈", src: "venue/mountains.webp", iw: 2352, ih: 1008,
+      paint: { x: 0.365, y: 0.322, w: 0.280, h: 0.280 } },
+    { id: "cruise", name: "豪華客船", src: "venue/cruise.webp", iw: 2352, ih: 1008,
+      paint: { x: 0.344, y: 0.165, w: 0.328, h: 0.392 } }
+  ];
+  var venueIdx = 0;
+  var frameIdx = 0;
+  var frameTimer = null;
+  var FRAME_MS = 400;
+  var preloaded = false;
+
+  function curPaint(V) {
+    if (V.frames) return V.frames[frameIdx % V.frames.length].paint;
+    return V.paint;
+  }
+  function curSrc(V) {
+    if (V.frames) return V.frames[frameIdx % V.frames.length].src;
+    return V.src;
+  }
+  function preload() {
+    if (preloaded) return;
+    preloaded = true;
+    for (var vi = 0; vi < VENUES.length; vi++) {
+      var srcs = VENUES[vi].frames
+        ? VENUES[vi].frames.map(function (f) { return f.src; })
+        : [VENUES[vi].src];
+      for (var si = 0; si < srcs.length; si++) {
+        var pre = new Image();
+        pre.src = srcs[si];
+      }
+    }
+  }
+  function stopFrames() {
+    if (frameTimer) { clearInterval(frameTimer); frameTimer = null; }
+  }
+  function startFrames() {
+    stopFrames();
+    if (!on || !VENUES[venueIdx].frames) return;
+    frameTimer = setInterval(function () {
+      frameIdx = (frameIdx + 1) % VENUES[venueIdx].frames.length;
+      img.src = curSrc(VENUES[venueIdx]);
+      apply();
+    }, FRAME_MS);
+  }
+  function setVenue(i) {
+    venueIdx = ((i % VENUES.length) + VENUES.length) % VENUES.length;
+    var V = VENUES[venueIdx];
+    frameIdx = 0;
+    var s = curSrc(V);
+    if (img.getAttribute("src") !== s) img.src = s;
+    venueBtn.textContent = "会場：" + V.name + " ›";
+    badge.textContent = V.name;
+    startFrames();
+    apply();
+  }
+  venueBtn.addEventListener("click", function () { setVenue(venueIdx + 1); });
+
+  /* ---------- 見回し（デモから移植） ---------- */
+  var on = false;
+  var target = 0, current = 0;       // 横の視点 (-90..90)
+  var targetP = 0, currentP = 0;     // 縦の視点 (-35..35、正で見上げ)
+  var gyroOn = false;
+  var gyroBaseH = null, gyroBaseY = null;
+  var gyroSH = null, gyroSY = null;
+  var gyroAngle = null, gyroRecal = false;
+  var tuneVal = { smooth: 2, sens: 1, dead: 1 };
+  var rafId = null;
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var SCREEN_FIT = 0.97;
+
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function setTarget(v) { target = clamp(v, -90, 90); }
+  function setTargetP(v) { targetP = clamp(v, -35, 35); }
+
+  function apply() {
+    if (!on) return;
+    var w = mv.clientWidth;
+    var h = mv.clientHeight;
+    if (!w || !h) return;
+    var V = VENUES[venueIdx];
+    var PAINT = curPaint(V);
+    var AR = V.iw / V.ih;
+    var paintCx = PAINT.x + PAINT.w / 2;
+    var paintCy = PAINT.y + PAINT.h / 2;
+    var Lw, Lh, baseX, baseY, maxX, maxY;
+    if (h > w) {
+      Lw = w * SCREEN_FIT / PAINT.w;
+      Lh = Lw / AR;
+      baseX = w / 2 - Lw * paintCx;
+      if (Lh >= h) {
+        baseY = h / 2 - Lh * paintCy;
+        if (baseY > 0) baseY = 0;
+        if (baseY < h - Lh) baseY = h - Lh;
+        maxY = (Lh - h) / 2;
+      } else {
+        baseY = (h - Lh) / 2;
+        maxY = 0;
+      }
+      maxX = Math.max(0, (Lw - w) / 2 - Lw * (paintCx - 0.5));
+    } else {
+      Lh = h * 1.5;
+      Lw = Lh * AR;
+      var fitLw = w * SCREEN_FIT / PAINT.w;
+      if (Lw > fitLw) {
+        Lw = fitLw;
+        Lh = Lw / AR;
+        baseX = w / 2 - Lw * paintCx;
+        maxX = Math.max(0, (Lw - w) / 2 - Lw * (paintCx - 0.5));
+      } else {
+        baseX = (w - Lw) / 2;
+        maxX = Math.max(0, (Lw - w) / 2);
+      }
+      baseY = (h - Lh) / 2;
+      maxY = Math.abs(Lh - h) / 2;
+    }
+    world.style.width = Lw + "px";
+    world.style.height = Lh + "px";
+    var shiftX = (current / 90) * maxX;
+    var shiftY = (currentP / 35) * maxY;
+    world.style.transform =
+      "translate(" + (baseX - shiftX) + "px," + (baseY + shiftY) + "px)";
+    // 動画（#yt）は写真と同じ座標系で、絵のスクリーンの位置・大きさに重ねる。
+    // コールカード等は #mv 直下のままなので画面に対して固定される。
+    if (yt) {
+      var sw = Lw * PAINT.w;
+      var sh = Lh * PAINT.h;
+      var sx = baseX - shiftX + Lw * PAINT.x;
+      var sy = baseY + shiftY + Lh * PAINT.y;
+      yt.style.left = sx + "px";
+      yt.style.top = sy + "px";
+      yt.style.width = sw + "px";
+      yt.style.height = sh + "px";
+      var ry = -current * 0.20;
+      var rx = currentP * 0.18;
+      yt.style.transform = "rotateY(" + ry + "deg) rotateX(" + rx + "deg)";
+    }
+  }
+
+  function loop() {
+    if (!on) { rafId = null; return; }
+    if (reduced) {
+      current = target;
+      currentP = targetP;
+    } else {
+      var dx = target - current;
+      var dy = targetP - currentP;
+      var portraitNow = mv.clientHeight > mv.clientWidth;
+      var fx = ((portraitNow ? 0.026 : 0.042) + Math.min(0.14, Math.abs(dx) * 0.0045)) / tuneVal.smooth;
+      var fy = (0.06 + Math.min(0.16, Math.abs(dy) * 0.006)) / tuneVal.smooth;
+      var stepX = dx * fx;
+      var capX = (portraitNow ? 1.3 : 2.2) / tuneVal.smooth;
+      if (stepX > capX) stepX = capX;
+      if (stepX < -capX) stepX = -capX;
+      current += stepX;
+      currentP += dy * fy;
+    }
+    if (Math.abs(target - current) < 0.02) current = target;
+    if (Math.abs(targetP - currentP) < 0.02) currentP = targetP;
+    apply();
+    rafId = requestAnimationFrame(loop);
+  }
+
+  /* ドラッグで見回す（ボタンやパネルの上では始めない） */
+  var dragging = false, lastX = 0, lastY = 0;
+  mv.addEventListener("pointerdown", function (e) {
+    if (!on) return;
+    if (e.target && e.target.closest &&
+        e.target.closest("button, a, input, select, textarea, #panel, .vn-ui, .vn-tune")) return;
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    try { mv.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  mv.addEventListener("pointermove", function (e) {
+    if (!dragging || !on) return;
+    var dx = e.clientX - lastX;
+    var dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    setTarget(target - dx * 0.20);
+    setTargetP(targetP + dy * 0.12);
+  });
+  function endDrag() { dragging = false; }
+  mv.addEventListener("pointerup", endDrag);
+  mv.addEventListener("pointercancel", endDrag);
+
+  /* ---------- ジャイロ（デモから移植） ---------- */
+  function wrap180(d) {
+    d = ((d % 360) + 360) % 360;
+    return d > 180 ? d - 360 : d;
+  }
+  function headingOf(e) {
+    if (typeof e.webkitCompassHeading === "number" && !isNaN(e.webkitCompassHeading)) {
+      return e.webkitCompassHeading;
+    }
+    if (e.alpha !== null && e.alpha !== undefined) {
+      return (360 - e.alpha) % 360;
+    }
+    return null;
+  }
+  function screenAngle() {
+    if (window.screen && window.screen.orientation &&
+        typeof window.screen.orientation.angle === "number") {
+      return window.screen.orientation.angle;
+    }
+    if (typeof window.orientation === "number") {
+      return ((window.orientation % 360) + 360) % 360;
+    }
+    return mv.clientWidth >= mv.clientHeight ? 90 : 0;
+  }
+  function smoothSensor(prev, raw) {
+    if (prev === null) return raw;
+    var d = raw - prev;
+    if (Math.abs(d) < 0.08 * tuneVal.dead) return prev;
+    var a = (0.14 + Math.min(0.40, Math.abs(d) * 0.06)) / tuneVal.smooth;
+    return prev + d * a;
+  }
+  function smoothHeading(prev, raw, portrait) {
+    if (prev === null) return raw;
+    var d = wrap180(raw - prev);
+    var dead = (portrait ? 1.1 : 0.7) * tuneVal.dead;
+    if (Math.abs(d) < dead) return prev;
+    var a = (portrait
+      ? 0.075 + Math.min(0.18, Math.abs(d) * 0.016)
+      : 0.095 + Math.min(0.24, Math.abs(d) * 0.020)) / tuneVal.smooth;
+    return prev + d * a;
+  }
+  function onOrient(e) {
+    if (!gyroOn || !on) return;
+    if (e.beta === null || e.beta === undefined ||
+        e.gamma === null || e.gamma === undefined) return;
+    var angle = screenAngle();
+    var rawY;
+    if (angle === 90)       { rawY = -e.gamma; }
+    else if (angle === 180) { rawY = -e.beta; }
+    else if (angle === 270) { rawY = e.gamma; }
+    else                    { rawY = e.beta; }
+    var hdg = headingOf(e);
+    var portrait = mv.clientHeight > mv.clientWidth;
+    if (gyroAngle === null || gyroAngle !== angle || gyroRecal) {
+      gyroSY = rawY;
+      gyroBaseY = rawY + targetP / (0.9 * tuneVal.sens);
+      if (hdg !== null) {
+        gyroSH = hdg;
+        gyroBaseH = hdg - target / tuneVal.sens;
+      }
+      gyroAngle = angle;
+      gyroRecal = false;
+      return;
+    }
+    gyroSY = smoothSensor(gyroSY, rawY);
+    setTargetP((gyroBaseY - gyroSY) * 0.9 * tuneVal.sens);
+    if (hdg !== null && gyroBaseH !== null) {
+      gyroSH = smoothHeading(gyroSH, hdg, portrait);
+      var desired = clamp(wrap180(gyroSH - gyroBaseH) * tuneVal.sens, -90, 90);
+      var deadT = (portrait ? 1.6 : 0.9) * tuneVal.dead;
+      if (Math.abs(desired - target) >= deadT) {
+        var blend = Math.min(1, (portrait ? 0.5 : 0.65) / tuneVal.smooth);
+        setTarget(target + (desired - target) * blend);
+      }
+    }
+  }
+  function gyroOff() {
+    if (!gyroOn) return;
+    gyroOn = false;
+    gyroBaseH = null; gyroBaseY = null;
+    gyroSH = null; gyroSY = null;
+    gyroAngle = null; gyroRecal = false;
+    gyroBtn.setAttribute("aria-pressed", "false");
+    gyroBtn.textContent = "傾きで見る";
+    window.removeEventListener("deviceorientation", onOrient);
+  }
+  gyroBtn.addEventListener("click", function () {
+    if (gyroOn) { gyroOff(); return; }
+    function start() {
+      gyroOn = true;
+      gyroBaseH = null; gyroBaseY = null;
+      gyroSH = null; gyroSY = null;
+      gyroAngle = null; gyroRecal = false;
+      gyroBtn.setAttribute("aria-pressed", "true");
+      gyroBtn.textContent = "傾きで見る：ON";
+      gyroStatus.textContent = "端末を向けた方向（方角）の景色が見えます（横ブレを抑える補正入り）。標準は補正の強さ×2.00・感度×1.00・デッドバンド×1.0です。";
+      window.addEventListener("deviceorientation", onOrient);
+    }
+    if (typeof DeviceOrientationEvent !== "undefined" &&
+        typeof DeviceOrientationEvent.requestPermission === "function") {
+      DeviceOrientationEvent.requestPermission().then(function (res) {
+        if (res === "granted") start();
+        else {
+          gyroStatus.textContent = "許可されなかったので、ドラッグで見回してください。";
+          tune.classList.add("open");
+          tuneBtn.setAttribute("aria-expanded", "true");
+        }
+      }).catch(function () {
+        gyroStatus.textContent = "この端末では傾きが使えませんでした。";
+        tune.classList.add("open");
+        tuneBtn.setAttribute("aria-expanded", "true");
+      });
+    } else if (typeof DeviceOrientationEvent !== "undefined") {
+      start();
+    } else {
+      gyroStatus.textContent = "この端末・ブラウザでは傾きが使えません。";
+      tune.classList.add("open");
+      tuneBtn.setAttribute("aria-expanded", "true");
+    }
+  });
+  window.addEventListener("orientationchange", function () { gyroRecal = true; });
+  if (window.screen && window.screen.orientation &&
+      window.screen.orientation.addEventListener) {
+    window.screen.orientation.addEventListener("change", function () { gyroRecal = true; });
+  }
+  window.addEventListener("resize", function () { if (on) apply(); });
+
+  /* ---------- ジャイロ調整パネル ---------- */
+  tuneBtn.addEventListener("click", function () {
+    var open = !tune.classList.contains("open");
+    tune.classList.toggle("open", open);
+    tuneBtn.setAttribute("aria-expanded", String(open));
+    tuneBtn.textContent = open ? "ジャイロ調整を閉じる" : "ジャイロ調整";
+  });
+  function bindTune(id, valId, key, digits) {
+    var input = document.getElementById(id);
+    var val = document.getElementById(valId);
+    function sync() {
+      var v = parseFloat(input.value);
+      tuneVal[key] = v;
+      val.textContent = "×" + v.toFixed(digits);
+    }
+    input.addEventListener("input", sync);
+    sync();
+    return input;
+  }
+  var tuneSmoothInput = bindTune("vnTuneSmooth", "vnTuneSmoothVal", "smooth", 2);
+  var tuneSensInput = bindTune("vnTuneSens", "vnTuneSensVal", "sens", 2);
+  var tuneDeadInput = bindTune("vnTuneDead", "vnTuneDeadVal", "dead", 1);
+  document.getElementById("vnTuneReset").addEventListener("click", function () {
+    tuneSmoothInput.value = "2";
+    tuneSensInput.value = "1";
+    tuneDeadInput.value = "1";
+    tuneSmoothInput.dispatchEvent(new Event("input"));
+    tuneSensInput.dispatchEvent(new Event("input"));
+    tuneDeadInput.dispatchEvent(new Event("input"));
+  });
+
+  /* ---------- 会場モードの入/切 ---------- */
+  function enter() {
+    if (on) return;
+    if (document.body.classList.contains("scr-mk") ||
+        document.body.classList.contains("scr-sp")) return; // 再生画面でのみ使う
+    on = true;
+    preload();
+    mv.classList.add("vn");
+    document.body.style.overflow = "hidden";
+    toggleBtn.classList.add("on");
+    toggleBtn.setAttribute("aria-pressed", "true");
+    target = 0; current = 0; targetP = 0; currentP = 0;
+    setVenue(venueIdx);
+    apply();
+    if (rafId === null) rafId = requestAnimationFrame(loop);
+  }
+  function exit() {
+    if (!on) return;
+    on = false;
+    gyroOff();
+    stopFrames();
+    mv.classList.remove("vn");
+    document.body.style.overflow = "";
+    toggleBtn.classList.remove("on");
+    toggleBtn.setAttribute("aria-pressed", "false");
+    tune.classList.remove("open");
+    tuneBtn.setAttribute("aria-expanded", "false");
+    tuneBtn.textContent = "ジャイロ調整";
+    if (yt) {
+      yt.style.left = ""; yt.style.top = "";
+      yt.style.width = ""; yt.style.height = "";
+      yt.style.transform = "";
+    }
+    world.style.transform = "";
+  }
+  toggleBtn.addEventListener("click", function () { if (on) exit(); else enter(); });
+  exitBtn.addEventListener("click", exit);
+
+  // 作成画面・シェアポイント作成画面へ移ったら自動で終える
+  var mo = new MutationObserver(function () {
+    if (on && (document.body.classList.contains("scr-mk") ||
+               document.body.classList.contains("scr-sp"))) exit();
+  });
+  mo.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+})();
