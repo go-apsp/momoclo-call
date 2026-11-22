@@ -147,7 +147,7 @@ gtag('config', 'G-00QSZME258');
     </div>
 
     <div id="paneRefs" class="hidden">
-      <p class="note">ここで作った参考コールが、アプリの「参考コール」ボタンで表示されます。</p>
+      <p class="note">参考コールの作成は専用ページで行います。ここでは入場パスワードの設定と、登録済みの参考コールの確認・削除ができます。作られた参考コールは、アプリの「参考コール」ボタンで表示されます。</p>
       <div class="card">
         <div class="title" style="margin-bottom:6px">参考コール作成ページのパスワード</div>
         <div class="sub" style="line-height:1.7">参考コールの作成だけができる専用ページ（ログイン不要・パスワード入場式）の入場パスワードです。パスワードを知っている人だけが、そのページから参考コールを作れます。ここで設定したパスワードはハッシュ化して保存され、平文では残りません。</div>
@@ -158,29 +158,6 @@ gtag('config', 'G-00QSZME258');
           <button class="act" id="refGateSet" style="background:#ff5d8f;border-color:#ff5d8f;color:#fff;font-weight:900">設定する</button>
           <a class="act" href="refmake.html" target="_blank" rel="noopener">参考コール作成ページを開く</a>
         </div>
-      </div>
-      <div class="card">
-        <div class="title" style="margin-bottom:10px">参考コールを新規作成</div>
-        <label class="flab">曲</label>
-        <select id="refSong" class="fin"></select>
-        <div style="margin-top:10px;position:relative;padding-top:56.25%;overflow:hidden;border-radius:12px"><div id="refYt"></div></div>
-        <div class="row" style="margin-top:8px">
-          <button class="act" data-rseek="-30">-30秒</button><button class="act" data-rseek="-10">-10秒</button>
-          <button class="act" id="refPlayBtn" style="flex:1;background:#ff5d8f;border-color:#ff5d8f;color:#fff;font-weight:900">再生</button>
-          <button class="act" data-rseek="10">+10秒</button><button class="act" data-rseek="30">+30秒</button>
-        </div>
-        <input type="range" id="refBar" min="0" max="240" step="0.1" value="0" style="width:100%;margin-top:8px">
-        <div class="row"><span class="sub" id="refTm">0:00</span><span style="flex:1"></span><span class="sub" id="refDurT">0:00</span></div>
-        <div class="row" style="margin-top:6px">
-          <button class="act rtype sel" data-rtype="call">コール</button><button class="act rtype" data-rtype="sing">シンガロン</button><button class="act rtype" data-rtype="koko">ココ好き!</button>
-        </div>
-        <div class="row" style="margin-top:8px"><span class="sub" style="min-width:52px">表示時間</span><button class="act" data-rdur="-0.1">−</button><input type="range" id="refDur" min="1" max="20" step="0.1" value="6" style="flex:1"><button class="act" data-rdur="0.1">＋</button><b id="refDurVal" style="color:#ffd23f;min-width:44px;text-align:right">6秒</b></div>
-        <input id="refText" class="fin" type="text" placeholder="内容(例: ハイ!ハイ!)" maxlength="30" style="margin-top:8px">
-        <button class="act" id="refAddScene" style="width:100%;margin-top:8px;background:#ff5d8f;border-color:#ff5d8f;color:#fff;font-weight:900;padding:10px">この位置に追加</button>
-        <div id="refSceneList" style="margin-top:8px"></div>
-        <label class="flab">バージョン名</label>
-        <input id="refVer" class="fin" type="text" placeholder="例: お手本コール">
-        <button class="act" id="refAdd" style="background:#ff5d8f;border-color:#ff5d8f;color:#fff;font-weight:900">この内容で登録</button>
       </div>
       <div id="refList"></div>
     </div>
@@ -241,7 +218,6 @@ const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(
 
 let me = null, USERS = [], CALLS = [], REFS = [], REQS = [], ADM_SONGS = [], ADMINS = {}, PRESETS = [], pendingDel = null, pendingRefDel = null, pendingSongDel = null, pendingPsDel = null;
 let songPlayer = null, songPlayerReady = false, songEditId = null, songPosDrag = false;
-let refPlayer = null, refReady = false, refDrag = false, refScenes = [], refType = "call";
 
 async function loadAll() {
   const um = new Map();
@@ -260,7 +236,6 @@ async function loadAll() {
   try { ADM_SONGS = (await getDocs(query(collection(db, "songs"), orderBy("order")))).docs.map(d => ({id: d.id, ...d.data()})); } catch (e) { ADM_SONGS = []; }
   ADMINS = {};
   try { (await getDocs(collection(db, "admins"))).forEach(d => { ADMINS[d.id] = d.data(); }); } catch (e) {}
-  fillRefSongs();
   renderCalls(); renderUsers(); renderSongs(); renderRefs(); renderReqs(); renderPresets();
   loadRefGate();
 }
@@ -376,7 +351,6 @@ async function seedSongs() {
 /* 曲追加・範囲編集用プレビュー(YouTube IFrame API) */
 window.onYouTubeIframeAPIReady = () => {
   songPlayer = new YT.Player("songYt", { videoId: "", playerVars: {playsinline: 1, rel: 0}, events: { onReady: () => { songPlayerReady = true; loadSongPreview(); } } });
-  refPlayer = new YT.Player("refYt", { videoId: "", playerVars: {playsinline: 1, rel: 0}, events: { onReady: () => { refReady = true; setRefYt(); } } });
 };
 { const tag = document.createElement("script"); tag.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(tag); }
 function loadSongPreview() {
@@ -389,15 +363,6 @@ setInterval(() => {
       const d = Math.floor(songPlayer.getDuration() || 0);
       if (d > 0) { $("songStart").max = d; $("songEnd").max = d; $("songPos").max = d; $("songDurVal").textContent = fmt(d); }
       if (!songPosDrag) { const t = songPlayer.getCurrentTime() || 0; $("songPos").value = t; $("songPosVal").textContent = fmt(t); }
-    } catch (e) {}
-  }
-  if (refReady) {
-    try {
-      const d = refPlayer.getDuration() || 0, t = refPlayer.getCurrentTime() || 0;
-      if (d > 0) $("refBar").max = d;
-      if (!refDrag) $("refBar").value = t;
-      $("refTm").textContent = fmt(t); $("refDurT").textContent = fmt(d);
-      $("refPlayBtn").textContent = refPlayer.getPlayerState() === 1 ? "一時停止" : "再生";
     } catch (e) {}
   }
 }, 500);
@@ -432,7 +397,7 @@ async function addSong() {
       await updateDoc(doc(db, "songs", songEditId), {title: title, yid: yid, startSec: has ? st : 0, endSec: has ? en : 0});
       const s = ADM_SONGS.find(x => x.id === songEditId);
       if (s) { s.title = title; s.yid = yid; s.startSec = has ? st : 0; s.endSec = has ? en : 0; }
-      resetSongForm(); renderSongs(); fillRefSongs(); toast("変更を保存しました");
+      resetSongForm(); renderSongs(); toast("変更を保存しました");
     } catch (e) { toast("保存できませんでした(運営アカウントでログインしているか確認してください)"); }
     return;
   }
@@ -441,7 +406,7 @@ async function addSong() {
     const r = await addDoc(collection(db, "songs"), d);
     ADM_SONGS.push({id: r.id, ...d});
     resetSongForm();
-    renderSongs(); fillRefSongs(); toast("曲を追加しました");
+    renderSongs(); toast("曲を追加しました");
   } catch (e) { toast("追加できませんでした(運営アカウントでログインしているか、ルールの設定を確認してください)"); }
 }
 async function moveSong(id, dir) {
@@ -451,7 +416,7 @@ async function moveSong(id, dir) {
   try {
     await Promise.all(ADM_SONGS.map((s, k) => updateDoc(doc(db, "songs", s.id), {order: k})));
     ADM_SONGS.forEach((s, k) => { s.order = k; });
-    renderSongs(); fillRefSongs(); toast("曲の順番を変えました");
+    renderSongs(); toast("曲の順番を変えました");
   } catch (e) { toast("順番を変えられませんでした(運営アカウントでログインしているか確認してください)"); try { await loadAll(); } catch (e2) {} }
 }
 async function setDefaultSong(id) {
@@ -514,24 +479,6 @@ function renderRefs() {
   $("refList").querySelectorAll("[data-rdel-no]").forEach(b => b.addEventListener("click", () => { pendingRefDel = null; renderRefs(); }));
 }
 
-function renderRefScenes() {
-  $("refSceneList").innerHTML = refScenes.map((e, i) => '<div class="rrow"><span>' + fmt(e.t) + '</span><span>' + (KLAB[e.k] || e.k) + '</span><span style="flex:1">' + esc(e.x) + '</span><span class="sub">' + e.d + '秒</span><button class="act danger" data-rsdel="' + i + '">削除</button></div>').join("")
-    || '<div class="sub">動画を止めて、追加したい位置で「この位置に追加」を押します。</div>';
-  $("refSceneList").querySelectorAll("[data-rsdel]").forEach(b => b.addEventListener("click", () => { refScenes.splice(+b.dataset.rsdel, 1); renderRefScenes(); }));
-}
-async function addRef() {
-  const vid = $("refSong").value;
-  const ver = $("refVer").value.trim();
-  if (!refScenes.length) { toast("場面を追加してください"); return; }
-  const scenes = refScenes.map(e => ({...e})).sort((a, b) => a.t - b.t);
-  try {
-    const d = await addDoc(collection(db, "refs"), {videoId: vid, versionName: ver, scenes: scenes, createdAt: serverTimestamp()});
-    REFS.push({id: d.id, videoId: vid, versionName: ver, scenes: scenes});
-    $("refVer").value = ""; refScenes = []; renderRefScenes();
-    renderRefs();
-    toast("参考コールを登録しました");
-  } catch (e) { toast("登録できませんでした(運営アカウントでログインしているか、ルールの設定を確認してください)"); }
-}
 async function delRefYes() {
   const id = pendingRefDel; pendingRefDel = null;
   try { await deleteDoc(doc(db, "refs", id)); REFS = REFS.filter(r => r.id !== id); renderRefs(); toast("参考コールを削除しました"); }
@@ -610,30 +557,7 @@ $("tabReqs").addEventListener("click", () => showTab("reqs"));
 $("tabPe").addEventListener("click", () => showTab("pe"));
 $("psAdd").addEventListener("click", addPreset);
 $("q").addEventListener("input", renderCalls);
-$("refAdd").addEventListener("click", addRef);
 $("refGateSet").addEventListener("click", setRefGate);
-$("refPlayBtn").addEventListener("click", () => { if (!refReady) return; if (refPlayer.getPlayerState() === 1) refPlayer.pauseVideo(); else refPlayer.playVideo(); });
-document.querySelectorAll("[data-rseek]").forEach(b => b.addEventListener("click", () => { if (refReady) refPlayer.seekTo(Math.max(0, Math.min(refPlayer.getDuration() || 0, (refPlayer.getCurrentTime() || 0) + +b.dataset.rseek)), true); }));
-$("refBar").addEventListener("input", () => { refDrag = true; });
-$("refBar").addEventListener("change", () => { refDrag = false; if (refReady) refPlayer.seekTo(+$("refBar").value, true); });
-document.querySelectorAll("[data-rtype]").forEach(b => b.addEventListener("click", () => {
-  refType = b.dataset.rtype;
-  document.querySelectorAll("[data-rtype]").forEach(x => x.classList.toggle("sel", x === b));
-  const dv = refType === "koko" ? 5 : 6; $("refDur").value = dv; $("refDurVal").textContent = dv + "秒";
-}));
-$("refDur").addEventListener("input", () => { $("refDurVal").textContent = $("refDur").value + "秒"; });
-document.querySelectorAll("[data-rdur]").forEach(b => b.addEventListener("click", () => {
-  const v = Math.max(1, Math.min(20, Math.round((parseFloat($("refDur").value) + parseFloat(b.dataset.rdur)) * 10) / 10));
-  $("refDur").value = v; $("refDurVal").textContent = v + "秒";
-}));
-$("refAddScene").addEventListener("click", () => {
-  if (!refReady) { toast("動画の準備ができていません"); return; }
-  refScenes.push({t: Math.round(refPlayer.getCurrentTime() || 0), d: parseFloat($("refDur").value) || 6, k: refType, x: $("refText").value.trim() || (KLAB[refType] || "コール")});
-  refScenes.sort((a, b) => a.t - b.t);
-  $("refText").value = "";
-  renderRefScenes();
-});
-renderRefScenes();
 $("songAdd").addEventListener("click", addSong);
 $("songYid").addEventListener("change", loadSongPreview);
 $("songStart").addEventListener("input", paintSongRange);
@@ -645,16 +569,6 @@ $("songEditCancel").addEventListener("click", resetSongForm);
 $("songPos").addEventListener("input", () => { songPosDrag = true; $("songPosVal").textContent = fmt(+$("songPos").value); });
 $("songPos").addEventListener("change", () => { songPosDrag = false; if (songPlayerReady) songPlayer.seekTo(+$("songPos").value, true); });
 paintSongRange();
-function fillRefSongs() {
-  const list = ADM_SONGS.length ? ADM_SONGS.map(s => ({title: s.title, vid: s.yid})) : SONGS;
-  const cur = $("refSong").value;
-  $("refSong").innerHTML = list.map(s => '<option value="' + s.vid + '">' + esc(s.title) + "</option>").join("");
-  if (cur) $("refSong").value = cur;
-  setRefYt();
-}
-function setRefYt() { const v = $("refSong").value; if (refReady && v) refPlayer.cueVideoById(v); }
-$("refSong").addEventListener("change", setRefYt);
-fillRefSongs();
 $("loginBtn").addEventListener("click", async () => {
   if (me) { await signOut(auth); return; }
   try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { toast("ログインできませんでした"); }
