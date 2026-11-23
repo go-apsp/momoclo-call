@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ライブ会場モード - 空間スクリーンデモ</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#070814',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #05060f;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        /* 3Dパースペクティブ用ステージコンテナ */
+        #viewport {
+            perspective: 1000px;
+            perspective-origin: 50% 50%;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #world {
+            position: absolute;
+            width: 100vw;
+            height: 100vh;
+            transform-style: preserve-3d;
+            transform-origin: 50% 50%;
+            will-change: transform;
+        }
+
+        /* ライブ会場の広大なパノラマ背景 */
+        .venue-background {
+            position: absolute;
+            width: 320vw;
+            height: 320vh;
+            left: -110vw;
+            top: -110vh;
+            transform: translateZ(-600px);
+            background: 
+                radial-gradient(circle at 50% 25%, rgba(130, 40, 240, 0.35) 0%, transparent 60%),
+                radial-gradient(circle at 20% 40%, rgba(0, 160, 255, 0.25) 0%, transparent 50%),
+                radial-gradient(circle at 80% 40%, rgba(255, 40, 120, 0.25) 0%, transparent 50%),
+                radial-gradient(circle at 50% 90%, rgba(255, 120, 0, 0.15) 0%, transparent 40%),
+                linear-gradient(to bottom, #03040c 0%, #0d0f28 45%, #050716 75%, #010206 100%);
+            pointer-events: none;
+        }
+
+        /* 会場ペンライトとステージライトの装飾 */
+        .light-beam {
+            position: absolute;
+            top: -20vh;
+            width: 140px;
+            height: 140vh;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.4), rgba(0, 220, 255, 0.15) 30%, transparent 80%);
+            transform-origin: top center;
+            filter: blur(12px);
+            opacity: 0.7;
+        }
+
+        /* 16:9 浮遊スクリーン */
+        .screen-anchor {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform-style: preserve-3d;
+            /* 空間の前方に配置 */
+            transform: translate(-50%, -50%) translateZ(-350px);
+            width: 80vw;
+            max-width: 860px;
+            aspect-ratio: 16 / 9;
+        }
+
+        .floating-screen {
+            width: 100%;
+            height: 100%;
+            border-radius: 18px;
+            position: relative;
+            background: #090b14;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            box-shadow: 
+                0 0 50px rgba(0, 200, 255, 0.4),
+                0 0 100px rgba(180, 0, 255, 0.25),
+                inset 0 0 30px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* 映像スクリーンの走査線アニメーション */
+        .scanlines {
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.04));
+            background-size: 100% 4px, 6px 100%;
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* アニメーション用キーフレーム */
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.6; transform: scaleY(1); }
+            50% { opacity: 0.95; transform: scaleY(1.08); }
+        }
+        .anim-glow {
+            animation: pulseGlow 4s ease-in-out infinite alternate;
+        }
+
+        /* レンジスライダーのモダンカスタマイズ */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 8px #38bdf8;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #1e293b;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-black text-white select-none">
+
+    <!-- 3D表示ビューポート -->
+    <div id="viewport">
+        <div id="world">
+            <!-- ライブ会場背景空間 -->
+            <div class="venue-background flex items-center justify-center">
+                <!-- ステージトラス/照明のSVGアート -->
+                <svg class="absolute w-full h-full opacity-60 pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="lightGrad1" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.5"/>
+                            <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+                        </linearGradient>
+                        <linearGradient id="lightGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#ec4899" stop-opacity="0.5"/>
+                            <stop offset="100%" stop-color="#ec4899" stop-opacity="0"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- スポットライトビーム -->
+                    <polygon points="50%,15% 35%,100% 42%,100%" fill="url(#lightGrad1)" class="anim-glow" style="transform-origin: 50% 15%; animation-duration: 3s;"/>
+                    <polygon points="50%,15% 58%,100% 65%,100%" fill="url(#lightGrad2)" class="anim-glow" style="transform-origin: 50% 15%; animation-duration: 3.5s;"/>
+                    <polygon points="20%,10% 0%,100% 30%,100%" fill="url(#lightGrad2)" opacity="0.3"/>
+                    <polygon points="80%,10% 70%,100% 100%,100%" fill="url(#lightGrad1)" opacity="0.3"/>
+                </svg>
+
+                <!-- ペンライトのオーディエンス表現（粒子状の光の群れ） -->
+                <div id="penlight-field" class="absolute bottom-0 w-full h-2/5 overflow-hidden opacity-80 pointer-events-none"></div>
+
+                <!-- ステージトラス構造のシルエットライン -->
+                <div class="absolute top-[18%] w-full h-[3px] bg-slate-700/60 shadow-[0_0_15px_rgba(255,255,255,0.2)]"></div>
+                <div class="absolute top-[22%] w-full h-[2px] bg-slate-800/80"></div>
+            </div>
+
+            <!-- 空間内に固定配置される16:9映像スクリーン -->
+            <div class="screen-anchor">
+                <div class="floating-screen shadow-2xl backdrop-blur-md">
+                    <div class="scanlines"></div>
+
+                    <!-- スクリーンヘッダーバー -->
+                    <div class="z-20 flex justify-between items-center px-4 py-3 bg-black/60 border-b border-white/10 backdrop-blur-sm">
+                        <div class="flex items-center space-x-2">
+                            <span class="inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+                            <span class="text-xs font-bold tracking-widest text-red-400">LIVE FEED</span>
+                            <span class="text-[11px] bg-white/10 text-slate-300 px-1.5 py-0.5 rounded font-mono">1080p 60fps</span>
+                        </div>
+                        <div class="text-xs text-sky-400 font-mono tracking-wider" id="stream-time">00:00:00</div>
+                    </div>
+
+                    <!-- スクリーン中央ダミー映像演出 -->
+                    <div class="relative z-10 flex-1 flex flex-col items-center justify-center p-6 text-center overflow-hidden">
+                        <!-- オーディオビジュアライザー風アニメーションバー -->
+                        <div class="flex items-end justify-center space-x-1.5 h-16 mb-4 w-full max-w-xs" id="visualizer-bars">
+                            <!-- JSで生成 -->
+                        </div>
+
+                        <div class="space-y-1">
+                            <h2 class="text-xl md:text-3xl font-extrabold tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-pink-400 to-amber-300">
+                                SUMMER LIVE 2026 WORLD TOUR
+                            </h2>
+                            <p class="text-xs md:text-sm text-slate-400 tracking-wide">STAGE 01 - MAIN ARENA FLOATING SCREEN</p>
+                        </div>
+
+                        <!-- 空間座標のリアルタイム表示インジケーター -->
+                        <div class="mt-4 flex items-center space-x-4 text-[10px] md:text-xs text-slate-400 font-mono bg-black/40 px-3 py-1.5 rounded-full border border-white/10">
+                            <div>YAW: <span id="label-yaw" class="text-cyan-300">+0.0°</span></div>
+                            <div>PITCH: <span id="label-pitch" class="text-pink-300">+0.0°</span></div>
+                            <div class="hidden sm:block">STATUS: <span class="text-emerald-400">TRACKING</span></div>
+                        </div>
+                    </div>
+
+                    <!-- スクリーンフッターバー -->
+                    <div class="z-20 px-4 py-2 bg-black/70 border-t border-white/10 flex justify-between items-center text-[10px] text-slate-400">
+                        <div class="flex items-center gap-2">
+                            <span class="text-emerald-400">● VENUE MODE ACTIVE</span>
+                            <span class="opacity-50">|</span>
+                            <span>空間固定ディスプレイ</span>
+                        </div>
+                        <div class="text-[10px] text-slate-500 font-mono">ID: ST-9088-EX</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 常時表示されるオーバーレイUI -->
+    <header class="fixed top-4 left-4 right-4 z-40 flex justify-between items-center pointer-events-none">
+        <div class="pointer-events-auto bg-black/60 backdrop-blur-md border border-white/15 px-3 py-1.5 rounded-full flex items-center gap-2 text-xs">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+            <span class="font-medium text-slate-200">会場モード</span>
+        </div>
+
+        <div class="flex items-center gap-2 pointer-events-auto">
+            <!-- 正面に戻すボタン -->
+            <button id="btn-recenter" class="bg-sky-600/80 hover:bg-sky-500 active:scale-95 transition-all text-white px-3.5 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md shadow-lg shadow-sky-600/30 flex items-center gap-1.5 border border-sky-400/40">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" stroke-width="2"/>
+                    <circle cx="12" cy="12" r="2" fill="currentColor"/>
+                    <path stroke-width="2" d="M12 3v3M12 18v3M3 12h3M18 12h3"/>
+                </svg>
+                正面に戻す
+            </button>
+
+            <!-- 設定ドロワートグルボタン -->
+            <button id="btn-toggle-panel" class="bg-black/60 hover:bg-black/80 active:scale-95 transition-all text-white p-2 rounded-full backdrop-blur-md border border-white/20 shadow-lg">
+                <svg class="w-4 h-4 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- ガイドチップ（画面下部） -->
+    <div class="fixed bottom-4 left-1/2 -translate-x-1/2 pointer-events-none z-30 transition-opacity duration-500" id="drag-hint">
+        <div class="bg-black/60 backdrop-blur-md border border-white/10 px-4 py-2 rounded-full text-[11px] text-slate-300 flex items-center gap-2 shadow-xl">
+            <svg class="w-3.5 h-3.5 text-cyan-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18m-4 4l4-4m0 0l-4-4"/>
+            </svg>
+            <span>ドラッグまたは端末の傾きで見回せます</span>
+        </div>
+    </div>
+
+    <!-- iOS パーミッション要求バナー (iOSかつ未許可の場合に表示) -->
+    <div id="ios-perm-container" class="hidden fixed inset-x-4 top-20 z-50 max-w-sm mx-auto">
+        <div class="bg-slate-900/95 border border-sky-500/50 p-4 rounded-2xl shadow-2xl backdrop-blur-xl flex flex-col items-center text-center">
+            <div class="w-10 h-10 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center mb-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                </svg>
+            </div>
+            <h3 class="text-sm font-bold text-white mb-1">端末モーションセンサーの許可</h3>
+            <p class="text-xs text-slate-300 mb-3">端末を傾けて会場内を360度見回すために、モーションセンサーへのアクセスを許可してください。</p>
+            <button id="btn-request-gyro" class="w-full bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold py-2 rounded-xl text-xs shadow-lg shadow-sky-500/30 active:scale-95 transition-all">
+                センサーを有効化する
+            </button>
+        </div>
+    </div>
+
+    <!-- 設定ドロワーパネル -->
+    <div id="settings-panel" class="fixed right-4 top-16 z-40 w-80 max-w-[calc(100vw-2rem)] bg-slate-950/90 border border-slate-700/50 rounded-2xl p-4 shadow-2xl backdrop-blur-xl transition-all duration-300 origin-top-right transform scale-95 opacity-0 pointer-events-none">
+        <div class="flex justify-between items-center pb-3 border-b border-white/10 mb-3">
+            <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+                見回し・手ブレ補正設定
+            </h3>
+            <button id="btn-close-settings" class="text-slate-400 hover:text-white p-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="space-y-4 text-xs">
+            <!-- 手ブレ補正の強さ (平滑化係数) -->
+            <div>
+                <div class="flex justify-between text-slate-300 mb-1">
+                    <span>手ブレ補正の強さ (平滑化)</span>
+                    <span id="val-smoothing" class="text-sky-400 font-mono font-bold">強 (0.05)</span>
+                </div>
+                <input id="slider-smoothing" type="range" min="0.01" max="0.30" step="0.01" value="0.05">
+                <div class="flex justify-between text-[10px] text-slate-500 mt-0.5">
+                    <span>強力 (滑らか・遅延大)</span>
+                    <span>弱め (俊敏)</span>
+                </div>
+            </div>
+
+            <!-- 操作感度 (Sensitivity) -->
+            <div>
+                <div class="flex justify-between text-slate-300 mb-1">
+                    <span>ジャイロ感度</span>
+                    <span id="val-sensitivity" class="text-sky-400 font-mono font-bold">1.0x</span>
+                </div>
+                <input id="slider-sensitivity" type="range" min="0.3" max="2.5" step="0.1" value="1.0">
+                <div class="flex justify-between text-[10px] text-slate-500 mt-0.5">
+                    <span>低感度 (0.3x)</span>
+                    <span>高感度 (2.5x)</span>
+                </div>
+            </div>
+
+            <!-- デッドバンド (微小ノイズカット) -->
+            <div>
+                <div class="flex justify-between text-slate-300 mb-1">
+                    <span>デッドバンド (微小振動の無視)</span>
+                    <span id="val-deadband" class="text-sky-400 font-mono font-bold">0.12°</span>
+                </div>
+                <input id="slider-deadband" type="range" min="0.0" max="0.5" step="0.02" value="0.12">
+                <div class="flex justify-between text-[10px] text-slate-500 mt-0.5">
+                    <span>無効 (0.0°)</span>
+                    <span>広め (0.5°)</span>
+                </div>
+            </div>
+
+            <!-- ジャイロ手動再有効化ボタン (Android / 設定済みiOS用) -->
+            <div class="pt-2 border-t border-white/10 flex flex-col gap-2">
+                <button id="btn-manual-gyro" class="w-full bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 py-2 rounded-xl text-xs font-medium border border-white/10 flex items-center justify-center gap-1.5 transition-all">
+                    <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    ジャイロセンサー接続の確認
+                </button>
+
+                <button id="btn-reset-params" class="text-slate-400 hover:text-slate-200 text-[11px] underline text-center">
+                    設定値を初期状態に戻す
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 状態管理・パラメータ定義 ---
+        const config = {
+            smoothing: 0.05,    // 指数平滑化ファクター (小さいほど手ブレ補正が強い。初期値は強め)
+            sensitivity: 1.0,  // ジャイロの感度係数
+            deadband: 0.12,     // この角度以下の微小な変動は無視 (度)
+        };
+
+        // 姿勢・座標状態
+        const state = {
+            // ジャイロ生の最新入力値
+            rawYaw: 0,
+            rawPitch: 0,
+            hasGyro: false,
+
+            // キャリブレーション（正面リセット基準値）
+            calibYaw: 0,
+            calibPitch: 0,
+
+            // フィルタ適用前の目標角度 (ドラッグ含む)
+            targetYaw: 0,
+            targetPitch: 0,
+
+            // 平滑化後の現在の描画角度
+            currentYaw: 0,
+            currentPitch: 0,
+
+            // ドラッグ入力オフセット
+            dragYawOffset: 0,
+            dragPitchOffset: 0,
+
+            // ドラッグ処理一時保持
+            isDragging: false,
+            startX: 0,
+            startY: 0,
+            baseDragYaw: 0,
+            baseDragPitch: 0,
+
+            // 初期化フラグ
+            initialSensorSet: false
+        };
+
+        // DOM参照
+        const worldEl = document.getElementById('world');
+        const labelYaw = document.getElementById('label-yaw');
+        const labelPitch = document.getElementById('label-pitch');
+        const streamTimeEl = document.getElementById('stream-time');
+        const penlightContainer = document.getElementById('penlight-field');
+        const dragHint = document.getElementById('drag-hint');
+        const iosPermContainer = document.getElementById('ios-perm-container');
+
+        // UIスライダー＆ボタン参照
+        const sliderSmoothing = document.getElementById('slider-smoothing');
+        const sliderSensitivity = document.getElementById('slider-sensitivity');
+        const sliderDeadband = document.getElementById('slider-deadband');
+        const valSmoothing = document.getElementById('val-smoothing');
+        const valSensitivity = document.getElementById('val-sensitivity');
+        const valDeadband = document.getElementById('val-deadband');
+
+        const btnRecenter = document.getElementById('btn-recenter');
+        const btnTogglePanel = document.getElementById('btn-toggle-panel');
+        const btnCloseSettings = document.getElementById('btn-close-settings');
+        const settingsPanel = document.getElementById('settings-panel');
+        const btnRequestGyro = document.getElementById('btn-request-gyro');
+        const btnManualGyro = document.getElementById('btn-manual-gyro');
+        const btnResetParams = document.getElementById('btn-reset-params');
+
+        // --- ペンライト（観客席の光の海）の生成 ---
+        function generatePenlights() {
+            const count = 120;
+            const colors = ['#38bdf8', '#ec4899', '#a855f7', '#fbbf24', '#34d399', '#f43f5e'];
+            const frag = document.createDocumentFragment();
+
+            for (let i = 0; i < count; i++) {
+                const dot = document.createElement('div');
+                const x = Math.random() * 100;
+                const y = Math.random() * 100;
+                const size = Math.random() * 5 + 3;
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                const animDuration = (Math.random() * 2 + 1.5).toFixed(2);
+                const delay = (Math.random() * 2).toFixed(2);
+
+                dot.style.position = 'absolute';
+                dot.style.left = `${x}%`;
+                dot.style.top = `${y}%`;
+                dot.style.width = `${size}px`;
+                dot.style.height = `${size * 2}px`;
+                dot.style.borderRadius = '50%';
+                dot.style.backgroundColor = color;
+                dot.style.boxShadow = `0 0 ${size * 2}px ${color}, 0 0 ${size * 4}px ${color}`;
+                dot.style.opacity = (Math.random() * 0.7 + 0.3).toString();
+                dot.style.animation = `pulseGlow ${animDuration}s infinite ease-in-out ${delay}s alternate`;
+                dot.style.transform = `rotate(${(Math.random() * 40 - 20).toFixed(0)}deg)`;
+                frag.appendChild(dot);
+            }
+            penlightContainer.appendChild(frag);
+        }
+
+        // --- ビジュアライザーアニメーションバー生成 ---
+        function initVisualizerBars() {
+            const container = document.getElementById('visualizer-bars');
+            const numBars = 24;
+            const bars = [];
+
+            for (let i = 0; i < numBars; i++) {
+                const b = document.createElement('div');
+                b.className = 'flex-1 bg-gradient-to-t from-cyan-500 to-pink-500 rounded-t-sm transition-all duration-75';
+                b.style.height = '15%';
+                container.appendChild(b);
+                bars.push(b);
+            }
+
+            setInterval(() => {
+                bars.forEach(b => {
+                    const h = Math.floor(Math.random() * 85) + 15;
+                    b.style.height = `${h}%`;
+                });
+            }, 100);
+        }
+
+        // 映像スクリーンの経過時間タイマー
+        let startTime = Date.now();
+        function updateStreamTimer() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const hrs = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+            const mins = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+            const secs = String(elapsed % 60).padStart(2, '0');
+            streamTimeEl.textContent = `${hrs}:${mins}:${secs}`;
+        }
+        setInterval(updateStreamTimer, 1000);
+
+        // --- 角度差分計算 (最短経路のラップアラウンド考慮: -180〜180度) ---
+        function shortestAngleDiff(target, current) {
+            let diff = (target - current) % 360;
+            if (diff > 180) diff -= 360;
+            if (diff < -180) diff += 360;
+            return diff;
+        }
+
+        // --- ジャイロセンサー (DeviceOrientation) イベント処理 ---
+        function handleOrientation(e) {
+            state.hasGyro = true;
+
+            // alpha: コンパス方位 (0-360)
+            // beta: 前後の傾き (-180-180)
+            // gamma: 左右の傾き (-90-90)
+            const alpha = e.alpha || 0;
+            const beta = e.beta || 0;
+            const gamma = e.gamma || 0;
+
+            // 端末の縦横持ちなどの状態に応じたピッチ/ヨーの推定
+            // 縦持ち基準: ヨーは方位alpha、ピッチは前後の傾きbeta
+            // ※端末が自然に手持ちされている角度 (約45度傾き) を標準中央として考慮
+            const currentRawYaw = alpha;
+            const currentRawPitch = beta - 45; // 45度起こして持つ状態を0度近傍とする
+
+            // 初回受信時に自動で正面キャリブレーション
+            if (!state.initialSensorSet) {
+                state.calibYaw = currentRawYaw;
+                state.calibPitch = currentRawPitch;
+                state.initialSensorSet = true;
+            }
+
+            state.rawYaw = currentRawYaw;
+            state.rawPitch = currentRawPitch;
+
+            // 相対角度を算出
+            const deltaYaw = shortestAngleDiff(state.rawYaw, state.calibYaw) * config.sensitivity;
+            const deltaPitch = (state.rawPitch - state.calibPitch) * config.sensitivity;
+
+            // デッドバンド処理（前回の目標値との差が閾値以下なら更新しない）
+            const diffY = shortestAngleDiff(deltaYaw, state.targetYaw - state.dragYawOffset);
+            if (Math.abs(diffY) > config.deadband) {
+                state.targetYaw = deltaYaw + state.dragYawOffset;
+            }
+
+            const diffP = deltaPitch - (state.targetPitch - state.dragPitchOffset);
+            if (Math.abs(diffP) > config.deadband) {
+                state.targetPitch = deltaPitch + state.dragPitchOffset;
+            }
+        }
+
+        // --- iOS 13+ 向けパーミッション要求 ---
+        async function requestDeviceOrientationPermission() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const permissionState = await DeviceOrientationEvent.requestPermission();
+                    if (permissionState === 'granted') {
+                        window.addEventListener('deviceorientation', handleOrientation, true);
+                        iosPermContainer.classList.add('hidden');
+                    } else {
+                        showTemporaryHint('センサーアクセスが拒否されました。ドラッグで見回せます');
+                    }
+                } catch (err) {
+                    console.error('Permission error:', err);
+                    window.addEventListener('deviceorientation', handleOrientation, true);
+                    iosPermContainer.classList.add('hidden');
+                }
+            } else {
+                // 通常のブラウザ/Android
+                window.addEventListener('deviceorientation', handleOrientation, true);
+                iosPermContainer.classList.add('hidden');
+            }
+        }
+
+        function checkDeviceOrientationSupport() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                // iOS 13+ の場合は許可バナーを表示
+                iosPermContainer.classList.remove('hidden');
+            } else if (window.DeviceOrientationEvent) {
+                // Androidまたはデスクトップ
+                window.addEventListener('deviceorientation', handleOrientation, true);
+            }
+        }
+
+        // --- タッチ & マウスドラッグ操作 ---
+        function onPointerDown(e) {
+            // 操作パネル内やボタンでのドラッグは無視
+            if (e.target.closest('#settings-panel') || e.target.closest('button') || e.target.closest('input')) {
+                return;
+            }
+            state.isDragging = true;
+            state.startX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+            state.startY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+            state.baseDragYaw = state.dragYawOffset;
+            state.baseDragPitch = state.dragPitchOffset;
+
+            // ヒント表示をフェードアウト
+            if (dragHint) {
+                dragHint.style.opacity = '0';
+            }
+        }
+
+        function onPointerMove(e) {
+            if (!state.isDragging) return;
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+
+            const dx = clientX - state.startX;
+            const dy = clientY - state.startY;
+
+            // 画面幅に応じた角度変換 (スワイプ感度)
+            const factor = 0.22;
+            state.dragYawOffset = state.baseDragYaw - (dx * factor);
+            state.dragPitchOffset = state.baseDragPitch + (dy * factor);
+
+            // 上下の首振り制限 (-70度〜+70度)
+            state.dragPitchOffset = Math.max(-70, Math.min(70, state.dragPitchOffset));
+
+            if (!state.hasGyro) {
+                state.targetYaw = state.dragYawOffset;
+                state.targetPitch = state.dragPitchOffset;
+            }
+        }
+
+        function onPointerUp() {
+            state.isDragging = false;
+        }
+
+        // --- 正面リセット（キャリブレーション） ---
+        function recenterToFront() {
+            if (state.hasGyro) {
+                state.calibYaw = state.rawYaw;
+                state.calibPitch = state.rawPitch;
+            }
+            // ドラッグオフセットも0にリセット
+            state.dragYawOffset = 0;
+            state.dragPitchOffset = 0;
+
+            state.targetYaw = 0;
+            state.targetPitch = 0;
+
+            // 一時トースト演出
+            showTemporaryHint('正面にリセットしました');
+        }
+
+        function showTemporaryHint(msg) {
+            if (!dragHint) return;
+            const span = dragHint.querySelector('span');
+            if (span) span.textContent = msg;
+            dragHint.style.opacity = '1';
+            setTimeout(() => {
+                dragHint.style.opacity = '0';
+            }, 2500);
+        }
+
+        // --- メインレンダリング・アニメーションループ (手ブレ補正フィルター) ---
+        function updateTransform() {
+            // 手ブレ補正: 指数移動平均 (Low-Pass Filter)
+            // current = current + (target - current) * alpha
+            // ヨー角は最短角度差を使用
+            const diffYaw = shortestAngleDiff(state.targetYaw, state.currentYaw);
+            state.currentYaw += diffYaw * config.smoothing;
+
+            // ピッチ角
+            const diffPitch = state.targetPitch - state.currentPitch;
+            state.currentPitch += diffPitch * config.smoothing;
+
+            // ワールドの3D変換適用
+            // ユーザーが見回す操作 = ワールド全体を逆回転させる
+            // rotateX: 上下見回し (ピッチ)
+            // rotateY: 左右見回し (ヨー)
+            const rotX = state.currentPitch;
+            const rotY = -state.currentYaw;
+
+            worldEl.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+
+            // 数値表示の更新 (16:9 スクリーン内のHUD)
+            if (labelYaw) labelYaw.textContent = `${state.currentYaw >= 0 ? '+' : ''}${state.currentYaw.toFixed(1)}°`;
+            if (labelPitch) labelPitch.textContent = `${state.currentPitch >= 0 ? '+' : ''}${state.currentPitch.toFixed(1)}°`;
+
+            requestAnimationFrame(updateTransform);
+        }
+
+        // --- 設定スライダーのイベントリスナー ---
+        sliderSmoothing.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            config.smoothing = val;
+            let label = '強';
+            if (val > 0.18) label = '弱';
+            else if (val > 0.08) label = '中';
+            valSmoothing.textContent = `${label} (${val.toFixed(2)})`;
+        });
+
+        sliderSensitivity.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            config.sensitivity = val;
+            valSensitivity.textContent = `${val.toFixed(1)}x`;
+        });
+
+        sliderDeadband.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            config.deadband = val;
+            valDeadband.textContent = `${val.toFixed(2)}°`;
+        });
+
+        btnResetParams.addEventListener('click', () => {
+            config.smoothing = 0.05;
+            config.sensitivity = 1.0;
+            config.deadband = 0.12;
+
+            sliderSmoothing.value = "0.05";
+            sliderSensitivity.value = "1.0";
+            sliderDeadband.value = "0.12";
+
+            valSmoothing.textContent = '強 (0.05)';
+            valSensitivity.textContent = '1.0x';
+            valDeadband.textContent = '0.12°';
+        });
+
+        // --- 設定ドロワーのトグル開閉 ---
+        function toggleSettingsPanel(show) {
+            const isVisible = !settingsPanel.classList.contains('pointer-events-none');
+            const targetShow = show !== undefined ? show : !isVisible;
+
+            if (targetShow) {
+                settingsPanel.classList.remove('pointer-events-none', 'scale-95', 'opacity-0');
+                settingsPanel.classList.add('scale-100', 'opacity-100');
+            } else {
+                settingsPanel.classList.add('pointer-events-none', 'scale-95', 'opacity-0');
+                settingsPanel.classList.remove('scale-100', 'opacity-100');
+            }
+        }
+
+        btnTogglePanel.addEventListener('click', () => toggleSettingsPanel());
+        btnCloseSettings.addEventListener('click', () => toggleSettingsPanel(false));
+        btnRecenter.addEventListener('click', recenterToFront);
+        btnRequestGyro.addEventListener('click', requestDeviceOrientationPermission);
+        btnManualGyro.addEventListener('click', requestDeviceOrientationPermission);
+
+        // ポインタイベント（タッチ＆マウス共通）
+        window.addEventListener('mousedown', onPointerDown);
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+
+        window.addEventListener('touchstart', onPointerDown, { passive: true });
+        window.addEventListener('touchmove', onPointerMove, { passive: true });
+        window.addEventListener('touchend', onPointerUp);
+
+        // --- アプリケーション起動 ---
+        window.onload = function() {
+            generatePenlights();
+            initVisualizerBars();
+            checkDeviceOrientationSupport();
+            requestAnimationFrame(updateTransform);
+
+            // 5秒後に初期ヒントを自然にフェードアウト
+            setTimeout(() => {
+                if (dragHint) dragHint.style.opacity = '0';
+            }, 6000);
+        };
+    </script>
+</body>
+</html>
