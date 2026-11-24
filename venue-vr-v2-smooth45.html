@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>会場モード VR試作 v2 - クォータニオン・1€フィルタ・相補フィルタ</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #050508;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #fff;
+    }
+
+    /* 3D 空間ビューポート */
+    #viewport {
+      width: 100vw;
+      height: 100vh;
+      perspective: 800px;
+      overflow: hidden;
+      position: relative;
+      touch-action: none;
+    }
+
+    #world {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
+
+    /* 会場背景（広域パノラマドーム・シリンダー風背景） */
+    .venue-bg {
+      position: absolute;
+      width: 3200px;
+      height: 2400px;
+      left: 50%;
+      top: 50%;
+      margin-left: -1600px;
+      margin-top: -1200px;
+      transform: translateZ(-900px);
+      background: radial-gradient(circle at 50% 45%, #181938 0%, #0c0d1c 45%, #050509 85%);
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    /* ステージのトラス構造・照明 */
+    .truss-grid {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 600px;
+      background: 
+        repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 40px),
+        repeating-linear-gradient(-45deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 40px),
+        linear-gradient(to bottom, rgba(30,30,50,0.8), transparent);
+      border-bottom: 3px solid rgba(80, 100, 160, 0.4);
+    }
+
+    .spotlight {
+      position: absolute;
+      top: -100px;
+      width: 300px;
+      height: 1600px;
+      transform-origin: top center;
+      filter: blur(25px);
+      opacity: 0.35;
+      mix-blend-mode: screen;
+      pointer-events: none;
+      animation: sweep 8s ease-in-out infinite alternate;
+    }
+    .spot-1 {
+      left: 30%;
+      background: linear-gradient(to bottom, rgba(230, 0, 120, 0.9), rgba(230, 0, 120, 0.05) 75%, transparent);
+      transform: rotate(22deg);
+    }
+    .spot-2 {
+      right: 30%;
+      background: linear-gradient(to bottom, rgba(0, 180, 255, 0.9), rgba(0, 180, 255, 0.05) 75%, transparent);
+      transform: rotate(-22deg);
+      animation-delay: -3s;
+    }
+    .spot-center {
+      left: 46%;
+      width: 260px;
+      background: linear-gradient(to bottom, rgba(160, 60, 255, 0.8), transparent 80%);
+      animation: sweepCenter 6s ease-in-out infinite alternate;
+    }
+
+    @keyframes sweep {
+      0% { transform: rotate(15deg); }
+      100% { transform: rotate(35deg); }
+    }
+    @keyframes sweepCenter {
+      0% { transform: rotate(-8deg); }
+      100% { transform: rotate(8deg); }
+    }
+
+    /* 観客席のペンライト群 */
+    .crowd-penlights {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 850px;
+      background: linear-gradient(to top, rgba(0,0,0,0.95) 15%, transparent 100%);
+    }
+
+    .penlight {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(1.5px);
+      opacity: 0.85;
+      animation: wave 3s infinite ease-in-out alternate;
+    }
+
+    @keyframes wave {
+      0% { transform: translateY(0px) scale(1); }
+      100% { transform: translateY(-12px) scale(1.15); }
+    }
+
+    /* 16:9 浮遊スクリーン (空間内に固定) */
+    .screen-anchor {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) translateZ(-700px);
+      transform-style: preserve-3d;
+    }
+
+    .video-screen {
+      width: 768px;
+      height: 432px; /* 16:9 */
+      border-radius: 12px;
+      background: linear-gradient(135deg, #090e1e, #1c2642);
+      border: 3px solid rgba(255, 255, 255, 0.25);
+      box-shadow: 
+        0 0 50px rgba(70, 130, 255, 0.45),
+        0 25px 60px rgba(0, 0, 0, 0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      backface-visibility: hidden;
+    }
+
+    /* ダミー映像演出 */
+    .screen-inner-video {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(45deg, #12092b 0%, #1c0f42 35%, #2b1154 70%, #0d1e3d 100%);
+      background-size: 300% 300%;
+      animation: videoGlow 10s ease infinite;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    @keyframes videoGlow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .screen-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 30, 70, 0.85);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      box-shadow: 0 0 12px rgba(255, 30, 70, 0.6);
+    }
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #fff;
+      animation: blink 1.2s infinite;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+    .screen-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+    }
+    .screen-sub {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.7);
+      letter-spacing: 0.05em;
+    }
+
+    /* UI コントロールパネル */
+    .ui-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: env(safe-area-inset-top, 16px) env(safe-area-inset-right, 16px) env(safe-area-inset-bottom, 16px) env(safe-area-inset-left, 16px);
+    }
+
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: auto;
+    }
+
+    .app-title {
+      font-size: 14px;
+      font-weight: 700;
+      background: rgba(15, 17, 28, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+
+    .btn-reset {
+      background: linear-gradient(135deg, #3a5bfd, #6c47ff);
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      padding: 8px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 4px 15px rgba(80, 80, 255, 0.4);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    .btn-reset:active {
+      transform: scale(0.95);
+      opacity: 0.9;
+    }
+
+    /* 調整スライダーパネル */
+    .controls-panel {
+      pointer-events: auto;
+      background: rgba(13, 16, 28, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 14px 18px;
+      width: min(390px, 92vw);
+      margin: 0 auto;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #8da4db;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .slider-row:last-child {
+      margin-bottom: 0;
+    }
+    .slider-label {
+      width: 100px;
+      flex-shrink: 0;
+      color: #e0e5f5;
+    }
+    .slider-input {
+      flex-grow: 1;
+      accent-color: #6c47ff;
+      height: 6px;
+    }
+    .slider-val {
+      width: 52px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      color: #9cb3f0;
+      font-weight: 600;
+    }
+
+    /* iOS パーミッションモーダル */
+    #permissionModal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .modal-card {
+      background: #191c2b;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 24px;
+      max-width: 320px;
+      text-align: center;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+    }
+    .modal-card h3 {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    .modal-card p {
+      font-size: 13px;
+      color: #aab;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+    .btn-grant {
+      background: linear-gradient(135deg, #00b4db, #0083b0);
+      color: #fff;
+      border: none;
+      border-radius: 22px;
+      padding: 10px 24px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 3D 空間ビューポート -->
+  <div id="viewport">
+    <div id="world">
+      <!-- ライブ会場背景ドーム -->
+      <div class="venue-bg">
+        <div class="truss-grid"></div>
+        <div class="spotlight spot-1"></div>
+        <div class="spotlight spot-2"></div>
+        <div class="spotlight spot-center"></div>
+        <!-- ペンライト群（JSで生成） -->
+        <div class="crowd-penlights" id="penlightContainer"></div>
+      </div>
+
+      <!-- 16:9 浮遊スクリーン -->
+      <div class="screen-anchor">
+        <div class="video-screen">
+          <div class="screen-inner-video">
+            <div class="screen-badge">
+              <span class="badge-dot"></span>
+              LIVE STREAM
+            </div>
+            <div class="screen-title">STAGE MAIN SCREEN</div>
+            <div class="screen-sub">16:9 FLOATING DISPLAY DEMO (1€ + COMPLEMENTARY + QUATERNION)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UI 操作レイヤー -->
+  <div class="ui-layer">
+    <div class="header-bar">
+      <div class="app-title">会場モード VR試作 v2</div>
+      <button class="btn-reset" id="btnReset">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="12" x2="16" y2="14"></line>
+        </svg>
+        正面に戻す
+      </button>
+    </div>
+
+    <!-- 調整スライダーパネル -->
+    <div class="controls-panel">
+      <div class="panel-header">
+        <span>1€ & 相補フィルタ / クォータニオン制御</span>
+        <span id="sensorStatus" style="font-size: 11px; color:#aaa;">センサー待機中</span>
+      </div>
+
+      <div class="slider-row">
+        <span class="slider-label">手ブレ補正</span>
+        <input type="range" class="slider-input" id="smoothSlider" min="1" max="100" step="1" value="45">
+        <span class="slider-val" id="smoothVal">普通 (45)</span>
+      </div>
+
+      <div class="slider-row">
+        <span class="slider-label">感度</span>
+        <input type="range" class="slider-input" id="sensSlider" min="0.4" max="2.0" step="0.1" value="1.0">
+        <span class="slider-val" id="sensVal">1.0x</span>
+      </div>
+
+      <div class="slider-row">
+        <span class="slider-label">デッドバンド</span>
+        <input type="range" class="slider-input" id="deadbandSlider" min="0.0" max="0.6" step="0.02" value="0.14">
+        <span class="slider-val" id="deadbandVal">0.14°</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- iOS 許可要求モーダル -->
+  <div id="permissionModal">
+    <div class="modal-card">
+      <h3>ジャイロセンサーの許可</h3>
+      <p>端末の向き・傾きで見回すためにモーションセンサーへのアクセスを許可してください。</p>
+      <button class="btn-grant" id="btnGrant">許可して開始</button>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. 観客席のペンライトを動的生成
+    // =========================================================================
+    const penlightColors = ['#ff2a7a', '#2980ff', '#ffe600', '#00e5a3', '#bf55ec', '#ff7f00'];
+    const container = document.getElementById('penlightContainer');
+    const penlightCount = 280;
+
+    for (let i = 0; i < penlightCount; i++) {
+      const p = document.createElement('div');
+      p.className = 'penlight';
+      const size = Math.random() * 5 + 3;
+      p.style.width = size + 'px';
+      p.style.height = (size * 1.6) + 'px';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.bottom = Math.random() * 85 + '%';
+      const color = penlightColors[Math.floor(Math.random() * penlightColors.length)];
+      p.style.backgroundColor = color;
+      p.style.boxShadow = `0 0 10px ${color}, 0 0 20px ${color}`;
+      p.style.animationDelay = (Math.random() * 3) + 's';
+      p.style.animationDuration = (2.2 + Math.random() * 2) + 's';
+      container.appendChild(p);
+    }
+
+    // =========================================================================
+    // 2. クォータニオン (Quaternion) 数学ライブラリ
+    // =========================================================================
+    class Quaternion {
+      constructor(x = 0, y = 0, z = 0, w = 1) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.w = w;
+      }
+
+      clone() {
+        return new Quaternion(this.x, this.y, this.z, this.w);
+      }
+
+      set(x, y, z, w) {
+        this.x = x; this.y = y; this.z = z; this.w = w;
+        return this;
+      }
+
+      identity() {
+        this.x = 0; this.y = 0; this.z = 0; this.w = 1;
+        return this;
+      }
+
+      // 軸（正規化済みベクトル {x, y, z}）と角度（ラジアン）から生成
+      setFromAxisAngle(axis, angle) {
+        const halfAngle = angle * 0.5;
+        const s = Math.sin(halfAngle);
+        this.x = axis.x * s;
+        this.y = axis.y * s;
+        this.z = axis.z * s;
+        this.w = Math.cos(halfAngle);
+        return this;
+      }
+
+      // オイラー角 (Yaw: Y軸, Pitch: X軸, Roll: Z軸, 単位: 度) から生成
+      setFromYawPitchRollDeg(yawDeg, pitchDeg, rollDeg = 0) {
+        const deg2rad = Math.PI / 180;
+        const yaw = yawDeg * deg2rad;
+        const pitch = pitchDeg * deg2rad;
+        const roll = rollDeg * deg2rad;
+
+        const cy = Math.cos(yaw * 0.5), sy = Math.sin(yaw * 0.5);
+        const cp = Math.cos(pitch * 0.5), sp = Math.sin(pitch * 0.5);
+        const cr = Math.cos(roll * 0.5), sr = Math.sin(roll * 0.5);
+
+        // Y-X-Z 回転順序
+        this.w = cy * cp * cr + sy * sp * sr;
+        this.x = cy * sp * cr + sy * cp * sr;
+        this.y = sy * cp * cr - cy * sp * sr;
+        this.z = cy * cp * sr - sy * sp * cr;
+        return this.normalize();
+      }
+
+      // クォータニオン乗算: this = this * q
+      multiply(q) {
+        const ax = this.x, ay = this.y, az = this.z, aw = this.w;
+        const bx = q.x, by = q.y, bz = q.z, bw = q.w;
+
+        this.x = ax * bw + aw * bx + ay * bz - az * by;
+        this.y = ay * bw + aw * by + az * bx - ax * bz;
+        this.z = az * bw + aw * bz + ax * by - ay * bx;
+        this.w = aw * bw - ax * bx - ay * by - az * bz;
+        return this.normalize();
+      }
+
+      // 左側から乗算: this = q * this
+      premultiply(q) {
+        const ax = q.x, ay = q.y, az = q.z, aw = q.w;
+        const bx = this.x, by = this.y, bz = this.z, bw = this.w;
+
+        this.x = ax * bw + aw * bx + ay * bz - az * by;
+        this.y = ay * bw + aw * by + az * bx - ax * bz;
+        this.z = az * bw + aw * bz + ax * by - ay * bx;
+        this.w = aw * bw - ax * bx - ay * by - az * bz;
+        return this.normalize();
+      }
+
+      // 共役（逆回転：単位クォータニオン前提）
+      conjugate() {
+        return new Quaternion(-this.x, -this.y, -this.z, this.w);
+      }
+
+      normalize() {
+        const len = Math.hypot(this.x, this.y, this.z, this.w);
+        if (len > 1e-8) {
+          const inv = 1 / len;
+          this.x *= inv; this.y *= inv; this.z *= inv; this.w *= inv;
+        } else {
+          this.identity();
+        }
+        return this;
+      }
+
+      // 球面線形補間 (SLERP): this -> qb (t: 0..1)
+      slerp(qb, t) {
+        if (t <= 0) return this;
+        if (t >= 1) {
+          this.set(qb.x, qb.y, qb.z, qb.w);
+          return this;
+        }
+
+        let x = this.x, y = this.y, z = this.z, w = this.w;
+        let bx = qb.x, by = qb.y, bz = qb.z, bw = qb.w;
+
+        let cosHalfTheta = x * bx + y * by + z * bz + w * bw;
+
+        // 最短経路を選ぶ
+        if (cosHalfTheta < 0) {
+          bw = -bw; bx = -bx; by = -by; bz = -bz;
+          cosHalfTheta = -cosHalfTheta;
+        }
+
+        if (cosHalfTheta >= 1.0) {
+          return this;
+        }
+
+        const sinHalfTheta = Math.sqrt(1.0 - cosHalfTheta * cosHalfTheta);
+        if (Math.abs(sinHalfTheta) < 0.001) {
+          this.x = 0.5 * (x + bx);
+          this.y = 0.5 * (y + by);
+          this.z = 0.5 * (z + bz);
+          this.w = 0.5 * (w + bw);
+          return this.normalize();
+        }
+
+        const halfTheta = Math.acos(cosHalfTheta);
+        const ratioA = Math.sin((1 - t) * halfTheta) / sinHalfTheta;
+        const ratioB = Math.sin(t * halfTheta) / sinHalfTheta;
+
+        this.x = x * ratioA + bx * ratioB;
+        this.y = y * ratioA + by * ratioB;
+        this.z = z * ratioA + bz * ratioB;
+        this.w = w * ratioA + bw * ratioB;
+        return this.normalize();
+      }
+
+      // CSS matrix3d(16要素) に変換（列優先）
+      toMatrix3dString() {
+        const x = this.x, y = this.y, z = this.z, w = this.w;
+        const x2 = x + x, y2 = y + y, z2 = z + z;
+        const xx = x * x2, xy = x * y2, xz = x * z2;
+        const yy = y * y2, yz = y * z2, zz = z * z2;
+        const wx = w * x2, wy = w * y2, wz = w * z2;
+
+        const m00 = 1 - (yy + zz);
+        const m01 = xy + wz;
+        const m02 = xz - wy;
+
+        const m10 = xy - wz;
+        const m11 = 1 - (xx + zz);
+        const m12 = yz + wx;
+
+        const m20 = xz + wy;
+        const m21 = yz - wx;
+        const m22 = 1 - (xx + yy);
+
+        // CSS 3D 変換行列（行優先表記で渡す）
+        const fmt = (n) => Number(n.toFixed(6));
+        return `matrix3d(` +
+          `${fmt(m00)}, ${fmt(m10)}, ${fmt(m20)}, 0, ` +
+          `${fmt(m01)}, ${fmt(m11)}, ${fmt(m21)}, 0, ` +
+          `${fmt(m02)}, ${fmt(m12)}, ${fmt(m22)}, 0, ` +
+          `0, 0, 0, 1)`;
+      }
+    }
+
+    // =========================================================================
+    // 3. 1€フィルタ (One Euro Filter) 実装
+    //    - 静止時/微小動時：fcを低く保ち強力に平滑化（手ブレ除去）
+    //    - 高速/大きな動き時：速度に応じてfcを高め応答遅延を最小化
+    // =========================================================================
+    class LowPassFilter {
+      constructor(alpha = 1.0, initVal = 0) {
+        this.alpha = alpha;
+        this.y = initVal;
+        this.s = initVal;
+        this.initialized = false;
+      }
+
+      setAlpha(alpha) {
+        this.alpha = Math.max(0.0001, Math.min(1.0, alpha));
+      }
+
+      filter(value, alpha = null) {
+        if (alpha !== null) this.setAlpha(alpha);
+        if (!this.initialized) {
+          this.y = value;
+          this.s = value;
+          this.initialized = true;
+          return this.y;
+        }
+        this.s = this.alpha * value + (1.0 - this.alpha) * this.s;
+        this.y = this.s;
+        return this.y;
+      }
+
+      reset(val = 0) {
+        this.y = val;
+        this.s = val;
+        this.initialized = false;
+      }
+    }
+
+    class OneEuroFilter {
+      constructor({ minCutoff = 0.45, beta = 0.06, dCutoff = 1.0 } = {}) {
+        this.minCutoff = minCutoff; // 静止時のカットオフ周波数（低いほど強い手ブレ補正）
+        this.beta = beta;           // 速度係数（高いほど素早い動きへの追従が速い）
+        this.dCutoff = dCutoff;     // 微分値（角速度）のローパスカットオフ
+        this.xFilter = new LowPassFilter();
+        this.dxFilter = new LowPassFilter();
+        this.lastTime = null;
+      }
+
+      static computeAlpha(cutoff, dt) {
+        const tau = 1.0 / (2.0 * Math.PI * cutoff);
+        return 1.0 / (1.0 + tau / Math.max(dt, 1e-4));
+      }
+
+      setParams({ minCutoff, beta }) {
+        if (typeof minCutoff === 'number') this.minCutoff = minCutoff;
+        if (typeof beta === 'number') this.beta = beta;
+      }
+
+      filter(value, timestampSec) {
+        if (this.lastTime === null || timestampSec <= this.lastTime) {
+          this.lastTime = timestampSec;
+          return this.xFilter.filter(value, 1.0);
+        }
+
+        const dt = Math.min(0.1, Math.max(0.001, timestampSec - this.lastTime));
+        this.lastTime = timestampSec;
+
+        const prevX = this.xFilter.initialized ? this.xFilter.y : value;
+        const dValue = (value - prevX) / dt;
+        const edValue = this.dxFilter.filter(dValue, OneEuroFilter.computeAlpha(this.dCutoff, dt));
+
+        const cutoff = this.minCutoff + this.beta * Math.abs(edValue);
+        return this.xFilter.filter(value, OneEuroFilter.computeAlpha(cutoff, dt));
+      }
+
+      reset(val = 0) {
+        this.xFilter.reset(val);
+        this.dxFilter.reset(0);
+        this.lastTime = null;
+      }
+    }
+
+    // =========================================================================
+    // 4. 状態・パラメータ管理
+    // =========================================================================
+    const world = document.getElementById('world');
+    const viewport = document.getElementById('viewport');
+
+    // スライダー値（1〜100：高いほど強い補正。標準値は45＝普通。82版との比較用）
+    let smoothLevel = 45;
+    let sensitivity = 1.0;
+    let deadband = 0.14; // 度
+
+    // スライダー値から1€フィルタ＆相補フィルタのパラメータへ変換
+    function applySmoothLevel(level) {
+      // level: 1(弱め) 〜 100(非常に強い)
+      const norm = (level - 1) / 99; // 0.0 〜 1.0
+      // 静止時のminCutoff: 弱め(~2.2Hz) -> 強め(~0.22Hz)
+      const minCutoff = 2.2 * Math.pow(0.1, norm);
+      // 大きく動かしたときの追従性beta: 強めでも大きく動かせばしっかり追従するように確保
+      const beta = 0.035 + 0.085 * (1.0 - norm * 0.55);
+
+      euroYaw.setParams({ minCutoff, beta });
+      euroPitch.setParams({ minCutoff, beta });
+    }
+
+    const euroYaw = new OneEuroFilter();
+    const euroPitch = new OneEuroFilter();
+    applySmoothLevel(smoothLevel);
+
+    // センサー生値・ジャイロ積分値・基準点
+    let rawAlpha = null; // 方位 (0-360)
+    let rawBeta = null;  // 縦傾き (-180-180)
+    let lastGyroTimeSec = null;
+
+    // 相補フィルタ用状態（度単位）
+    // 短期的な素早い回転はジャイロ角速度積分、長期的なドリフトは絶対方位/傾き基準へ緩やかに収束
+    let compYaw = 0;
+    let compPitch = 0;
+    let prevRawYawRel = 0;
+    let prevRawPitchRel = 0;
+    let refAlpha = null;
+    let refBeta = null;
+    let hasSensorInit = false;
+
+    // デッドバンド保持用
+    let deadbandYaw = 0;
+    let deadbandPitch = 0;
+
+    // ドラッグ回転（クォータニオンで保持）
+    let dragYawDeg = 0;
+    let dragPitchDeg = 0;
+    let isDragging = false;
+    let lastPointerX = 0;
+    let lastPointerY = 0;
+
+    // クォータニオン状態
+    const targetQuat = new Quaternion().identity();
+    const currentQuat = new Quaternion().identity();
+
+    // UI 要素
+    const smoothSlider = document.getElementById('smoothSlider');
+    const smoothVal = document.getElementById('smoothVal');
+    const sensSlider = document.getElementById('sensSlider');
+    const sensVal = document.getElementById('sensVal');
+    const deadbandSlider = document.getElementById('deadbandSlider');
+    const deadbandVal = document.getElementById('deadbandVal');
+    const btnReset = document.getElementById('btnReset');
+    const sensorStatus = document.getElementById('sensorStatus');
+
+    function updateSmoothLabel() {
+      let label = '普通';
+      if (smoothLevel >= 75) label = '強め';
+      else if (smoothLevel <= 30) label = '弱め';
+      smoothVal.textContent = `${label} (${smoothLevel})`;
+    }
+    updateSmoothLabel();
+
+    smoothSlider.addEventListener('input', (e) => {
+      smoothLevel = parseInt(e.target.value, 10);
+      updateSmoothLabel();
+      applySmoothLevel(smoothLevel);
+    });
+
+    sensSlider.addEventListener('input', (e) => {
+      sensitivity = parseFloat(e.target.value);
+      sensVal.textContent = sensitivity.toFixed(1) + 'x';
+    });
+
+    deadbandSlider.addEventListener('input', (e) => {
+      deadband = parseFloat(e.target.value);
+      deadbandVal.textContent = deadband.toFixed(2) + '°';
+    });
+
+    // =========================================================================
+    // 5. 正面に戻す（キャリブレーション）
+    // =========================================================================
+    function resetToFront() {
+      if (rawAlpha !== null && rawBeta !== null) {
+        refAlpha = rawAlpha;
+        refBeta = rawBeta;
+      }
+      prevRawYawRel = 0;
+      prevRawPitchRel = 0;
+      compYaw = 0;
+      compPitch = 0;
+      deadbandYaw = 0;
+      deadbandPitch = 0;
+      dragYawDeg = 0;
+      dragPitchDeg = 0;
+      euroYaw.reset(0);
+      euroPitch.reset(0);
+      targetQuat.identity();
+      // 正面へ素早く戻しつつクォータニオン補間も同期
+      currentQuat.slerp(targetQuat, 0.65);
+    }
+    btnReset.addEventListener('click', resetToFront);
+
+    // =========================================================================
+    // 6. 角度正規化＆相補フィルタ (Complementary Filter)
+    // =========================================================================
+    function wrapAngle180(deg) {
+      deg = ((deg % 360) + 360) % 360;
+      if (deg > 180) deg -= 360;
+      return deg;
+    }
+
+    function handleOrientation(e) {
+      if (e.alpha === null || e.beta === null) return;
+
+      const nowSec = performance.now() * 0.001;
+      const dt = lastGyroTimeSec !== null ? Math.min(0.1, Math.max(0.001, nowSec - lastGyroTimeSec)) : 0.016;
+      lastGyroTimeSec = nowSec;
+
+      rawAlpha = e.alpha;
+      rawBeta = e.beta;
+
+      if (!hasSensorInit) {
+        refAlpha = rawAlpha;
+        refBeta = rawBeta;
+        prevRawYawRel = 0;
+        prevRawPitchRel = 0;
+        compYaw = 0;
+        compPitch = 0;
+        hasSensorInit = true;
+        sensorStatus.textContent = '相補+1€稼働中';
+        sensorStatus.style.color = '#4cd964';
+        return;
+      }
+
+      // 基準点からの相対角（-180〜+180）
+      const measYawRel = wrapAngle180(rawAlpha - refAlpha);
+      const measPitchRel = wrapAngle180(rawBeta - refBeta);
+
+      // 変化量（角速度 × dt 相当の増分）
+      const dYaw = wrapAngle180(measYawRel - prevRawYawRel);
+      const dPitch = measPitchRel - prevRawPitchRel;
+      prevRawYawRel = measYawRel;
+      prevRawPitchRel = measPitchRel;
+
+      // 相補フィルタ：
+      // angle_est = alpha_comp * (angle_prev + dAngle) + (1 - alpha_comp) * measAngle
+      // 時定数 tau_c（約1.5秒）でドリフトを絶対基準へ緩やかに補正
+      const tauComp = 1.5;
+      const alphaComp = tauComp / (tauComp + dt);
+
+      const gyroPredYaw = compYaw + dYaw;
+      const gyroPredPitch = compPitch + dPitch;
+
+      // 基準値との差分も最短経路で補正
+      const errYaw = wrapAngle180(measYawRel - gyroPredYaw);
+      const errPitch = measPitchRel - gyroPredPitch;
+
+      compYaw = wrapAngle180(gyroPredYaw + (1.0 - alphaComp) * errYaw);
+      compPitch = gyroPredPitch + (1.0 - alphaComp) * errPitch;
+    }
+
+    // =========================================================================
+    // 7. メインループ：デッドバンド -> 1€フィルタ -> クォータニオン合成＆描画
+    // =========================================================================
+    const qYaw = new Quaternion();
+    const qPitch = new Quaternion();
+    const qDragYaw = new Quaternion();
+    const qDragPitch = new Quaternion();
+
+    function update() {
+      const nowSec = performance.now() * 0.001;
+
+      // 感度適用後の角度
+      const scaledYaw = compYaw * sensitivity;
+      const scaledPitch = compPitch * sensitivity;
+
+      // デッドバンド処理（微小な揺れを無視）
+      if (Math.abs(scaledYaw - deadbandYaw) >= deadband) {
+        deadbandYaw = scaledYaw;
+      }
+      if (Math.abs(scaledPitch - deadbandPitch) >= deadband) {
+        deadbandPitch = scaledPitch;
+      }
+
+      // 1€フィルタで手ブレ補正（静止時は強く平滑化、素早い動きは遅れを少なく）
+      const filteredYaw = euroYaw.filter(deadbandYaw, nowSec);
+      const filteredPitch = euroPitch.filter(deadbandPitch, nowSec);
+
+      // クォータニオンで回転を保持・合成
+      // ワールドを視点の逆向きに回転させることで見回しを表現
+      qYaw.setFromYawPitchRollDeg(filteredYaw, 0, 0);
+      qPitch.setFromYawPitchRollDeg(0, -filteredPitch, 0);
+
+      qDragYaw.setFromYawPitchRollDeg(dragYawDeg, 0, 0);
+      qDragPitch.setFromYawPitchRollDeg(0, -dragPitchDeg, 0);
+
+      targetQuat.identity()
+        .multiply(qPitch)
+        .multiply(qYaw)
+        .multiply(qDragPitch)
+        .multiply(qDragYaw)
+        .normalize();
+
+      // フレーム間のクォータニオンSLERPでさらに滑らかな描画を実現
+      const slerpFactor = Math.min(1.0, Math.max(0.12, (105 - smoothLevel) / 140));
+      currentQuat.slerp(targetQuat, slerpFactor);
+
+      world.style.transform = currentQuat.toMatrix3dString();
+
+      requestAnimationFrame(update);
+    }
+    requestAnimationFrame(update);
+
+    // =========================================================================
+    // 8. タッチ / マウスドラッグ対応
+    // =========================================================================
+    viewport.addEventListener('pointerdown', (e) => {
+      isDragging = true;
+      lastPointerX = e.clientX;
+      lastPointerY = e.clientY;
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - lastPointerX;
+      const dy = e.clientY - lastPointerY;
+      lastPointerX = e.clientX;
+      lastPointerY = e.clientY;
+
+      const dragSpeed = 0.22;
+      dragYawDeg = wrapAngle180(dragYawDeg + dx * dragSpeed);
+      dragPitchDeg = Math.max(-80, Math.min(80, dragPitchDeg - dy * dragSpeed));
+    });
+
+    window.addEventListener('pointerup', () => { isDragging = false; });
+    window.addEventListener('pointercancel', () => { isDragging = false; });
+
+    // =========================================================================
+    // 9. iOS DeviceOrientation パーミッション対応
+    // =========================================================================
+    function initOrientation() {
+      if (
+        typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function'
+      ) {
+        const modal = document.getElementById('permissionModal');
+        modal.style.display = 'flex';
+
+        document.getElementById('btnGrant').addEventListener('click', async () => {
+          try {
+            const res = await DeviceOrientationEvent.requestPermission();
+            if (res === 'granted') {
+              window.addEventListener('deviceorientation', handleOrientation);
+              modal.style.display = 'none';
+            } else {
+              alert('センサー利用が拒否されました。ドラッグ操作でご覧いただけます。');
+              modal.style.display = 'none';
+            }
+          } catch (err) {
+            console.error(err);
+            modal.style.display = 'none';
+          }
+        });
+      } else {
+        window.addEventListener('deviceorientation', handleOrientation);
+      }
+    }
+
+    initOrientation();
+  </script>
+</body>
+</html>
