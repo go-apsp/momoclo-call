@@ -111,6 +111,28 @@
        まま変えない。全画面を戻せばコントローラーは通常どおり
        （アプリ既存の全画面での表示）に戻る。会場UI（会場切替・
        全画面を戻す・ジャイロ調整・終了）は会場全画面でも残す。
+   v9 では Gemini 製 VR 試作 v5（テストページ venue-vr-v5.html で
+   祐治が確認・承認）の見た目を、ライブハウス会場に組み込んだ:
+   (1) ライブハウスのときだけ、平らな静止画＋PAINT 配置に代えて
+       Three.js の 270°ドーム（実写＋左右ミラー延長のシームレス
+       テクスチャ、半径620の内向き球）で描く。他会場は v8 のまま。
+       Three.js (r128) は cdnjs から動的に読み込み、失敗したら
+       v8 の平らな表示へ自動で戻る（フォールバック）。
+   (2) 映像（#yt）はドームのスクリーン枠（正面 Z=-500、392×221）に
+       射影変換（ホモグラフィ→CSS matrix3d）で毎フレーム貼る。
+       CSS 3D の入れ子にすると iframe の親要素が変わり再読み込みで
+       再生が止まる恐れがあるため、#yt は元の場所のまま動かさない。
+   (3) 客席ペンライト（180本）とステージビーム（6本）が、実際のコール
+       カードの出現に反応する。カードの DOM 追加・前面化を
+       MutationObserver で拾い、カード文言にメンバー名があれば
+       メンバーカラーのプリセット（かなこ=赤／しおり=黄／れに=紫／
+       あーりん=ピンク）、なければカード種別の色（コール=ピンク／
+       シンガロン=青／ココ好き!=黄）で客席が光る。
+   (4) ジャイロ・ドラッグ・視点のイージングは v8 の確定値をそのまま
+       使う（v5 の4層スタビライザーは未検証のため今回は入れない）。
+       ドームのカメラは本モジュールの current/currentP から作る。
+   背景画像は venue/livehouse-vr.jpg（Gemini 生成の 21:9 実写風画像、
+   1584×672）。ドームのテクスチャ合成は v5 の方式そのまま。
    自己完結モジュールで、app.js 本体には触らない（#modebar へトグル
    ボタンを足し、#mv の中に会場レイヤーを作る）。
 
@@ -243,7 +265,15 @@
     ".vn-note{display:none;margin-top:6px;font-size:.78rem;color:#ffd9a8}",
     ".vn-note.show{display:block}",
     "#venueBtn{min-height:44px;padding:10px 20px;border-radius:999px;font-size:1rem;font-weight:900;letter-spacing:.03em;border:2px solid #ff7ab8;color:#ff7ab8;background:rgba(255,122,184,.14)}",
-    "#venueBtn.on{background:#ff7ab8;border-color:#ff7ab8;color:#14152b;box-shadow:0 0 0 3px rgba(255,122,184,.35),0 4px 14px rgba(255,122,184,.45)}"
+    "#venueBtn.on{background:#ff7ab8;border-color:#ff7ab8;color:#14152b;box-shadow:0 0 0 3px rgba(255,122,184,.35),0 4px 14px rgba(255,122,184,.45)}",
+    // v9: ライブハウス用 270°ドーム（WebGLキャンバス）。ドーム有効時は
+    // 平らな .vn-world を隠し、#mv の perspective（#yt の rotate 用）は
+    // 射影変換と競合しないよう切る。#yt は matrix3d で貼るため z を上げる。
+    ".vn-gl{display:none;position:absolute;inset:0;width:100%;height:100%;z-index:0}",
+    "#mv.vn-dome .vn-gl{display:block}",
+    "#mv.vn-dome .vn-world{visibility:hidden}",
+    "#mv.vn-dome{perspective:none}",
+    "#mv.vn-dome #yt{z-index:2}"
   ].join("\n");
   var styleEl = document.createElement("style");
   styleEl.textContent = css;
@@ -394,6 +424,7 @@
     if (img.getAttribute("src") !== V.src) img.src = V.src;
     venueName.textContent = V.name;
     apply();
+    domeSyncVenue();
   }
   venueBtn.addEventListener("click", function () { setVenue(venueIdx + 1); });
 
@@ -430,6 +461,7 @@
   // 見回しの移動量は「世界が枠を覆い続けられる範囲」に制限する。
   function apply() {
     if (!on) return;
+    if (domeActive()) { domeResize(); return; }
     var w = mv.clientWidth;
     var h = mv.clientHeight;
     if (!w || !h) return;
@@ -512,7 +544,7 @@
     }
     if (Math.abs(vt - current) < 0.02) current = vt;
     if (Math.abs(vtp - currentP) < 0.02) currentP = vtp;
-    apply();
+    if (domeActive()) domeFrame(); else apply();
     rafId = requestAnimationFrame(loop);
   }
 
@@ -791,6 +823,452 @@
     penBtnC.addEventListener("contextmenu", function (e) { e.preventDefault(); });
   }
 
+  /* ---------- v9: ライブハウス用 270°ドーム（Gemini VR試作 v5 の移植） ----------
+     ライブハウス会場のときだけ有効。それ以外・読み込み失敗時は v8 の
+     平らな表示のまま（domeActive() が false を返し、従来経路で描く）。
+     視点（current/currentP・ジャイロ・ドラッグ）は v8 のものをそのまま
+     使い、ドームのカメラへ渡すだけにする。 */
+  var DOME_VENUE_ID = "livehouse";
+  var DOME_DEG = Math.PI / 180;
+  var domeState = "idle"; // idle | loading | ready | failed
+  var domeOn = false;
+  var D = null;           // THREE 関連一式（ready のときに buildDome が作る）
+
+  var glCanvas = document.createElement("canvas");
+  glCanvas.className = "vn-gl";
+  glCanvas.setAttribute("aria-hidden", "true");
+  mv.insertBefore(glCanvas, mv.firstChild);
+
+  function domeActive() { return domeOn && D !== null; }
+
+  function domeSyncVenue() {
+    var want = on && VENUES[venueIdx].id === DOME_VENUE_ID && domeState === "ready";
+    if (want && !domeOn) {
+      domeOn = true;
+      mv.classList.add("vn-dome");
+      domeResize();
+    } else if (!want && domeOn) {
+      domeOn = false;
+      mv.classList.remove("vn-dome");
+      var yEl = claimYt();
+      if (yEl) yEl.style.transformOrigin = "";
+      apply();
+    }
+  }
+
+  function ensureDome() {
+    if (domeState === "ready") { domeSyncVenue(); return; }
+    if (domeState !== "idle") return;
+    domeState = "loading";
+    var sc = document.createElement("script");
+    sc.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+    sc.onload = function () {
+      var imgEl = new Image();
+      imgEl.onload = function () {
+        try {
+          buildDome(imgEl);
+          domeState = "ready";
+          domeSyncVenue();
+          if (on && !domeActive()) apply();
+        } catch (e) { domeState = "failed"; }
+      };
+      imgEl.onerror = function () { domeState = "failed"; };
+      imgEl.src = "venue/livehouse-vr.jpg";
+    };
+    sc.onerror = function () { domeState = "failed"; };
+    document.head.appendChild(sc);
+  }
+
+  function domeResize() {
+    if (!D) return;
+    var w = mv.clientWidth, h = mv.clientHeight;
+    if (!w || !h) return;
+    D.lastW = w; D.lastH = h;
+    D.camera.aspect = w / h;
+    D.camera.updateProjectionMatrix();
+    D.renderer.setSize(w, h, false);
+  }
+
+  /* ドームのテクスチャ合成（v5 の方式そのまま: 正面の実写＋左右は端の
+     反転コピーで延長し、天井トラス・壁面パネル・床のグラデーションで
+     2048×1024 のエクイレクタングラーに包む） */
+  function buildDomeTexture(imgEl) {
+    var TEX_W = 2048, TEX_H = 1024;
+    var cnv = document.createElement("canvas");
+    cnv.width = TEX_W; cnv.height = TEX_H;
+    var ctx = cnv.getContext("2d");
+    var bgGrad = ctx.createLinearGradient(0, 0, 0, TEX_H);
+    bgGrad.addColorStop(0.00, "#04050b");
+    bgGrad.addColorStop(0.24, "#090b17");
+    bgGrad.addColorStop(0.45, "#121324");
+    bgGrad.addColorStop(0.68, "#0c0b16");
+    bgGrad.addColorStop(1.00, "#030307");
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, TEX_W, TEX_H);
+    ctx.strokeStyle = "rgba(130, 155, 220, 0.14)";
+    ctx.lineWidth = 2;
+    var y, x;
+    for (y = 40; y < TEX_H * 0.30; y += 34) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(TEX_W, y); ctx.stroke();
+    }
+    for (x = 0; x < TEX_W; x += 64) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, TEX_H * 0.30); ctx.stroke();
+    }
+    ctx.fillStyle = "rgba(26, 28, 46, 0.55)";
+    for (x = 0; x < TEX_W; x += 96) {
+      ctx.fillRect(x + 8, TEX_H * 0.30, 76, TEX_H * 0.36);
+    }
+    ctx.fillStyle = "rgba(34, 197, 94, 0.55)";
+    ctx.fillRect(TEX_W * 0.18, TEX_H * 0.55, 18, 12);
+    ctx.fillRect(TEX_W * 0.82, TEX_H * 0.55, 18, 12);
+    if (imgEl.naturalWidth > 0) {
+      var frontW = Math.round(TEX_W * 0.486);
+      var frontH = Math.round(frontW * (imgEl.naturalHeight / imgEl.naturalWidth));
+      var fx = Math.round((TEX_W - frontW) * 0.5);
+      var fy = Math.round((TEX_H - frontH) * 0.5 + 14);
+      var flankSrcW = Math.round(imgEl.naturalWidth * 0.24);
+      var flankDstW = Math.round(TEX_W * 0.16);
+      ctx.save();
+      ctx.globalAlpha = 0.72;
+      ctx.translate(fx, fy);
+      ctx.scale(-1, 1);
+      ctx.drawImage(imgEl, 0, 0, flankSrcW, imgEl.naturalHeight, 0, 0, flankDstW, frontH);
+      ctx.restore();
+      ctx.save();
+      ctx.globalAlpha = 0.72;
+      ctx.translate(fx + frontW, fy);
+      ctx.scale(-1, 1);
+      ctx.drawImage(imgEl, imgEl.naturalWidth - flankSrcW, 0, flankSrcW, imgEl.naturalHeight,
+        -flankDstW, 0, flankDstW, frontH);
+      ctx.restore();
+      ctx.drawImage(imgEl, fx, fy, frontW, frontH);
+      var fadeLeft = ctx.createLinearGradient(fx - flankDstW, 0, fx + 30, 0);
+      fadeLeft.addColorStop(0, "#070812");
+      fadeLeft.addColorStop(0.55, "rgba(7,8,18,0.35)");
+      fadeLeft.addColorStop(1, "rgba(7,8,18,0)");
+      ctx.fillStyle = fadeLeft;
+      ctx.fillRect(fx - flankDstW, fy - 10, flankDstW + 30, frontH + 20);
+      var fadeRight = ctx.createLinearGradient(fx + frontW - 30, 0, fx + frontW + flankDstW, 0);
+      fadeRight.addColorStop(0, "rgba(7,8,18,0)");
+      fadeRight.addColorStop(0.45, "rgba(7,8,18,0.35)");
+      fadeRight.addColorStop(1, "#070812");
+      ctx.fillStyle = fadeRight;
+      ctx.fillRect(fx + frontW - 30, fy - 10, flankDstW + 30, frontH + 20);
+      var fadeTop = ctx.createLinearGradient(0, fy - 10, 0, fy + 54);
+      fadeTop.addColorStop(0, "#060812");
+      fadeTop.addColorStop(1, "rgba(6,8,18,0)");
+      ctx.fillStyle = fadeTop;
+      ctx.fillRect(fx - flankDstW, fy - 10, frontW + flankDstW * 2, 64);
+      var fadeBot = ctx.createLinearGradient(0, fy + frontH - 50, 0, fy + frontH + 16);
+      fadeBot.addColorStop(0, "rgba(4,5,10,0)");
+      fadeBot.addColorStop(1, "#04050a");
+      ctx.fillStyle = fadeBot;
+      ctx.fillRect(fx - flankDstW, fy + frontH - 50, frontW + flankDstW * 2, 66);
+    }
+    var tex = new THREE.CanvasTexture(cnv);
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    return tex;
+  }
+
+  function makeGlowTexture() {
+    var c = document.createElement("canvas");
+    c.width = 64; c.height = 64;
+    var g = c.getContext("2d");
+    var gr = g.createRadialGradient(32, 32, 2, 32, 32, 32);
+    gr.addColorStop(0, "rgba(255,255,255,1)");
+    gr.addColorStop(0.32, "rgba(255,255,255,0.75)");
+    gr.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(c);
+  }
+
+  function makeBeamTexture() {
+    var c = document.createElement("canvas");
+    c.width = 64; c.height = 256;
+    var b = c.getContext("2d");
+    var gr = b.createLinearGradient(0, 0, 0, 256);
+    gr.addColorStop(0.0, "rgba(255,255,255,0.85)");
+    gr.addColorStop(0.45, "rgba(255,255,255,0.28)");
+    gr.addColorStop(1.0, "rgba(255,255,255,0.0)");
+    b.fillStyle = gr;
+    b.fillRect(0, 0, 64, 256);
+    return new THREE.CanvasTexture(c);
+  }
+
+  function buildDome(imgEl) {
+    var renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true, powerPreference: "high-performance" });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    var scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x04050a);
+    var camera = new THREE.PerspectiveCamera(78, 1, 1, 2000);
+    camera.position.set(0, 0, 0);
+
+    var domeGeo = new THREE.SphereGeometry(620, 48, 28);
+    domeGeo.scale(-1, 1, 1);
+    var domeMesh = new THREE.Mesh(domeGeo, new THREE.MeshBasicMaterial({ map: buildDomeTexture(imgEl) }));
+    domeMesh.rotation.y = -Math.PI * 0.5; // テクスチャ中央（正面の実写）が -Z に来る配置
+    scene.add(domeMesh);
+
+    // 客席ペンライト（v5 は240本。本番は祐治の端末負荷を考え180本に抑える）
+    var glowTex = makeGlowTexture();
+    var paletteHex = [0xff2a85, 0x38bdf8, 0xfacc15, 0x34d399, 0xc084fc, 0xfb923c];
+    var penlightNodes = [];
+    var penlightGroup = new THREE.Group();
+    scene.add(penlightGroup);
+    for (var i = 0; i < 180; i++) {
+      var azDeg = (Math.random() * 276) - 138;
+      var az = azDeg * DOME_DEG;
+      var radius = 280 + Math.random() * 230;
+      var baseY = -125 - Math.random() * 140;
+      var baseColor = new THREE.Color(paletteHex[i % paletteHex.length]);
+      var mat = new THREE.SpriteMaterial({
+        map: glowTex, color: baseColor.clone(), transparent: true, opacity: 0.72,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      });
+      var sp = new THREE.Sprite(mat);
+      var baseScale = 22 + Math.random() * 26;
+      sp.scale.set(baseScale, baseScale * 1.45, 1);
+      var bx = Math.sin(az) * radius;
+      var bz = -Math.cos(az) * radius;
+      sp.position.set(bx, baseY, bz);
+      penlightGroup.add(sp);
+      penlightNodes.push({
+        sprite: sp, baseX: bx, baseY: baseY, baseZ: bz, baseScale: baseScale,
+        baseColor: baseColor, phase: Math.random() * Math.PI * 2,
+        delayMs: 18 + Math.random() * 78
+      });
+    }
+
+    // ステージ照明ビーム（6本、v5 そのまま）
+    var beamTex = makeBeamTexture();
+    var beamMeshes = [];
+    var beamColors = [0xff2a85, 0xec4899, 0xa855f7, 0x38bdf8, 0x22d3ee, 0x34d399];
+    for (var j = 0; j < 6; j++) {
+      var coneGeo = new THREE.ConeGeometry(78, 560, 20, 1, true);
+      coneGeo.translate(0, -280, 0);
+      var coneMat = new THREE.MeshBasicMaterial({
+        color: beamColors[j], map: beamTex, transparent: true, opacity: 0.14,
+        side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false
+      });
+      var cone = new THREE.Mesh(coneGeo, coneMat);
+      var angleSpread = ((j / 5) - 0.5) * 1.55;
+      cone.position.set(Math.sin(angleSpread) * 260, 260, -Math.cos(angleSpread) * 320);
+      cone.rotation.z = -angleSpread * 0.55;
+      scene.add(cone);
+      beamMeshes.push({
+        mesh: cone, baseColor: new THREE.Color(beamColors[j]),
+        baseRotZ: cone.rotation.z, speed: 0.55 + j * 0.11, phase: j * 1.15
+      });
+    }
+
+    D = {
+      renderer: renderer, scene: scene, camera: camera,
+      penlightNodes: penlightNodes, beamMeshes: beamMeshes,
+      tmpColor: new THREE.Color(), tmpEuler: new THREE.Euler(0, 0, 0, "YXZ"),
+      tmpV: new THREE.Vector3(), lastW: 0, lastH: 0
+    };
+  }
+
+  /* ---------- コール反応（実際のカードに連動） ---------- */
+  var MEMBER_COLOR_PRESET = {
+    "かなこ": "#e60012", "しおり": "#ffd400", "れに": "#9333ea", "あーりん": "#ff6fb5"
+  };
+  var activeCalls = [];
+  function triggerCall(opt) {
+    if (!window.THREE) return;
+    opt = opt || {};
+    var colorHex = opt.colorHex || null;
+    if (!colorHex && opt.member) colorHex = MEMBER_COLOR_PRESET[opt.member] || null;
+    activeCalls.push({
+      startMs: performance.now(), durationMs: opt.durationMs || 580,
+      color: colorHex ? new THREE.Color(colorHex) : null, intensity: opt.intensity || 1.0
+    });
+    if (activeCalls.length > 10) activeCalls.shift();
+  }
+  function callEnvelope(nowMs, delayMs) {
+    var sum = 0, activeColor = null;
+    for (var i = activeCalls.length - 1; i >= 0; i--) {
+      var c = activeCalls[i];
+      var elapsed = nowMs - c.startMs - delayMs;
+      if (elapsed < 0 || elapsed > c.durationMs) continue;
+      var p = elapsed / c.durationMs;
+      var env = p < 0.18
+        ? Math.sin((p / 0.18) * (Math.PI * 0.5))
+        : Math.pow(1 - (p - 0.18) / 0.82, 1.8);
+      sum += env * c.intensity;
+      if (!activeColor && c.color && env > 0.15) activeColor = c.color;
+    }
+    return { energy: Math.min(1.4, sum), color: activeColor };
+  }
+
+  function memberFromLabel(label) {
+    if (!label) return null;
+    if (/かなこ|夏菜子/.test(label)) return "かなこ";
+    if (/しおり|詩織/.test(label)) return "しおり";
+    if (/れに/.test(label)) return "れに";
+    if (/あーりん|アーリン|彩夏/.test(label)) return "あーりん";
+    return null;
+  }
+  function kindColorHex(el) {
+    if (el.classList.contains("k-sing") || el.classList.contains("b-sing")) return "#38bdf8";
+    if (el.classList.contains("k-koko") || el.classList.contains("b-koko")) return "#facc15";
+    return "#ff2a85";
+  }
+  var firedCards = (typeof WeakMap !== "undefined") ? new WeakMap() : null;
+  function maybeFireCard(el) {
+    if (!on || !domeActive()) return;
+    var st = el.querySelector ? el.querySelector("strong") : null;
+    var label = st ? (st.textContent || "") : "";
+    if (!label) return;
+    if (firedCards && firedCards.get(el) === label) return;
+    if (firedCards) firedCards.set(el, label);
+    var member = memberFromLabel(label);
+    triggerCall({
+      label: label, member: member,
+      colorHex: member ? null : kindColorHex(el),
+      intensity: 1.15, durationMs: 640
+    });
+  }
+  function scanCards(node) {
+    if (!node || node.nodeType !== 1) return;
+    if (node.classList && (node.classList.contains("p2c") || node.classList.contains("p2bub"))) {
+      maybeFireCard(node);
+    }
+    if (node.querySelectorAll) {
+      var q = node.querySelectorAll(".p2c, .p2bub");
+      for (var i = 0; i < q.length; i++) maybeFireCard(q[i]);
+    }
+  }
+  var cardObs = new MutationObserver(function (recs) {
+    for (var i = 0; i < recs.length; i++) {
+      var r = recs[i];
+      if (r.type === "childList") {
+        for (var j = 0; j < r.addedNodes.length; j++) scanCards(r.addedNodes[j]);
+      } else if (r.type === "attributes" && r.target && r.target.classList &&
+                 r.target.classList.contains("p2c")) {
+        if (r.target.classList.contains("pp0")) maybeFireCard(r.target);
+        else if (firedCards) firedCards.delete(r.target); // 前面を離れたら再武装
+      }
+    }
+  });
+  cardObs.observe(mv, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+
+  /* ---------- 映像（#yt）をドームのスクリーン枠へ射影変換で貼る ---------- */
+  var SLOT_W = 392, SLOT_H = 221;
+  // スクリーン枠の4隅（three 座標、正面 Z=-500。v5 の .youtube-slot と同じ置き方）
+  var SLOT_CORNERS = [[-196, 115], [196, 115], [-196, -106], [196, -106]]; // TL TR BL BR
+  function solveHomography(src, dst) {
+    var A = [], b = [], i, j, k;
+    for (i = 0; i < 4; i++) {
+      var x = src[i][0], y = src[i][1], X = dst[i][0], Y = dst[i][1];
+      A.push([x, y, 1, 0, 0, 0, -x * X, -y * X]); b.push(X);
+      A.push([0, 0, 0, x, y, 1, -x * Y, -y * Y]); b.push(Y);
+    }
+    for (i = 0; i < 8; i++) {
+      var piv = i;
+      for (j = i + 1; j < 8; j++) if (Math.abs(A[j][i]) > Math.abs(A[piv][i])) piv = j;
+      if (Math.abs(A[piv][i]) < 1e-10) return null;
+      if (piv !== i) {
+        var ta = A[i]; A[i] = A[piv]; A[piv] = ta;
+        var tb = b[i]; b[i] = b[piv]; b[piv] = tb;
+      }
+      for (j = i + 1; j < 8; j++) {
+        var f = A[j][i] / A[i][i];
+        if (!f) continue;
+        for (k = i; k < 8; k++) A[j][k] -= f * A[i][k];
+        b[j] -= f * b[i];
+      }
+    }
+    var out = [0, 0, 0, 0, 0, 0, 0, 0];
+    for (i = 7; i >= 0; i--) {
+      var sum = b[i];
+      for (j = i + 1; j < 8; j++) sum -= A[i][j] * out[j];
+      out[i] = sum / A[i][i];
+    }
+    return out; // [a,b,c,d,e,f,g,h]
+  }
+  var SLOT_SRC = [[0, 0], [SLOT_W, 0], [0, SLOT_H], [SLOT_W, SLOT_H]];
+  function syncVideoSlot() {
+    var yEl = claimYt();
+    if (!yEl || !D) return;
+    var w = mv.clientWidth, h = mv.clientHeight;
+    var dst = [];
+    for (var i = 0; i < 4; i++) {
+      D.tmpV.set(SLOT_CORNERS[i][0], SLOT_CORNERS[i][1], -500);
+      var viewZ = D.tmpV.clone().applyMatrix4(D.camera.matrixWorldInverse).z;
+      if (viewZ > -60) { // 枠が視界の外（真横など）なら映像は画面外へ逃がす
+        yEl.style.transform = "translate(-3000px,-3000px)";
+        return;
+      }
+      D.tmpV.project(D.camera);
+      dst.push([(D.tmpV.x + 1) / 2 * w, (1 - D.tmpV.y) / 2 * h]);
+    }
+    var H = solveHomography(SLOT_SRC, dst);
+    if (!H) return;
+    yEl.style.setProperty("left", "0px", "important");
+    yEl.style.setProperty("top", "0px", "important");
+    yEl.style.setProperty("width", SLOT_W + "px", "important");
+    yEl.style.setProperty("height", SLOT_H + "px", "important");
+    yEl.style.setProperty("right", "auto", "important");
+    yEl.style.setProperty("bottom", "auto", "important");
+    yEl.style.transformOrigin = "0 0";
+    yEl.style.transform = "matrix3d(" +
+      [H[0], H[3], 0, H[6], H[1], H[4], 0, H[7], 0, 0, 1, 0, H[2], H[5], 0, 1].join(",") + ")";
+  }
+
+  /* ---------- ドームの毎フレーム描画（loop() から呼ばれる） ---------- */
+  function domeFrame() {
+    if (!D) return;
+    var w = mv.clientWidth, h = mv.clientHeight;
+    if (!w || !h) return;
+    if (w !== D.lastW || h !== D.lastH) domeResize();
+    var fov = h > w ? 96 : 78; // v5 と同じ: 縦画面は広角96°、横画面は78°
+    if (D.camera.fov !== fov) { D.camera.fov = fov; D.camera.updateProjectionMatrix(); }
+    D.tmpEuler.set(currentP * DOME_DEG, -current * DOME_DEG, 0);
+    D.camera.quaternion.setFromEuler(D.tmpEuler);
+    D.camera.updateMatrixWorld();
+
+    var nowMs = performance.now();
+    var nowSec = nowMs * 0.001;
+    while (activeCalls.length > 0 && (nowMs - activeCalls[0].startMs) > activeCalls[0].durationMs + 150) {
+      activeCalls.shift();
+    }
+    var i, p, env;
+    for (i = 0; i < D.penlightNodes.length; i++) {
+      p = D.penlightNodes[i];
+      env = callEnvelope(nowMs, p.delayMs);
+      var swayX = Math.sin(nowSec * 3.0 + p.phase) * 9;
+      var bobY = Math.abs(Math.sin(nowSec * 3.0 + p.phase)) * 8 + env.energy * 48;
+      p.sprite.position.set(p.baseX + swayX, p.baseY + bobY, p.baseZ);
+      var sc = p.baseScale * (1 + env.energy * 0.45);
+      p.sprite.scale.set(sc, sc * 1.45, 1);
+      if (env.color) {
+        D.tmpColor.copy(p.baseColor).lerp(env.color, Math.min(1, env.energy * 0.9));
+        p.sprite.material.color.copy(D.tmpColor);
+      } else {
+        p.sprite.material.color.copy(p.baseColor);
+      }
+      p.sprite.material.opacity = Math.min(0.95, 0.52 + env.energy * 0.42);
+    }
+    var g = callEnvelope(nowMs, 0);
+    for (i = 0; i < D.beamMeshes.length; i++) {
+      var bm = D.beamMeshes[i];
+      bm.mesh.rotation.z = bm.baseRotZ + Math.sin(nowSec * bm.speed + bm.phase) * 0.22;
+      bm.mesh.material.opacity = Math.min(0.24, 0.08 + g.energy * 0.12);
+      if (g.color) {
+        D.tmpColor.copy(bm.baseColor).lerp(g.color, Math.min(1, g.energy * 0.85));
+        bm.mesh.material.color.copy(D.tmpColor);
+      } else {
+        bm.mesh.material.color.copy(bm.baseColor);
+      }
+    }
+
+    syncVideoSlot();
+    D.renderer.render(D.scene, D.camera);
+  }
+
   /* ---------- 会場モードの入/切 ---------- */
   function enter() {
     if (on) return;
@@ -807,6 +1285,7 @@
     dragX = 0; dragP = 0;
     setVenue(venueIdx);
     apply();
+    ensureDome();
     if (rafId === null) rafId = requestAnimationFrame(loop);
   }
   function exit() {
@@ -815,6 +1294,8 @@
     fsExit();
     gyroOff();
     mv.classList.remove("vn");
+    mv.classList.remove("vn-dome");
+    domeOn = false;
     toggleBtn.classList.remove("on");
     toggleBtn.setAttribute("aria-pressed", "false");
     toggleBtn.textContent = "会場モード";
