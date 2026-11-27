@@ -146,6 +146,25 @@
        ピンチズームには奪われない。
    (3) リセンターでズームも 1.0 に戻る。会場モードを抜けても
        リセットし、次回入場時は等倍から始める。永続化はしない。
+   v11 では「オートモード」を追加した（ジャイロがフラフラして
+   思い通りにならないときの受け皿。自分で首を振る感はなくなる前提）:
+   (1) ドックに「オート」トグルを追加。入場時は OFF、永続化しない。
+   (2) ON の間、視点はプリセットの滑らかなループで動き続ける:
+       左右 ±25°（周期20秒）＋上下 ±4°（周期10秒）のサイン波で、
+       合成経路（target＋ドラッグオフセット）にオート分のオフセット
+       として加えるため、ドーム／平面の両会場で効く。急な動きや
+       ロールは入れない。
+   (3) ON の間、ジャイロ入力は視点に反映しない（センサーイベントは
+       受けても基準の取り直しだけ予約し、オート解除後に跳ねない）。
+       ドラッグで実際に動かし始めたらオートは OFF（人の操作が優先。
+       ピンチの1本目のタッチだけでは切らない）。リセンターでも
+       OFF になり、ズームも従来通りリセットされる。ピンチ拡大とは
+       独立で、オート中でもピンチできる（ピンチでは切れない）。
+   (4) コール反応: オート ON のときだけ、実際のコールカードの出現
+       （maybeFireCard の検知を流用、会場共通）に合わせて視点が
+       +6.5° ほど滑らかに上向き、約2秒かけて戻る。ピーク中は
+       ±0.8°・約1.7Hz のごく小さな揺れを足す（自分も一緒に弾んで
+       いる感じ。酔わない範囲で控えめに）。
 
    v3 の要点（#yt の競合対策）:
    app.js は YouTube IFrame API で new YT.Player("yt", ...) を作る。
@@ -312,14 +331,16 @@
   dock.appendChild(dockRow);
   mv.parentNode.insertBefore(dock, mv.nextSibling);
 
-  // v7: ドックのボタンはアイコン主体の4つだけ（会場切替／傾きで見る／
+  // v7: ドックのボタンはアイコン主体で4つだけ（会場切替／傾きで見る／
   // 正面に戻す／全画面）。会場名は会場切替ボタンの中に小さく併記する。
+  // v11: ここに「オート」トグルを1つ追加し、計5つになった。
   // 「ジャイロ調整」「会場モードを終わる」は廃止（オン/オフはモードバーの
   // トグルで足りる）。ジャイロ許可エラー等の連絡は .vn-note の行に出す。
   var SVG_HEAD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
   var ICO_VENUE = SVG_HEAD + '<path d="M4 21V11l8-6 8 6v10"/><path d="M2.5 21h19"/><path d="M10 21v-5h4v5"/></svg>';
   var ICO_GYRO = SVG_HEAD + '<circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2.3 4.9-4.7 2.1 2.3-4.9z"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>';
   var ICO_CENTER = SVG_HEAD + '<circle cx="12" cy="12" r="6.2"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><path d="M12 2.5v3.8M12 17.7v3.8M2.5 12h3.8M17.7 12h3.8"/></svg>';
+  var ICO_AUTO = SVG_HEAD + '<path d="M20.3 12a8.3 8.3 0 1 1-2.4-5.8"/><path d="M21.2 2.9v4.3h-4.3"/></svg>';
   var ICO_FS = SVG_HEAD + '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
   var ICO_FSB = SVG_HEAD + '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>';
 
@@ -329,6 +350,7 @@
     '<button type="button" class="vn-venue" id="vnVenueBtn" aria-label="会場を切り替える（タップするたびに次の会場へ）">' + ICO_VENUE + '<span class="vn-cap" id="vnVenueName">ライブハウス</span></button>' +
     '<button type="button" id="vnGyroBtn" aria-pressed="false" aria-label="傾きで見る（ジャイロ）">' + ICO_GYRO + '<span class="vn-cap">傾き</span></button>' +
     '<button type="button" id="vnCenterBtn" aria-label="正面に戻す">' + ICO_CENTER + '<span class="vn-cap">正面</span></button>' +
+    '<button type="button" id="vnAutoBtn" aria-pressed="false" aria-label="オート（自動で見回す）">' + ICO_AUTO + '<span class="vn-cap">オート</span></button>' +
     '<button type="button" id="vnFsBtn" aria-pressed="false" aria-label="全画面">' + ICO_FS + '<span class="vn-cap">全画面</span></button>';
   dockRow.appendChild(ui);
 
@@ -396,6 +418,7 @@
   var venueName = document.getElementById("vnVenueName");
   var gyroBtn = document.getElementById("vnGyroBtn");
   var centerBtn = document.getElementById("vnCenterBtn");
+  var autoBtn = document.getElementById("vnAutoBtn");
   var fsBtn = document.getElementById("vnFsBtn");
   function setFsIcon(back) {
     fsBtn.innerHTML = (back ? ICO_FSB : ICO_FS) +
@@ -457,8 +480,58 @@
   // 別に持ち、実際の視点は target＋オフセットで決める。ジャイロ中でも
   // ドラッグが効き、離しても保持される。リセンターで 0 に戻る。
   var dragX = 0, dragP = 0;
-  function viewTarget() { return clamp(target + dragX, -90, 90); }
-  function viewTargetP() { return clamp(targetP + dragP, -35, 35); }
+  /* ---------- オートモード（v11） ----------
+     ON の間、視点へプリセットのループ（サイン波）をオフセットとして
+     加え続ける。合成は viewTarget/viewTargetP の中で行うので、
+     ドーム・平面の両経路にそのまま効く。 */
+  var autoOn = false;
+  var autoStart = 0;     // ON にした時刻（performance.now）
+  var autoCallT0 = -1e9; // 最後にコール反応が始まった時刻
+  var AUTO_X_AMP = 25, AUTO_X_PERIOD = 20;   // 左右: ±25°、20秒周期
+  var AUTO_P_AMP = 4, AUTO_P_PERIOD = 10;    // 上下: ±4°、10秒周期（合成のループは20秒）
+  var AUTO_CALL_PEAK = 6.5;                  // コール反応の上向きピッチ（°）
+  function autoOffsetX(now) {
+    var t = (now - autoStart) / 1000;
+    return AUTO_X_AMP * Math.sin(2 * Math.PI * t / AUTO_X_PERIOD);
+  }
+  // コール反応の包絡: 0.22秒で滑らかに立ち上がり、0.75秒まで保ち、
+  // 約2秒で 0 に戻る
+  function autoCallEnv(now) {
+    var t = (now - autoCallT0) / 1000;
+    if (t < 0 || t > 2.0) return 0;
+    if (t < 0.22) { var u = t / 0.22; return u * u * (3 - 2 * u); }
+    if (t < 0.75) return 1;
+    var v = (t - 0.75) / 1.25;
+    var e = 1 - v * v * (3 - 2 * v);
+    return e < 0 ? 0 : e;
+  }
+  function autoOffsetP(now) {
+    var t = (now - autoStart) / 1000;
+    var base = AUTO_P_AMP * Math.sin(2 * Math.PI * t / AUTO_P_PERIOD + Math.PI / 3);
+    var env = autoCallEnv(now);
+    // コール中はごく小さな揺れ（±0.8°、約1.7Hz）を重ねる
+    var bounce = env > 0
+      ? Math.sin((now - autoCallT0) / 1000 * Math.PI * 2 * 1.7) * 0.8 * env : 0;
+    return base + AUTO_CALL_PEAK * env + bounce;
+  }
+  function setAuto(onOff) {
+    if (autoOn === onOff) return;
+    autoOn = onOff;
+    if (autoOn) autoStart = performance.now();
+    autoBtn.setAttribute("aria-pressed", autoOn ? "true" : "false");
+  }
+  autoBtn.addEventListener("click", function () { setAuto(!autoOn); });
+
+  function viewTarget() {
+    var v = target + dragX;
+    if (autoOn) v += autoOffsetX(performance.now());
+    return clamp(v, -90, 90);
+  }
+  function viewTargetP() {
+    var v = targetP + dragP;
+    if (autoOn) v += autoOffsetP(performance.now());
+    return clamp(v, -35, 35);
+  }
   var VIDEO_MARGIN = 1.03; // 映像を PAINT より一回り大きく置く倍率（v4）
   // ピンチ拡大（v10）: ズーム倍率。ドームでは FOV = 基準FOV / zoom、
   // 平面では世界のスケールに zoom を掛ける。リセンター・終了で 1 に戻る。
@@ -577,6 +650,7 @@
      #mv.vn は touch-action:none なので、ブラウザのピンチズームや
      スクロールにジェスチャを奪われることはない。 */
   var dragging = false, lastX = 0, lastY = 0;
+  var dragStartX = 0, dragStartY = 0; // v11: ドラッグ開始位置（オート解除の判定用）
   var pointers = {}; // pointerId -> {x, y}
   var pinching = false, pinchDist0 = 0, pinchZoom0 = 1;
   function ptrCount() { return Object.keys(pointers).length; }
@@ -601,6 +675,10 @@
       pinchZoom0 = zoom;
     } else {
       dragging = true; lastX = e.clientX; lastY = e.clientY;
+      dragStartX = e.clientX; dragStartY = e.clientY;
+      // v11: オートの解除は「実際にドラッグで動かしたとき」に行う
+      // （pointermove 側）。ピンチの1本目はここを通るが、タッチした
+      // だけでは人の操作とはみなさず、オートは切らない。
     }
   });
   mv.addEventListener("pointermove", function (e) {
@@ -614,6 +692,12 @@
       return;
     }
     if (!dragging) return;
+    // v11: 1本指のまま実際に動かし始めたら人の操作が優先し、
+    // オートを解除する（6px 未満の微動では切らない）
+    if (autoOn && ptrCount() === 1) {
+      var adx = e.clientX - dragStartX, ady = e.clientY - dragStartY;
+      if (adx * adx + ady * ady > 36) setAuto(false);
+    }
     var dx = e.clientX - lastX;
     var dy = e.clientY - lastY;
     lastX = e.clientX; lastY = e.clientY;
@@ -633,6 +717,7 @@
         var k = Object.keys(pointers)[0];
         dragging = true;
         lastX = pointers[k].x; lastY = pointers[k].y;
+        dragStartX = lastX; dragStartY = lastY; // v11: オート解除判定の起点も取り直す
       } else {
         dragging = false;
       }
@@ -686,6 +771,10 @@
   }
   function onOrient(e) {
     if (!gyroOn || !on) return;
+    // v11: オート中はジャイロ入力を視点に反映しない。基準の取り直し
+    // だけ予約しておき、オート解除後の最初のイベントで取り直す
+    // （解除した瞬間に視点が跳ばないようにするため）。
+    if (autoOn) { gyroRecal = true; return; }
     if (e.beta === null || e.beta === undefined ||
         e.gamma === null || e.gamma === undefined) return;
     var angle = screenAngle();
@@ -762,6 +851,7 @@
     target = 0; targetP = 0;
     dragX = 0; dragP = 0;
     zoom = 1; // v10: リセンターでズームも等倍に戻す
+    setAuto(false); // v11: リセンターでオートも止める
     gyroRecal = true;
   });
   window.addEventListener("orientationchange", function () { gyroRecal = true; });
@@ -1190,12 +1280,16 @@
   }
   var firedCards = (typeof WeakMap !== "undefined") ? new WeakMap() : null;
   function maybeFireCard(el) {
-    if (!on || !domeActive()) return;
+    if (!on) return;
     var st = el.querySelector ? el.querySelector("strong") : null;
     var label = st ? (st.textContent || "") : "";
     if (!label) return;
     if (firedCards && firedCards.get(el) === label) return;
     if (firedCards) firedCards.set(el, label);
+    // v11: オートモード中は、コールの出現に合わせて視点も少し上向く
+    // （このコール検知を流用。ドームの有無によらず合図として記録する）
+    if (autoOn) autoCallT0 = performance.now();
+    if (!domeActive()) return;
     var member = memberFromLabel(label);
     triggerCall({
       label: label, member: member,
@@ -1365,6 +1459,7 @@
   function exit() {
     if (!on) return;
     on = false;
+    setAuto(false); // v11: 会場モードを抜けたらオートも止める（入場時は常にOFF）
     // v10: ズームとピンチ状態もリセットする（次回入場時は等倍）
     zoom = 1;
     pinching = false;
