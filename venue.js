@@ -135,6 +135,17 @@
    1584×672）。ドームのテクスチャ合成は v5 の方式そのまま。
    自己完結モジュールで、app.js 本体には触らない（#modebar へトグル
    ボタンを足し、#mv の中に会場レイヤーを作る）。
+   v10 ではピンチ拡大（2本指ピンチでズーム）を追加した:
+   (1) 倍率は 1.0〜2.5 倍。ドームでは基準FOV（縦96°／横78°）を倍率で
+       割って絞り（下限30°でクランプ）、平面会場では世界のスケール
+       （Lw/Lh）に倍率を掛けて同じ操作で効くようにした。
+   (2) 2本目の指が触れたらドラッグ見回しを中断してピンチに切り替え、
+       ピンチが終わって1本指に戻るときは残った指の現在位置で
+       lastX/lastY を取り直し、視点がジャンプしないようにした。
+       #mv.vn はもともと touch-action:none のため、ページ側の
+       ピンチズームには奪われない。
+   (3) リセンターでズームも 1.0 に戻る。会場モードを抜けても
+       リセットし、次回入場時は等倍から始める。永続化はしない。
 
    v3 の要点（#yt の競合対策）:
    app.js は YouTube IFrame API で new YT.Player("yt", ...) を作る。
@@ -449,6 +460,11 @@
   function viewTarget() { return clamp(target + dragX, -90, 90); }
   function viewTargetP() { return clamp(targetP + dragP, -35, 35); }
   var VIDEO_MARGIN = 1.03; // 映像を PAINT より一回り大きく置く倍率（v4）
+  // ピンチ拡大（v10）: ズーム倍率。ドームでは FOV = 基準FOV / zoom、
+  // 平面では世界のスケールに zoom を掛ける。リセンター・終了で 1 に戻る。
+  var zoom = 1;
+  var ZOOM_MAX = 2.5;
+  var FOV_MIN = 30;
 
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function setTarget(v) { target = clamp(v, -90, 90); }
@@ -476,6 +492,10 @@
       Lh = h * 0.98 / PAINT.h;
       Lw = Lh * AR;
     }
+    // v10: ピンチズーム。世界そのものを倍率分だけ大きくする（映像も
+    // 同じ座標系なのでそのまま連動する）。zoom=1 では従来と同一配置。
+    Lw *= zoom;
+    Lh *= zoom;
     var baseX, baseY, maxX = 0, maxY = 0;
     if (Lw > w) {
       baseX = clamp(w / 2 - Lw * paintCx, w - Lw, 0);
@@ -548,17 +568,52 @@
     rafId = requestAnimationFrame(loop);
   }
 
-  /* ドラッグで見回す（ボタンやパネルの上では始めない） */
+  /* ドラッグで見回す（ボタンやパネルの上では始めない）＋
+     2本指ピンチで拡大（v10）。
+     触れているポインタは pointerId ごとに現在位置を持ち、2本に
+     なったらドラッグ見回しを中断してピンチへ切り替える。ピンチが
+     終わって1本に戻るときは、残った指の現在位置で lastX/lastY を
+     取り直してからドラッグを再開する（視点のジャンプ防止）。
+     #mv.vn は touch-action:none なので、ブラウザのピンチズームや
+     スクロールにジェスチャを奪われることはない。 */
   var dragging = false, lastX = 0, lastY = 0;
+  var pointers = {}; // pointerId -> {x, y}
+  var pinching = false, pinchDist0 = 0, pinchZoom0 = 1;
+  function ptrCount() { return Object.keys(pointers).length; }
+  function pinchDist() {
+    var ks = Object.keys(pointers);
+    var a = pointers[ks[0]], b = pointers[ks[1]];
+    var dx = a.x - b.x, dy = a.y - b.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
   mv.addEventListener("pointerdown", function (e) {
     if (!on) return;
     if (e.target && e.target.closest &&
         e.target.closest("button, a, input, select, textarea, #panel, .vn-ui, .vn-dock")) return;
-    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
     try { mv.setPointerCapture(e.pointerId); } catch (err) {}
+    if (ptrCount() >= 2) {
+      // 2本目が触れたらピンチ開始: 見回しを中断し、開始時点の
+      // 指間距離と倍率を基準にする
+      dragging = false;
+      pinching = true;
+      pinchDist0 = pinchDist();
+      pinchZoom0 = zoom;
+    } else {
+      dragging = true; lastX = e.clientX; lastY = e.clientY;
+    }
   });
   mv.addEventListener("pointermove", function (e) {
-    if (!dragging || !on) return;
+    if (!on) return;
+    var pt = pointers[e.pointerId];
+    if (pt) { pt.x = e.clientX; pt.y = e.clientY; }
+    if (pinching) {
+      if (ptrCount() >= 2 && pinchDist0 > 0) {
+        zoom = clamp(pinchZoom0 * pinchDist() / pinchDist0, 1, ZOOM_MAX);
+      }
+      return;
+    }
+    if (!dragging) return;
     var dx = e.clientX - lastX;
     var dy = e.clientY - lastY;
     lastX = e.clientX; lastY = e.clientY;
@@ -568,9 +623,25 @@
     dragX = clamp(dragX - dx * 0.20, -180, 180);
     dragP = clamp(dragP - dy * 0.12, -70, 70);
   });
-  function endDrag() { dragging = false; }
-  mv.addEventListener("pointerup", endDrag);
-  mv.addEventListener("pointercancel", endDrag);
+  function endPointer(e) {
+    if (pointers[e.pointerId]) delete pointers[e.pointerId];
+    if (pinching && ptrCount() < 2) {
+      pinching = false;
+      if (ptrCount() === 1) {
+        // 残った1本でドラッグ見回しへ。現在位置から再開するので
+        // 指の移動量が暴れて視点がジャンプすることはない
+        var k = Object.keys(pointers)[0];
+        dragging = true;
+        lastX = pointers[k].x; lastY = pointers[k].y;
+      } else {
+        dragging = false;
+      }
+    } else if (ptrCount() === 0) {
+      dragging = false;
+    }
+  }
+  mv.addEventListener("pointerup", endPointer);
+  mv.addEventListener("pointercancel", endPointer);
 
   /* ---------- ジャイロ ---------- */
   function wrap180(d) {
@@ -690,6 +761,7 @@
   centerBtn.addEventListener("click", function () {
     target = 0; targetP = 0;
     dragX = 0; dragP = 0;
+    zoom = 1; // v10: リセンターでズームも等倍に戻す
     gyroRecal = true;
   });
   window.addEventListener("orientationchange", function () { gyroRecal = true; });
@@ -1224,7 +1296,8 @@
     var w = mv.clientWidth, h = mv.clientHeight;
     if (!w || !h) return;
     if (w !== D.lastW || h !== D.lastH) domeResize();
-    var fov = h > w ? 96 : 78; // v5 と同じ: 縦画面は広角96°、横画面は78°
+    var baseFov = h > w ? 96 : 78; // v5 と同じ: 縦画面は広角96°、横画面は78°
+    var fov = Math.max(FOV_MIN, baseFov / zoom); // v10: ピンチズームで絞る
     if (D.camera.fov !== fov) { D.camera.fov = fov; D.camera.updateProjectionMatrix(); }
     D.tmpEuler.set(currentP * DOME_DEG, -current * DOME_DEG, 0);
     D.camera.quaternion.setFromEuler(D.tmpEuler);
@@ -1283,6 +1356,7 @@
     toggleBtn.textContent = "会場モード ON";
     target = 0; current = 0; targetP = 0; currentP = 0;
     dragX = 0; dragP = 0;
+    zoom = 1; // v10: 入場時は等倍から始める
     setVenue(venueIdx);
     apply();
     ensureDome();
@@ -1291,6 +1365,11 @@
   function exit() {
     if (!on) return;
     on = false;
+    // v10: ズームとピンチ状態もリセットする（次回入場時は等倍）
+    zoom = 1;
+    pinching = false;
+    pointers = {};
+    dragging = false;
     fsExit();
     gyroOff();
     mv.classList.remove("vn");
