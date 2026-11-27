@@ -307,31 +307,6 @@
       cursor: pointer;
     }
 
-    .call-deck {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 9px;
-    }
-
-    .btn-call {
-      flex: 1 1 22%;
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      border-radius: 10px;
-      padding: 7px 6px;
-      font-size: 11px;
-      font-weight: 700;
-      color: #fff;
-      cursor: pointer;
-      text-align: center;
-      white-space: nowrap;
-    }
-    .btn-call:active { transform: scale(0.94); filter: brightness(1.25); }
-    .btn-call-hype { background: linear-gradient(135deg, #f97316, #ec4899); }
-    .btn-call-pink { background: linear-gradient(135deg, #db2777, #a855f7); }
-    .btn-call-blue { background: linear-gradient(135deg, #0284c7, #4f46e5); }
-    .btn-call-burst { background: linear-gradient(135deg, #10b981, #0ea5e9); }
-
     .panel-body {
       margin-top: 10px;
       padding-top: 10px;
@@ -480,13 +455,6 @@
           <span class="timeline-pill" id="timelineClock">TL 00.0s</span>
           <button class="btn-collapse" id="btnCollapse" type="button">詳細 ▾</button>
         </div>
-      </div>
-
-      <div class="call-deck">
-        <button class="btn-call btn-call-hype" id="btnCallHype" type="button">うりゃおい！</button>
-        <button class="btn-call btn-call-pink" id="btnCallPink" type="button">推し(ピンク)</button>
-        <button class="btn-call btn-call-blue" id="btnCallBlue" type="button">推し(ブルー)</button>
-        <button class="btn-call btn-call-burst" id="btnCallBurst" type="button">連打コール</button>
       </div>
 
       <div class="panel-body collapsed" id="panelBody">
@@ -825,7 +793,16 @@
     let callBannerTimer = null;
     const timelineClockEl = document.getElementById('timelineClock');
 
-    function triggerCall({ label = 'うりゃおい！', colorHex = null, intensity = 1.0, durationMs = 580 } = {}) {
+    // メンバーカラーのプリセット（コールにメンバーが紐づけば、その色で反応する）
+    const MEMBER_COLOR_PRESET = {
+      'かなこ': '#e60012',
+      'しおり': '#ffd400',
+      'れに': '#9333ea',
+      'あーりん': '#ff6fb5'
+    };
+
+    function triggerCall({ label = 'うりゃおい！', colorHex = null, member = null, intensity = 1.0, durationMs = 580 } = {}) {
+      if (!colorHex && member) colorHex = MEMBER_COLOR_PRESET[member] || null;
       const nowMs = performance.now();
       activeCalls.push({
         startMs: nowMs,
@@ -850,8 +827,10 @@
       { time: 1.7,  label: 'おい！',         colorHex: null,      intensity: 1.05, durationMs: 460 },
       { time: 4.1,  label: 'タイガー！',     colorHex: '#facc15', intensity: 0.95, durationMs: 480 },
       { time: 5.0,  label: 'ファイヤー！',   colorHex: '#fb923c', intensity: 1.05, durationMs: 520 },
-      { time: 7.8,  label: '推しコール 💖',  colorHex: '#ff2a85', intensity: 1.20, durationMs: 680 },
-      { time: 10.6, label: '推しコール 💙',  colorHex: '#38bdf8', intensity: 1.20, durationMs: 680 },
+      { time: 7.4,  label: 'かなこ！',     member: 'かなこ',   intensity: 1.20, durationMs: 680 },
+      { time: 8.8,  label: 'しおり！',     member: 'しおり',   intensity: 1.20, durationMs: 680 },
+      { time: 10.2, label: 'れに！',       member: 'れに',     intensity: 1.20, durationMs: 680 },
+      { time: 11.6, label: 'あーりん！',   member: 'あーりん', intensity: 1.20, durationMs: 680 },
       { time: 13.1, label: 'ハイ！',         colorHex: null,      intensity: 0.90, durationMs: 360 },
       { time: 13.6, label: 'ハイ！',         colorHex: null,      intensity: 0.95, durationMs: 360 },
       { time: 14.2, label: 'ハイ！ハイ！',   colorHex: '#34d399', intensity: 1.25, durationMs: 620 }
@@ -877,21 +856,6 @@
       }
       return { energy: Math.min(1.4, sum), color: activeColor };
     }
-
-    document.getElementById('btnCallHype').addEventListener('click', () => {
-      triggerCall({ label: 'うりゃおい！', colorHex: null, intensity: 1.15, durationMs: 560 });
-    });
-    document.getElementById('btnCallPink').addEventListener('click', () => {
-      triggerCall({ label: '推しコール 💖', colorHex: '#ff2a85', intensity: 1.25, durationMs: 680 });
-    });
-    document.getElementById('btnCallBlue').addEventListener('click', () => {
-      triggerCall({ label: '推しコール 💙', colorHex: '#38bdf8', intensity: 1.25, durationMs: 680 });
-    });
-    document.getElementById('btnCallBurst').addEventListener('click', () => {
-      triggerCall({ label: 'ハイ！', colorHex: '#facc15', intensity: 0.95, durationMs: 350 });
-      setTimeout(() => triggerCall({ label: 'ハイ！', colorHex: '#fb923c', intensity: 1.05, durationMs: 350 }), 290);
-      setTimeout(() => triggerCall({ label: 'せーのっ！', colorHex: '#ff2a85', intensity: 1.30, durationMs: 620 }), 610);
-    });
 
     // =========================================================================
     // 3. 4層VR安定化器（Three.js Quaternionベース）
